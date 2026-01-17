@@ -18,12 +18,13 @@ package com.google.cloud.mcp;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
 /**
  * Represents a loaded tool ready to be invoked.
- * Handles parameter binding and authentication token resolution.
+ * Handles parameter binding, authentication token resolution, and input validation.
  */
 public class Tool {
     private final String name;
@@ -92,7 +93,15 @@ public class Tool {
                     });
                 })
                 .toArray(CompletableFuture[]::new)
-        ).thenCompose(v -> client.invokeTool(name, finalArgs, extraHeaders));
+        ).thenCompose(v -> {
+            try {
+                // 3. Validation & Cleanup
+                validateAndSanitizeArgs(finalArgs);
+                return client.invokeTool(name, finalArgs, extraHeaders);
+            } catch (Exception e) {
+                return CompletableFuture.failedFuture(e);
+            }
+        });
     }
 
     private String findParameterForService(String serviceName) {
@@ -103,5 +112,55 @@ public class Tool {
             }
         }
         return null;
+    }
+
+    /**
+     * Validates arguments against the tool definition and removes null values.
+     */
+    private void validateAndSanitizeArgs(Map<String, Object> args) {
+        // Remove nulls first (filtering none values)
+        args.values().removeIf(Objects::isNull);
+
+        if (definition.parameters() == null) return;
+
+        for (ToolDefinition.Parameter param : definition.parameters()) {
+            Object value = args.get(param.name());
+
+            // A. Check Required Parameters
+            if (param.required() && value == null) {
+                throw new IllegalArgumentException(
+                    String.format("Missing required parameter '%s' for tool '%s'.", param.name(), this.name)
+                );
+            }
+
+            // B. Check Parameter Types (only if value is present)
+            if (value != null && param.type() != null) {
+                if (!isTypeMatch(value, param.type())) {
+                    throw new IllegalArgumentException(
+                        String.format("Parameter '%s' expected type '%s' but got '%s'.", 
+                            param.name(), param.type(), value.getClass().getSimpleName())
+                    );
+                }
+            }
+        }
+    }
+
+    private boolean isTypeMatch(Object value, String type) {
+        switch (type.toLowerCase()) {
+            case "string":
+                return value instanceof String;
+            case "integer":
+                return value instanceof Integer || value instanceof Long;
+            case "number":
+                return value instanceof Number; // Covers Integer, Long, Float, Double
+            case "boolean":
+                return value instanceof Boolean;
+            case "array":
+                return value instanceof java.util.List || value.getClass().isArray();
+            case "object":
+                return value instanceof Map;
+            default:
+                return true; 
+        }
     }
 }
