@@ -11,8 +11,8 @@ The official Java Client SDK for the MCP Toolbox.
 This repository contains SDK designed to seamlessly integrate the
 functionalities of the [MCP
 Toolbox](https://github.com/googleapis/genai-toolbox) into your Agentic
-applications. This allow you to load tools defined in Toolbox and use them
-as standard Java applications (Spring Boot, Quarkus, Jakarta EE) or your custom code.. It empowers your AI Agents to "use tools"—querying databases, calling APIs, or managing files—without you writing the boilerplate integration code.
+applications. This allows you to load tools defined in Toolbox and use them
+as standard Java applications (Spring Boot, Quarkus, Jakarta EE) or your custom code. It empowers your AI Agents to "use tools"—querying databases, calling APIs, or managing files—without you writing the boilerplate integration code.
 
 This simplifies the process of incorporating external functionalities (like
 Databases or APIs) managed by Toolbox into your Agentic applications. It is a framework-agnostic way to interact with Toolbox tools.
@@ -326,7 +326,7 @@ Your application needs a way to obtain the required token for the authenticated 
 
 You must provide the SDK with an `AuthTokenGetter` (a function that returns a `CompletableFuture<String>`). This implementation depends on your application's authentication flow (e.g., retrieving a stored token, initiating an OAuth flow).
 
-**Important:** The parameter name used when adding the getter (e.g., `"my_api_token"`) must exactly match the name of the corresponding auth parameter defined in the tool's configuration.
+**Important:** The **Service Name** (or Auth Source) used when adding the getter (e.g., `"salesforce_auth"`) must exactly match the name of the corresponding auth source defined in the tool's configuration.
 
 ```
 import com.google.cloud.mcp.AuthTokenGetter;
@@ -372,7 +372,7 @@ public class AuthExample {
         // 3. Load tool, attach auth, and execute
         client.loadTool("my-tool")
             .thenCompose(tool -> {
-                // "my_auth" must match the name in the tool's authServices config
+                // "my_auth" must match the name in the tool's authSources config
                 tool.addAuthTokenGetter("my_auth", tokenGetter);
                 
                 return tool.execute(Map.of("input", "some input"));
