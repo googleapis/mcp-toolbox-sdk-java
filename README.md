@@ -6,7 +6,7 @@ Logo](https://raw.githubusercontent.com/googleapis/genai-toolbox/main/logo.png)
 [![License: Apache
 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-The official Java client library for the **Model Context Protocol (MCP) Toolbox**.
+The official Java Client SDK for the MCP Toolbox.
 
 This repository contains SDK designed to seamlessly integrate the
 functionalities of the [MCP
