@@ -22,7 +22,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -60,6 +63,59 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
     public CompletableFuture<Map<String, ToolDefinition>> loadToolset(String toolsetName) {
         return CompletableFuture.supplyAsync(this::getAuthorizationHeader)
             .thenCompose(authHeader -> sendGetRequest("/api/toolset/" + toolsetName, authHeader));
+    }
+
+    @Override
+    public CompletableFuture<Map<String, Tool>> loadToolset(
+            String toolsetName,
+            Map<String, Map<String, Object>> paramBinds,
+            Map<String, Map<String, AuthTokenGetter>> authBinds,
+            boolean strict) {
+
+        // 1. Determine which fetch method to use
+        CompletableFuture<Map<String, ToolDefinition>> definitionsFuture = (toolsetName == null
+                || toolsetName.isEmpty())
+                        ? listTools()
+                        : loadToolset(toolsetName);
+
+        return definitionsFuture.thenApply(defs -> {
+            // 2. Strict Mode Validation
+            if (strict) {
+                Set<String> unknownTools = new HashSet<>();
+                if (paramBinds != null)
+                    unknownTools.addAll(paramBinds.keySet());
+                if (authBinds != null)
+                    unknownTools.addAll(authBinds.keySet());
+
+                // Remove all valid tools from the set of keys we are trying to bind to
+                unknownTools.removeAll(defs.keySet());
+
+                if (!unknownTools.isEmpty()) {
+                    throw new IllegalArgumentException(
+                            "Strict mode error: Bindings provided for unknown tools: " + unknownTools);
+                }
+            }
+
+            // 3. Build Tool Objects & Apply Bindings
+            Map<String, Tool> tools = new HashMap<>();
+            for (Map.Entry<String, ToolDefinition> entry : defs.entrySet()) {
+                String toolName = entry.getKey();
+                Tool tool = new Tool(toolName, entry.getValue(), this);
+
+                // Apply Parameter Bindings
+                if (paramBinds != null && paramBinds.containsKey(toolName)) {
+                    paramBinds.get(toolName).forEach(tool::bindParam);
+                }
+
+                // Apply Auth Bindings
+                if (authBinds != null && authBinds.containsKey(toolName)) {
+                    authBinds.get(toolName).forEach(tool::addAuthTokenGetter);
+                }
+
+                tools.put(toolName, tool);
+            }
+            return tools;
+        });
     }
 
     private CompletableFuture<Map<String, ToolDefinition>> sendGetRequest(String path, String authHeader) {

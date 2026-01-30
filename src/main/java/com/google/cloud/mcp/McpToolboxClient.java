@@ -44,6 +44,25 @@ public interface McpToolboxClient {
     CompletableFuture<Map<String, ToolDefinition>> loadToolset(String toolsetName);
 
     /**
+     * Loads a toolset (or all tools if toolsetName is null) and applies bindings.
+     * Returns a map of configured Tool objects rather than just definitions.
+     *
+     * @param toolsetName The name of the toolset to load (or null for all).
+     * @param paramBinds  A map of Tool Name -> (Parameter Name -> Value) to
+     *                    pre-bind.
+     * @param authBinds   A map of Tool Name -> (Service Name -> Token Getter) to
+     *                    pre-bind.
+     * @param strict      If true, throws an exception if bindings refer to tools
+     *                    that do not exist in the fetched toolset.
+     * @return A CompletableFuture containing a Map of ready-to-use Tool objects.
+     */
+    CompletableFuture<Map<String, Tool>> loadToolset(
+            String toolsetName,
+            Map<String, Map<String, Object>> paramBinds,
+            Map<String, Map<String, AuthTokenGetter>> authBinds,
+            boolean strict);
+
+    /**
      * Loads a specific tool definition and returns a smart Tool object.
      */
     CompletableFuture<Tool> loadTool(String toolName);
