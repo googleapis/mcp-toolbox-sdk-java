@@ -6,6 +6,9 @@ Logo](https://raw.githubusercontent.com/googleapis/genai-toolbox/main/logo.png)
 [![License: Apache
 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
+> [!IMPORTANT]
+> Feature support in this Java SDK is currently in progress and is not at parity with the other SDKs ([Python](https://github.com/googleapis/mcp-toolbox-sdk-python), [JS/TS](https://github.com/googleapis/mcp-toolbox-sdk-js), and [Go](https://github.com/googleapis/mcp-toolbox-sdk-go)).
+
 The official Java Client SDK for the MCP Toolbox.
 
 This repository contains SDK designed to seamlessly integrate the
