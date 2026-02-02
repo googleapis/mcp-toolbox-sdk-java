@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 # Trigger presubmit tests for trusted contributors
 # https://github.com/googleapis/repo-automation-bots/tree/main/packages/trusted-contribution
 # Install: https://github.com/apps/trusted-contributions-gcf
@@ -20,13 +19,9 @@
 trustedContributors:
   - "dependabot[bot]"
   - "renovate-bot"
-  - "renovate[bot]"
-  - "forking-renovate[bot]"
-  - "release-please[bot]"
 annotations:
   # Trigger Cloud Build tests
   - type: comment
     text: "/gcbrun"
-  # Trigger Kokoro example
-  # - type: label
-  #   text: "kokoro:force-run"
+  - type: label
+    text: "tests: run"
