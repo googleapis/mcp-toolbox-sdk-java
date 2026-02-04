@@ -24,7 +24,7 @@
     <artifactId>mcp-toolbox-sdk-java</artifactId>
     <version>0.1.0</version>
     <name>MCP Toolbox SDK for Java</name>
-    <description>Java client library for the Model Context Protocol (MCP) Toolbox.</description>
+    <description>Java client library for MCP Toolbox.</description>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
