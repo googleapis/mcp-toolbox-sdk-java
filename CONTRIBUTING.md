@@ -24,24 +24,24 @@ Commits](https://www.conventionalcommits.org/) for structuring commit messages.
     cd mcp-toolbox-sdk-java
     ```
    
-3. Maven clean install:
+3. Build the project:
    ```bash
     mvn clean install
     ```
-This would directly generate the package JAR in the local (Developement env's) .m2 directory.
-
-But if you want to generate it in a specific directory:
-   
-4. Create a directory to store the JAR:
+This will generate the package JAR in your local `.m2` repository, making it available for other local Maven projects.
+    
+4. (Optional) Run deploy to a local directory for verification:
    ```bash
-    mkdir -p gcs-repo
+    mvn deploy -DaltDeploymentRepository=local::default::file://$(pwd)/target/staging-deploy
     ```
 
-5. Run deploy using $(pwd) to get the full path:
-   ```bash
-    mvn deploy -DaltDeploymentRepository=gcs-repo::default::file://$(pwd)/gcs-repo
-    ```
-This tells Maven to deploy to a local folder named `gcs-repo` in the correct directory structure.
+## Release Process
+
+This repository uses [Release Please](https://github.com/googleapis/release-please) to automate the release process.
+
+1.  **Pull Requests**: When code is merged into the `main` branch, Release Please analyzes the commit messages (which must follow [Conventional Commits](https://www.conventionalcommits.org/)).
+2.  **Release PR**: Release Please creates or updates a special "Release PR" that updates the `CHANGELOG.md` and bumps the version in `pom.xml`.
+3.  **Release Creation**: When a maintainer approves and merges the Release PR, Release Please tags the commit, creates a GitHub Release, and triggers the publishing workflow (to Maven Central).
 
 Use this package in your test application.
 
