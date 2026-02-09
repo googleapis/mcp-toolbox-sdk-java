@@ -18,10 +18,8 @@ package com.google.cloud.mcp;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Functional interface for retrieving authentication tokens dynamically.
- */
+/** Functional interface for retrieving authentication tokens dynamically. */
 @FunctionalInterface
 public interface AuthTokenGetter {
-    CompletableFuture<String> getToken();
+  CompletableFuture<String> getToken();
 }
