@@ -16,20 +16,17 @@
 
 package com.google.cloud.mcp;
 
-import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record ToolDefinition(
-    String description,
-    List<Parameter> parameters
-) {
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Parameter(
-        String name,
-        String type,
-        boolean required,
-        String description,
-        List<String> authSources // Maps services to parameters
-    ) {}
+public record ToolDefinition(String description, List<Parameter> parameters) {
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record Parameter(
+      String name,
+      String type,
+      boolean required,
+      String description,
+      List<String> authSources // Maps services to parameters
+      ) {}
 }

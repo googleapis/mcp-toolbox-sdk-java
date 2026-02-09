@@ -16,18 +16,13 @@
 
 package com.google.cloud.mcp;
 
-import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ToolResult(
-    @JsonProperty("content") List<Content> content,
-    @JsonProperty("isError") boolean isError 
-) {
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Content(
-        @JsonProperty("type") String type, 
-        @JsonProperty("text") String text
-    ) {}
+    @JsonProperty("content") List<Content> content, @JsonProperty("isError") boolean isError) {
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record Content(@JsonProperty("type") String type, @JsonProperty("text") String text) {}
 }
