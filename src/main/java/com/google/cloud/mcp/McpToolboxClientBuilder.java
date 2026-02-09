@@ -17,30 +17,30 @@
 package com.google.cloud.mcp;
 
 public class McpToolboxClientBuilder implements McpToolboxClient.Builder {
-    private String baseUrl;
-    private String apiKey;
+  private String baseUrl;
+  private String apiKey;
 
-    @Override
-    public McpToolboxClient.Builder baseUrl(String baseUrl) {
-        this.baseUrl = baseUrl;
-        return this;
-    }
+  @Override
+  public McpToolboxClient.Builder baseUrl(String baseUrl) {
+    this.baseUrl = baseUrl;
+    return this;
+  }
 
-    @Override
-    public McpToolboxClient.Builder apiKey(String apiKey) {
-        this.apiKey = apiKey;
-        return this;
-    }
+  @Override
+  public McpToolboxClient.Builder apiKey(String apiKey) {
+    this.apiKey = apiKey;
+    return this;
+  }
 
-    @Override
-    public McpToolboxClient build() {
-        if (baseUrl == null || baseUrl.isEmpty()) {
-            throw new IllegalArgumentException("Base URL must be provided");
-        }
-        // Normalize URL: remove trailing slash if present
-        if (baseUrl.endsWith("/")) {
-            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
-        }
-        return new HttpMcpToolboxClient(baseUrl, apiKey);
+  @Override
+  public McpToolboxClient build() {
+    if (baseUrl == null || baseUrl.isEmpty()) {
+      throw new IllegalArgumentException("Base URL must be provided");
     }
+    // Normalize URL: remove trailing slash if present
+    if (baseUrl.endsWith("/")) {
+      baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+    }
+    return new HttpMcpToolboxClient(baseUrl, apiKey);
+  }
 }
