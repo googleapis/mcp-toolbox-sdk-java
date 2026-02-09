@@ -104,7 +104,7 @@ public class ToolboxE2ESetup implements BeforeAllCallback, AfterAllCallback {
       serverProcess.destroy();
       try {
         if (!serverProcess.waitFor(5, TimeUnit.SECONDS)) {
-          serverProcess.destroyForced();
+          serverProcess.destroy();
         }
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
