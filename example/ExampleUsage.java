@@ -44,7 +44,7 @@ public class ExampleUsage {
         // FOR PRODUCTION (Cloud Run): Comment out the 'keyPath' logic and use ADC directly.
         // --------------------------------------------------------------------------------
 
-        // String keyPath = "/YOUR_CREDENTIALS_JSON_FILE_PATH.json";
+        String keyPath = "YOUR_CREDENTIALS_JSON_FILE_PATH.json";
 
         System.out.println("--- Starting MCP Toolbox Integration Test ---");
         System.out.println("Target Server: " + targetUrl);
