@@ -36,20 +36,26 @@
         <jackson.version>2.15.2</jackson.version>
         <google.auth.version>1.23.0</google.auth.version>
     </properties>
+        <jackson.version>2.15.2</jackson.version>
+        <google.auth.version>1.23.0</google.auth.version>
+    </properties>
 
     <dependencies>
+        <!-- JSON Processing -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
         </dependency>
 
+        <!-- Google Auth for Cloud Run / ADC -->
         <dependency>
             <groupId>com.google.auth</groupId>
             <artifactId>google-auth-library-oauth2-http</artifactId>
             <version>${google.auth.version}</version>
         </dependency>
 
+        <!-- Testing -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
