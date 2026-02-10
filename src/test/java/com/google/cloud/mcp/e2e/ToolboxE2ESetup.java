@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
@@ -38,6 +39,7 @@ public class ToolboxE2ESetup implements BeforeAllCallback, AfterAllCallback {
   private static final Logger logger = Logger.getLogger(ToolboxE2ESetup.class.getName());
   private static final String PROJECT_ID_ENV = "GOOGLE_CLOUD_PROJECT";
   private static final String TOOLBOX_VERSION_ENV = "TOOLBOX_VERSION";
+  private static final String TOOLBOX_MANIFEST_VERSION_ENV = "TOOLBOX_MANIFEST_VERSION";
   private static final String BINARY_NAME = "toolbox";
 
   private Process serverProcess;
@@ -49,12 +51,13 @@ public class ToolboxE2ESetup implements BeforeAllCallback, AfterAllCallback {
   public void beforeAll(ExtensionContext context) throws Exception {
     String projectId = getEnvVar(PROJECT_ID_ENV);
     String toolboxVersion = getEnvVar(TOOLBOX_VERSION_ENV);
+    String manifestVersion = getEnvVar(TOOLBOX_MANIFEST_VERSION_ENV);
 
     //  Download Toolbox Binary
     downloadToolboxBinary(toolboxVersion);
 
     // Fetch Tools Manifest from Secret Manager
-    String manifestContent = accessSecretVersion(projectId, "sdk_testing_tools", "latest");
+    String manifestContent = accessSecretVersion(projectId, "sdk_testing_tools", manifestVersion);
     toolsManifestPath = Files.createTempFile("tools_manifest", ".yaml");
     Files.writeString(toolsManifestPath, manifestContent);
 
