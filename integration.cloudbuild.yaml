@@ -16,7 +16,7 @@ steps:
   - id: Install library requirements
     name: 'maven:3.9.6-eclipse-temurin-17'
     entrypoint: 'mvn'
-    args: ['clean', 'install']
+    args: ['clean', 'install', '-DskipTests']
   - id: Run integration tests
     name: 'maven:3.9.6-eclipse-temurin-17'
     entrypoint: 'mvn'
