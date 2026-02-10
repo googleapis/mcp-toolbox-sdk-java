@@ -19,35 +19,29 @@ package com.google.cloud.mcp;
 import java.util.Map;
 
 /**
- * Synchronous client for interacting with a Toolbox service.
- * A wrapper around {@link McpToolboxClient} that blocks on operations.
+ * Synchronous client for interacting with a Toolbox service. A wrapper around {@link
+ * McpToolboxClient} that blocks on operations.
  */
 public class SyncMcpToolboxClient {
 
-    private final McpToolboxClient asyncClient;
+  private final McpToolboxClient asyncClient;
 
-    public SyncMcpToolboxClient(McpToolboxClient asyncClient) {
-        this.asyncClient = asyncClient;
-    }
+  public SyncMcpToolboxClient(McpToolboxClient asyncClient) {
+    this.asyncClient = asyncClient;
+  }
 
-    /**
-     * Blocks and retrieves the list of tools from the server.
-     */
-    public Map<String, ToolDefinition> listTools() {
-        return asyncClient.listTools().join();
-    }
+  /** Blocks and retrieves the list of tools from the server. */
+  public Map<String, ToolDefinition> listTools() {
+    return asyncClient.listTools().join();
+  }
 
-    /**
-     * Blocks and loads a tool definition.
-     */
-    public Tool loadTool(String toolName) {
-        return asyncClient.loadTool(toolName).join();
-    }
+  /** Blocks and loads a tool definition. */
+  public Tool loadTool(String toolName) {
+    return asyncClient.loadTool(toolName).join();
+  }
 
-    /**
-     * Blocks and invokes a tool.
-     */
-    public ToolResult invokeTool(String toolName, Map<String, Object> arguments) {
-        return asyncClient.invokeTool(toolName, arguments).join();
-    }
+  /** Blocks and invokes a tool. */
+  public ToolResult invokeTool(String toolName, Map<String, Object> arguments) {
+    return asyncClient.invokeTool(toolName, arguments).join();
+  }
 }

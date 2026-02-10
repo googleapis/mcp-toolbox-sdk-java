@@ -21,32 +21,30 @@ import dev.langchain4j.service.tool.ToolExecutor;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Adapter for LangChain4j Tools.
- */
+/** Adapter for LangChain4j Tools. */
 public class LangChain4jTool {
 
-    private final Tool tool;
+  private final Tool tool;
 
-    public LangChain4jTool(Tool tool) {
-        this.tool = tool;
-    }
+  public LangChain4jTool(Tool tool) {
+    this.tool = tool;
+  }
 
-    public ToolSpecification specification() {
-        return ToolSpecification.builder()
-                .name(tool.name())
-                .description(tool.definition().description())
-                // In a real implementation, we would map parameters here.
-                // For now, we assume dynamic arguments.
-                .build();
-    }
+  public ToolSpecification specification() {
+    return ToolSpecification.builder()
+        .name(tool.name())
+        .description(tool.definition().description())
+        // In a real implementation, we would map parameters here.
+        // For now, we assume dynamic arguments.
+        .build();
+  }
 
-    public ToolExecutor executor() {
-        return (arguments, memoryId) -> {
-            ToolResult result = tool.execute(arguments).join();
-            return result.content().stream()
-                    .map(ToolResult.Content::text)
-                    .collect(Collectors.joining("\n"));
-        };
-    }
+  public ToolExecutor executor() {
+    return (arguments, memoryId) -> {
+      ToolResult result = tool.execute(arguments).join();
+      return result.content().stream()
+          .map(ToolResult.Content::text)
+          .collect(Collectors.joining("\n"));
+    };
+  }
 }
