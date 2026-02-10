@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>McpToolboxClient.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">MCP Toolbox SDK for Java</a> &gt; <a href="index.source.html" class="el_package">com.google.cloud.mcp</a> &gt; <span class="el_source">McpToolboxClient.java</span></div><h1>McpToolboxClient.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.cloud.mcp;
+
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
+/** The core client for interacting with an MCP Toolbox Server. */
+public interface McpToolboxClient {
+
+  /**
+   * Connects to the MCP Server and retrieves the list of all available tools.
+   *
+   * @return A CompletableFuture containing the map of Tool definitions (Key: Tool Name).
+   */
+  CompletableFuture&lt;Map&lt;String, ToolDefinition&gt;&gt; listTools();
+
+  /**
+   * Loads the toolset (all available tools) from the MCP Server. Alias for {@link #listTools()}.
+   */
+  default CompletableFuture&lt;Map&lt;String, ToolDefinition&gt;&gt; loadToolset() {
+<span class="nc" id="L36">    return listTools();</span>
+  }
+
+  /** Loads a specific toolset by name (if supported by server). */
+  CompletableFuture&lt;Map&lt;String, ToolDefinition&gt;&gt; loadToolset(String toolsetName);
+
+  /**
+   * Loads a toolset (or all tools if toolsetName is null) and applies bindings. Returns a map of
+   * configured Tool objects rather than just definitions.
+   *
+   * @param toolsetName The name of the toolset to load (or null for all).
+   * @param paramBinds A map of Tool Name -&gt; (Parameter Name -&gt; Value) to pre-bind.
+   * @param authBinds A map of Tool Name -&gt; (Service Name -&gt; Token Getter) to pre-bind.
+   * @param strict If true, throws an exception if bindings refer to tools that do not exist in the
+   *     fetched toolset.
+   * @return A CompletableFuture containing a Map of ready-to-use Tool objects.
+   */
+  CompletableFuture&lt;Map&lt;String, Tool&gt;&gt; loadToolset(
+      String toolsetName,
+      Map&lt;String, Map&lt;String, Object&gt;&gt; paramBinds,
+      Map&lt;String, Map&lt;String, AuthTokenGetter&gt;&gt; authBinds,
+      boolean strict);
+
+  /** Loads a specific tool definition and returns a smart Tool object. */
+  CompletableFuture&lt;Tool&gt; loadTool(String toolName);
+
+  /**
+   * Loads a specific tool and registers authentication getters immediately.
+   *
+   * @param toolName The name of the tool.
+   * @param authTokenGetters A map of Service Name -&gt; Token Getter Function.
+   */
+  CompletableFuture&lt;Tool&gt; loadTool(String toolName, Map&lt;String, AuthTokenGetter&gt; authTokenGetters);
+
+  /** Low-level invocation method. */
+  CompletableFuture&lt;ToolResult&gt; invokeTool(String toolName, Map&lt;String, Object&gt; arguments);
+
+  /** Low-level invocation method with explicit headers. */
+  CompletableFuture&lt;ToolResult&gt; invokeTool(
+      String toolName, Map&lt;String, Object&gt; arguments, Map&lt;String, String&gt; extraHeaders);
+
+  /** Returns a synchronous version of this client. */
+  default SyncMcpToolboxClient sync() {
+<span class="nc" id="L79">    return new SyncMcpToolboxClient(this);</span>
+  }
+
+  /** Builder pattern for creating client instances. */
+  static Builder builder() {
+<span class="nc" id="L84">    return new McpToolboxClientBuilder();</span>
+  }
+
+  interface Builder {
+    Builder baseUrl(String baseUrl);
+
+    Builder apiKey(String apiKey);
+
+    McpToolboxClient build();
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

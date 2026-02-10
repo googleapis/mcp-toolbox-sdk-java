@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Tool.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">MCP Toolbox SDK for Java</a> &gt; <a href="index.source.html" class="el_package">com.google.cloud.mcp</a> &gt; <span class="el_source">Tool.java</span></div><h1>Tool.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.cloud.mcp;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
+
+/**
+ * Represents a loaded tool ready to be invoked. Handles parameter binding, authentication token
+ * resolution, and input validation.
+ */
+public class Tool {
+  private final String name;
+  private final ToolDefinition definition;
+  private final McpToolboxClient client;
+
+<span class="nc" id="L34">  private final Map&lt;String, Object&gt; boundParameters = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L35">  private final Map&lt;String, AuthTokenGetter&gt; authGetters = new HashMap&lt;&gt;();</span>
+
+<span class="nc" id="L37">  public Tool(String name, ToolDefinition definition, McpToolboxClient client) {</span>
+<span class="nc" id="L38">    this.name = name;</span>
+<span class="nc" id="L39">    this.definition = definition;</span>
+<span class="nc" id="L40">    this.client = client;</span>
+<span class="nc" id="L41">  }</span>
+
+  public String name() {
+<span class="nc" id="L44">    return name;</span>
+  }
+
+  public ToolDefinition definition() {
+<span class="nc" id="L48">    return definition;</span>
+  }
+
+  public Tool bindParam(String key, Object value) {
+<span class="nc" id="L52">    this.boundParameters.put(key, value);</span>
+<span class="nc" id="L53">    return this;</span>
+  }
+
+  public Tool bindParam(String key, Supplier&lt;Object&gt; valueSupplier) {
+<span class="nc" id="L57">    this.boundParameters.put(key, valueSupplier);</span>
+<span class="nc" id="L58">    return this;</span>
+  }
+
+  public Tool addAuthTokenGetter(String serviceName, AuthTokenGetter getter) {
+<span class="nc" id="L62">    this.authGetters.put(serviceName, getter);</span>
+<span class="nc" id="L63">    return this;</span>
+  }
+
+  public CompletableFuture&lt;ToolResult&gt; execute(Map&lt;String, Object&gt; args) {
+<span class="nc" id="L67">    Map&lt;String, Object&gt; finalArgs = new HashMap&lt;&gt;(args);</span>
+<span class="nc" id="L68">    Map&lt;String, String&gt; extraHeaders = new HashMap&lt;&gt;();</span>
+
+    // 1. Apply Bound Parameters
+<span class="nc bnc" id="L71" title="All 2 branches missed.">    for (Map.Entry&lt;String, Object&gt; entry : boundParameters.entrySet()) {</span>
+<span class="nc" id="L72">      Object val = entry.getValue();</span>
+<span class="nc bnc" id="L73" title="All 2 branches missed.">      if (val instanceof Supplier) {</span>
+<span class="nc" id="L74">        finalArgs.put(entry.getKey(), ((Supplier&lt;?&gt;) val).get());</span>
+      } else {
+<span class="nc" id="L76">        finalArgs.put(entry.getKey(), val);</span>
+      }
+<span class="nc" id="L78">    }</span>
+
+    // 2. Resolve Auth Tokens
+<span class="nc" id="L81">    return CompletableFuture.allOf(</span>
+<span class="nc" id="L82">            authGetters.entrySet().stream()</span>
+<span class="nc" id="L83">                .map(</span>
+                    entry -&gt; {
+<span class="nc" id="L85">                      String serviceName = entry.getKey();</span>
+<span class="nc" id="L86">                      return entry</span>
+<span class="nc" id="L87">                          .getValue()</span>
+<span class="nc" id="L88">                          .getToken()</span>
+<span class="nc" id="L89">                          .thenAccept(</span>
+                              token -&gt; {
+                                // A. Check if mapped to a Parameter (Authenticated Parameters)
+<span class="nc" id="L92">                                String paramName = findParameterForService(serviceName);</span>
+<span class="nc bnc" id="L93" title="All 2 branches missed.">                                if (paramName != null) {</span>
+<span class="nc" id="L94">                                  finalArgs.put(paramName, token);</span>
+                                }
+
+                                // B. Always add to Headers to support Authorized Invocation
+                                // 1. Standard OIDC Header (Cloud Run)
+<span class="nc" id="L99">                                extraHeaders.put(&quot;Authorization&quot;, &quot;Bearer &quot; + token);</span>
+
+                                // 2. SDK Convention Header (Framework Compatibility)
+<span class="nc" id="L102">                                extraHeaders.put(serviceName + &quot;_token&quot;, token);</span>
+<span class="nc" id="L103">                              });</span>
+                    })
+<span class="nc" id="L105">                .toArray(CompletableFuture[]::new))</span>
+<span class="nc" id="L106">        .thenCompose(</span>
+            v -&gt; {
+              try {
+                // 3. Validation &amp; Cleanup
+<span class="nc" id="L110">                validateAndSanitizeArgs(finalArgs);</span>
+<span class="nc" id="L111">                return client.invokeTool(name, finalArgs, extraHeaders);</span>
+<span class="nc" id="L112">              } catch (Exception e) {</span>
+<span class="nc" id="L113">                return CompletableFuture.failedFuture(e);</span>
+              }
+            });
+  }
+
+  private String findParameterForService(String serviceName) {
+<span class="nc bnc" id="L119" title="All 2 branches missed.">    if (definition.parameters() == null) return null;</span>
+<span class="nc bnc" id="L120" title="All 2 branches missed.">    for (ToolDefinition.Parameter param : definition.parameters()) {</span>
+<span class="nc bnc" id="L121" title="All 4 branches missed.">      if (param.authSources() != null &amp;&amp; param.authSources().contains(serviceName)) {</span>
+<span class="nc" id="L122">        return param.name();</span>
+      }
+<span class="nc" id="L124">    }</span>
+<span class="nc" id="L125">    return null;</span>
+  }
+
+  /** Validates arguments against the tool definition and removes null values. */
+  private void validateAndSanitizeArgs(Map&lt;String, Object&gt; args) {
+    // Remove nulls first (filtering none values)
+<span class="nc" id="L131">    args.values().removeIf(Objects::isNull);</span>
+
+<span class="nc bnc" id="L133" title="All 2 branches missed.">    if (definition.parameters() == null) return;</span>
+
+<span class="nc bnc" id="L135" title="All 2 branches missed.">    for (ToolDefinition.Parameter param : definition.parameters()) {</span>
+<span class="nc" id="L136">      Object value = args.get(param.name());</span>
+
+      // A. Check Required Parameters
+<span class="nc bnc" id="L139" title="All 4 branches missed.">      if (param.required() &amp;&amp; value == null) {</span>
+<span class="nc" id="L140">        throw new IllegalArgumentException(</span>
+<span class="nc" id="L141">            String.format(</span>
+<span class="nc" id="L142">                &quot;Missing required parameter '%s' for tool '%s'.&quot;, param.name(), this.name));</span>
+      }
+
+      // B. Check Parameter Types (only if value is present)
+<span class="nc bnc" id="L146" title="All 4 branches missed.">      if (value != null &amp;&amp; param.type() != null) {</span>
+<span class="nc bnc" id="L147" title="All 2 branches missed.">        if (!isTypeMatch(value, param.type())) {</span>
+<span class="nc" id="L148">          throw new IllegalArgumentException(</span>
+<span class="nc" id="L149">              String.format(</span>
+                  &quot;Parameter '%s' expected type '%s' but got '%s'.&quot;,
+<span class="nc" id="L151">                  param.name(), param.type(), value.getClass().getSimpleName()));</span>
+        }
+      }
+<span class="nc" id="L154">    }</span>
+<span class="nc" id="L155">  }</span>
+
+  private boolean isTypeMatch(Object value, String type) {
+<span class="nc bnc" id="L158" title="All 7 branches missed.">    switch (type.toLowerCase()) {</span>
+      case &quot;string&quot;:
+<span class="nc" id="L160">        return value instanceof String;</span>
+      case &quot;integer&quot;:
+<span class="nc bnc" id="L162" title="All 4 branches missed.">        return value instanceof Integer || value instanceof Long;</span>
+      case &quot;number&quot;:
+<span class="nc" id="L164">        return value instanceof Number; // Covers Integer, Long, Float, Double</span>
+      case &quot;boolean&quot;:
+<span class="nc" id="L166">        return value instanceof Boolean;</span>
+      case &quot;array&quot;:
+<span class="nc bnc" id="L168" title="All 4 branches missed.">        return value instanceof java.util.List || value.getClass().isArray();</span>
+      case &quot;object&quot;:
+<span class="nc" id="L170">        return value instanceof Map;</span>
+      default:
+<span class="nc" id="L172">        return true;</span>
+    }
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

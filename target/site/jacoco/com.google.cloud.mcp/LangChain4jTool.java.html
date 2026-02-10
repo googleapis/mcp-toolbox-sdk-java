@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LangChain4jTool.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">MCP Toolbox SDK for Java</a> &gt; <a href="index.source.html" class="el_package">com.google.cloud.mcp</a> &gt; <span class="el_source">LangChain4jTool.java</span></div><h1>LangChain4jTool.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.cloud.mcp;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.langchain4j.agent.tool.ToolExecutionRequest;
+import dev.langchain4j.agent.tool.ToolSpecification;
+import dev.langchain4j.service.tool.ToolExecutor;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+/** Adapter for LangChain4j Tools. */
+public class LangChain4jTool {
+
+<span class="fc" id="L30">  private static final ObjectMapper mapper = new ObjectMapper();</span>
+  private final Tool tool;
+
+<span class="fc" id="L33">  public LangChain4jTool(Tool tool) {</span>
+<span class="fc" id="L34">    this.tool = tool;</span>
+<span class="fc" id="L35">  }</span>
+
+  public ToolSpecification specification() {
+<span class="fc" id="L38">    return ToolSpecification.builder()</span>
+<span class="fc" id="L39">        .name(tool.name())</span>
+<span class="fc" id="L40">        .description(tool.definition().description())</span>
+        // In a real implementation, we would map parameters here.
+        // For now, we assume dynamic arguments.
+<span class="fc" id="L43">        .build();</span>
+  }
+
+  public ToolExecutor executor() {
+<span class="nc" id="L47">    return (request, memoryId) -&gt; {</span>
+      try {
+<span class="nc" id="L49">        Map&lt;String, Object&gt; arguments =</span>
+<span class="nc" id="L50">            mapper.readValue(request.arguments(), new TypeReference&lt;Map&lt;String, Object&gt;&gt;() {});</span>
+<span class="nc" id="L51">        ToolResult result = tool.execute(arguments).join();</span>
+<span class="nc" id="L52">        return result.content().stream()</span>
+<span class="nc" id="L53">            .map(ToolResult.Content::text)</span>
+<span class="nc" id="L54">            .collect(Collectors.joining(&quot;\n&quot;));</span>
+<span class="nc" id="L55">      } catch (Exception e) {</span>
+<span class="nc" id="L56">        throw new RuntimeException(&quot;Failed to execute tool&quot;, e);</span>
+      }
+    };
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

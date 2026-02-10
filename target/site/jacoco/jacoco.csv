@@ -1,0 +1,13 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+MCP Toolbox SDK for Java,com.google.cloud.mcp,ToolDefinition.Parameter,18,0,0,0,1,0,1,0,1,0
+MCP Toolbox SDK for Java,com.google.cloud.mcp,Tool,336,0,43,0,72,0,38,0,14,0
+MCP Toolbox SDK for Java,com.google.cloud.mcp,McpToolboxClientBuilder,49,0,6,0,10,0,7,0,4,0
+MCP Toolbox SDK for Java,com.google.cloud.mcp,LangChain4jTool,37,23,0,0,9,8,2,3,2,3
+MCP Toolbox SDK for Java,com.google.cloud.mcp,ToolResult.Content,9,0,0,0,1,0,1,0,1,0
+MCP Toolbox SDK for Java,com.google.cloud.mcp,HttpMcpToolboxClient.new TypeReference() {...},6,0,0,0,1,0,1,0,1,0
+MCP Toolbox SDK for Java,com.google.cloud.mcp,SyncMcpToolboxClient,27,0,0,0,6,0,4,0,4,0
+MCP Toolbox SDK for Java,com.google.cloud.mcp,ToolDefinition,9,0,0,0,1,0,1,0,1,0
+MCP Toolbox SDK for Java,com.google.cloud.mcp,ToolResult,9,0,0,0,1,0,1,0,1,0
+MCP Toolbox SDK for Java,com.google.cloud.mcp,LangChain4jTool.new TypeReference() {...},6,0,0,0,1,0,1,0,1,0
+MCP Toolbox SDK for Java,com.google.cloud.mcp,HttpMcpToolboxClient,485,0,46,0,97,0,43,0,20,0
+MCP Toolbox SDK for Java,com.google.cloud.mcp,McpToolboxClient,12,0,0,0,3,0,3,0,3,0

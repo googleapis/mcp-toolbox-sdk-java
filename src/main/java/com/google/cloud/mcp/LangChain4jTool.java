@@ -16,6 +16,9 @@
 
 package com.google.cloud.mcp;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.service.tool.ToolExecutor;
 import java.util.Map;
@@ -24,6 +27,7 @@ import java.util.stream.Collectors;
 /** Adapter for LangChain4j Tools. */
 public class LangChain4jTool {
 
+  private static final ObjectMapper mapper = new ObjectMapper();
   private final Tool tool;
 
   public LangChain4jTool(Tool tool) {
@@ -40,11 +44,17 @@ public class LangChain4jTool {
   }
 
   public ToolExecutor executor() {
-    return (arguments, memoryId) -> {
-      ToolResult result = tool.execute(arguments).join();
-      return result.content().stream()
-          .map(ToolResult.Content::text)
-          .collect(Collectors.joining("\n"));
+    return (request, memoryId) -> {
+      try {
+        Map<String, Object> arguments =
+            mapper.readValue(request.arguments(), new TypeReference<Map<String, Object>>() {});
+        ToolResult result = tool.execute(arguments).join();
+        return result.content().stream()
+            .map(ToolResult.Content::text)
+            .collect(Collectors.joining("\n"));
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to execute tool", e);
+      }
     };
   }
 }
