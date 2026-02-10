@@ -74,6 +74,11 @@ public interface McpToolboxClient {
   CompletableFuture<ToolResult> invokeTool(
       String toolName, Map<String, Object> arguments, Map<String, String> extraHeaders);
 
+  /** Returns a synchronous version of this client. */
+  default SyncMcpToolboxClient sync() {
+    return new SyncMcpToolboxClient(this);
+  }
+
   /** Builder pattern for creating client instances. */
   static Builder builder() {
     return new McpToolboxClientBuilder();
