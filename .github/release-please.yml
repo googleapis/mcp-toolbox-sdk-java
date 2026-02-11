@@ -1,6 +1,6 @@
 handleGHRelease: true
 manifest: true
-releaseType: java
+releaseType: java-yoshi
 bumpMinorPreMajor: false
 extraFiles:
   - src/com/google/mcp/toolbox/sdk/version.py
