@@ -1,7 +1,7 @@
 {
   "packages": {
     ".": {
-      "release-type": "java",
+      "release-type": "java-yoshi",
       "package-name": "mcp-toolbox-sdk-java"
     }
   },
