@@ -1,9 +1,0 @@
-/home/DEV/.openclaw/workspace/mcp-toolbox-sdk-java/src/main/java/com/google/cloud/mcp/AuthTokenGetter.java
-/home/DEV/.openclaw/workspace/mcp-toolbox-sdk-java/src/main/java/com/google/cloud/mcp/HttpMcpToolboxClient.java
-/home/DEV/.openclaw/workspace/mcp-toolbox-sdk-java/src/main/java/com/google/cloud/mcp/LangChain4jTool.java
-/home/DEV/.openclaw/workspace/mcp-toolbox-sdk-java/src/main/java/com/google/cloud/mcp/McpToolboxClient.java
-/home/DEV/.openclaw/workspace/mcp-toolbox-sdk-java/src/main/java/com/google/cloud/mcp/McpToolboxClientBuilder.java
-/home/DEV/.openclaw/workspace/mcp-toolbox-sdk-java/src/main/java/com/google/cloud/mcp/SyncMcpToolboxClient.java
-/home/DEV/.openclaw/workspace/mcp-toolbox-sdk-java/src/main/java/com/google/cloud/mcp/Tool.java
-/home/DEV/.openclaw/workspace/mcp-toolbox-sdk-java/src/main/java/com/google/cloud/mcp/ToolDefinition.java
-/home/DEV/.openclaw/workspace/mcp-toolbox-sdk-java/src/main/java/com/google/cloud/mcp/ToolResult.java
