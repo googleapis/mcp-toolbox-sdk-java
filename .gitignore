@@ -50,5 +50,9 @@ crash.*.log
 *.tfvars.json
 
 # Language Specific
+<<<<<<< HEAD
 target/
+=======
+/target
+>>>>>>> 77cfd69 (build: modernize SDK build and fix example project structure (#21))
 

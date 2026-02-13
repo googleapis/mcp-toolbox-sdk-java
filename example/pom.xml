@@ -40,7 +40,11 @@
     <dependency>
         <groupId>com.google.cloud.mcp</groupId>
         <artifactId>mcp-toolbox-sdk-java</artifactId>
+<<<<<<< HEAD
         <version>0.1.0</version><!-- {x-version-update:mcp-toolbox-sdk-java:released} -->
+=======
+        <version>0.0.1</version><!-- {x-version-update:mcp-toolbox-sdk-java:released} -->
+>>>>>>> 77cfd69 (build: modernize SDK build and fix example project structure (#21))
     </dependency>
 
     <dependency>
