@@ -31,10 +31,10 @@
     <description>Java client library for the Model Context Protocol (MCP) Toolbox.</description>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
         <jackson.version>2.15.2</jackson.version>
         <google.auth.version>1.23.0</google.auth.version>
+        <animal.sniffer.skip>true</animal.sniffer.skip>
+        <checkstyle.header.file>java.header</checkstyle.header.file>
     </properties>
 
     <dependencies>
@@ -69,6 +69,13 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <release>17</release>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>com.spotify.fmt</groupId>
                 <artifactId>fmt-maven-plugin</artifactId>
