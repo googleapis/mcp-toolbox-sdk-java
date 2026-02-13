@@ -20,9 +20,21 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
+/**
+ * Represents the result of a tool invocation.
+ *
+ * @param content A list of content items returned by the tool.
+ * @param isError Whether the invocation resulted in an error.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ToolResult(
     @JsonProperty("content") List<Content> content, @JsonProperty("isError") boolean isError) {
+  /**
+   * Represents a single content item in a tool result.
+   *
+   * @param type The type of content (e.g., "text").
+   * @param text The text content.
+   */
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record Content(@JsonProperty("type") String type, @JsonProperty("text") String text) {}
 }

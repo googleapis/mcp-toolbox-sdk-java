@@ -21,5 +21,10 @@ import java.util.concurrent.CompletableFuture;
 /** Functional interface for retrieving authentication tokens dynamically. */
 @FunctionalInterface
 public interface AuthTokenGetter {
+  /**
+   * Retrieves an authentication token.
+   *
+   * @return A CompletableFuture containing the token string.
+   */
   CompletableFuture<String> getToken();
 }

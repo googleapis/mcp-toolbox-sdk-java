@@ -41,6 +41,12 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
   private final HttpClient httpClient;
   private final ObjectMapper objectMapper;
 
+  /**
+   * Constructs a new HttpMcpToolboxClient.
+   *
+   * @param baseUrl The base URL of the MCP Toolbox Server.
+   * @param apiKey The API key for authentication (optional).
+   */
   public HttpMcpToolboxClient(String baseUrl, String apiKey) {
     this.baseUrl = baseUrl;
     this.apiKey = apiKey;
