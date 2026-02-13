@@ -50,5 +50,5 @@ crash.*.log
 *.tfvars.json
 
 # Language Specific
-/target
+target/
 
