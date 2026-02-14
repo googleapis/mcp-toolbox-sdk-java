@@ -26,18 +26,17 @@
 
     <groupId>com.google.cloud.mcp</groupId>
     <artifactId>mcp-toolbox-sdk-java</artifactId>
-    <version>0.0.1</version><!-- {x-version-update:mcp-toolbox-sdk-java:current} -->
+    <version>0.1.1-SNAPSHOT</version><!-- {x-version-update:mcp-toolbox-sdk-java:current} -->
     <name>MCP Toolbox SDK for Java</name>
     <description>Java client library for the Model Context Protocol (MCP) Toolbox.</description>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.release>17</maven.compiler.release>
         <jackson.version>2.15.2</jackson.version>
         <google.auth.version>1.23.0</google.auth.version>
         <langchain4j.version>0.35.0</langchain4j.version>
-        <checkstyle.header.file>java.header</checkstyle.header.file>
         <animal.sniffer.skip>true</animal.sniffer.skip>
+        <checkstyle.header.file>java.header</checkstyle.header.file
     </properties>
 
     <dependencies>

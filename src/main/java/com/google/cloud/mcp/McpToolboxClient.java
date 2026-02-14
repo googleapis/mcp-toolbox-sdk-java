@@ -31,12 +31,19 @@ public interface McpToolboxClient {
 
   /**
    * Loads the toolset (all available tools) from the MCP Server. Alias for {@link #listTools()}.
+   *
+   * @return A CompletableFuture containing the map of Tool definitions (Key: Tool Name).
    */
   default CompletableFuture<Map<String, ToolDefinition>> loadToolset() {
     return listTools();
   }
 
-  /** Loads a specific toolset by name (if supported by server). */
+  /**
+   * Loads a specific toolset by name (if supported by server).
+   *
+   * @param toolsetName The name of the toolset to load.
+   * @return A CompletableFuture containing the map of Tool definitions (Key: Tool Name).
+   */
   CompletableFuture<Map<String, ToolDefinition>> loadToolset(String toolsetName);
 
   /**
@@ -56,7 +63,12 @@ public interface McpToolboxClient {
       Map<String, Map<String, AuthTokenGetter>> authBinds,
       boolean strict);
 
-  /** Loads a specific tool definition and returns a smart Tool object. */
+  /**
+   * Loads a specific tool definition and returns a smart Tool object.
+   *
+   * @param toolName The name of the tool to load.
+   * @return A CompletableFuture containing the Tool object.
+   */
   CompletableFuture<Tool> loadTool(String toolName);
 
   /**
@@ -64,13 +76,27 @@ public interface McpToolboxClient {
    *
    * @param toolName The name of the tool.
    * @param authTokenGetters A map of Service Name -> Token Getter Function.
+   * @return A CompletableFuture containing the Tool object.
    */
   CompletableFuture<Tool> loadTool(String toolName, Map<String, AuthTokenGetter> authTokenGetters);
 
-  /** Low-level invocation method. */
+  /**
+   * Low-level invocation method.
+   *
+   * @param toolName The name of the tool to invoke.
+   * @param arguments The arguments to pass to the tool.
+   * @return A CompletableFuture containing the result of the tool invocation.
+   */
   CompletableFuture<ToolResult> invokeTool(String toolName, Map<String, Object> arguments);
 
-  /** Low-level invocation method with explicit headers. */
+  /**
+   * Low-level invocation method with explicit headers.
+   *
+   * @param toolName The name of the tool to invoke.
+   * @param arguments The arguments to pass to the tool.
+   * @param extraHeaders Additional HTTP headers to include in the request.
+   * @return A CompletableFuture containing the result of the tool invocation.
+   */
   CompletableFuture<ToolResult> invokeTool(
       String toolName, Map<String, Object> arguments, Map<String, String> extraHeaders);
 
@@ -79,16 +105,38 @@ public interface McpToolboxClient {
     return new SyncMcpToolboxClient(this);
   }
 
-  /** Builder pattern for creating client instances. */
+  /**
+   * Builder pattern for creating client instances.
+   *
+   * @return A new Builder instance.
+   */
   static Builder builder() {
     return new McpToolboxClientBuilder();
   }
 
+  /** Builder for creating {@link McpToolboxClient} instances. */
   interface Builder {
+    /**
+     * Sets the base URL of the MCP Toolbox Server.
+     *
+     * @param baseUrl The base URL.
+     * @return The builder instance.
+     */
     Builder baseUrl(String baseUrl);
 
+    /**
+     * Sets the API key for authentication with the MCP Toolbox Server.
+     *
+     * @param apiKey The API key.
+     * @return The builder instance.
+     */
     Builder apiKey(String apiKey);
 
+    /**
+     * Builds and returns a new {@link McpToolboxClient} instance.
+     *
+     * @return The new client instance.
+     */
     McpToolboxClient build();
   }
 }
