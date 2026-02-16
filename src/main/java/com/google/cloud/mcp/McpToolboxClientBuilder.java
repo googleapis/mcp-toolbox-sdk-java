@@ -16,9 +16,13 @@
 
 package com.google.cloud.mcp;
 
+/** Implementation of the {@link McpToolboxClient.Builder} interface. */
 public class McpToolboxClientBuilder implements McpToolboxClient.Builder {
   private String baseUrl;
   private String apiKey;
+
+  /** Constructs a new McpToolboxClientBuilder. */
+  public McpToolboxClientBuilder() {}
 
   @Override
   public McpToolboxClient.Builder baseUrl(String baseUrl) {

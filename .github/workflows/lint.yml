@@ -35,3 +35,5 @@ jobs:
         cache: maven
     - name: Fmt Check
       run: mvn com.spotify.fmt:fmt-maven-plugin:check -B -ntp
+    - name: Javadoc Check
+      run: mvn javadoc:javadoc -B -ntp

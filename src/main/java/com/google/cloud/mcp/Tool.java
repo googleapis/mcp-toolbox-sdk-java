@@ -34,35 +34,80 @@ public class Tool {
   private final Map<String, Object> boundParameters = new HashMap<>();
   private final Map<String, AuthTokenGetter> authGetters = new HashMap<>();
 
+  /**
+   * Constructs a new Tool.
+   *
+   * @param name The name of the tool.
+   * @param definition The definition of the tool.
+   * @param client The client used to invoke the tool.
+   */
   public Tool(String name, ToolDefinition definition, McpToolboxClient client) {
     this.name = name;
     this.definition = definition;
     this.client = client;
   }
 
+  /**
+   * Returns the name of the tool.
+   *
+   * @return The tool name.
+   */
   public String name() {
     return name;
   }
 
+  /**
+   * Returns the definition of the tool.
+   *
+   * @return The tool definition.
+   */
   public ToolDefinition definition() {
     return definition;
   }
 
+  /**
+   * Binds a static value to a parameter.
+   *
+   * @param key The parameter name.
+   * @param value The value to bind.
+   * @return The tool instance.
+   */
   public Tool bindParam(String key, Object value) {
     this.boundParameters.put(key, value);
     return this;
   }
 
+  /**
+   * Binds a dynamic value supplier to a parameter.
+   *
+   * @param key The parameter name.
+   * @param valueSupplier The supplier that provides the value at execution time.
+   * @return The tool instance.
+   */
   public Tool bindParam(String key, Supplier<Object> valueSupplier) {
     this.boundParameters.put(key, valueSupplier);
     return this;
   }
 
+  /**
+   * Registers an authentication token getter for a specific service.
+   *
+   * @param serviceName The name of the service.
+   * @param getter The token getter.
+   * @return The tool instance.
+   */
   public Tool addAuthTokenGetter(String serviceName, AuthTokenGetter getter) {
     this.authGetters.put(serviceName, getter);
     return this;
   }
 
+  /**
+   * Executes the tool with the provided arguments, applying any bound parameters and resolving
+   * authentication tokens.
+   *
+   * @param args The arguments for the tool invocation.
+   * @return A CompletableFuture containing the result of the tool execution.
+   */
   public CompletableFuture<ToolResult> execute(Map<String, Object> args) {
     Map<String, Object> finalArgs = new HashMap<>(args);
     Map<String, String> extraHeaders = new HashMap<>();
