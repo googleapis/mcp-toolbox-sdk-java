@@ -61,6 +61,15 @@ MCP Toolbox service.
    mvn clean compile exec:java -Dexec.mainClass="cloudcode.helloworld.ExampleUsage"
    ```
 
+## Linting and Formatting
+
+This project uses `com.spotify.fmt:fmt-maven-plugin` for formatting.
+
+Format your code using
+```bash
+mvn com.spotify.fmt:fmt-maven-plugin:format
+```
+
 # Contributing to the SDK
 
 We love your input! We want to make contributing to this project as easy and transparent as possible, whether it's:
@@ -87,15 +96,7 @@ before submitting.
 ### Contributor License Agreement
 
 Contributions to this project must be accompanied by a [Contributor License
-Agreement](https://cla.developers.google.com/about) (CLA). You (or your employer) retain the copyright to your
-contribution; this simply gives us permission to use and redistribute your
-contributions as part of the project. Head over to
-<https://cla.developers.google.com/> to see your current agreements on file or
-to sign a new one.
-
-You generally only need to submit a CLA once, so if you've already submitted one
-(even if it was for a different project), you probably don't need to do it
-again.
+Agreement](https://cla.developers.google.com/about) (CLA). Read more [here](./CONTRIBUTING.md)
 
 ### Code Reviews
 
@@ -133,13 +134,11 @@ Great Bug Reports tend to have:
 
 1. We use standard Java naming conventions.
 
-2. Use CompletableFuture for all network operations to maintain the async-first architecture.
+2. Use `CompletableFuture` for all network operations to maintain the async-first architecture.
 
 3. Keep dependencies minimal. Do not add new libraries unless absolutely necessary.
 
 4. Include Javadoc for public interfaces.
 
-## Community Guidelines
+5. For more info, see [Google Java Style Guide](https://google.github.io/styleguide/javaguide.html)
 
-This project follows
-[Google's Open Source Community Guidelines](https://opensource.google/conduct/).
