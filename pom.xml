@@ -46,12 +46,6 @@
             <organization>Google</organization>
             <organizationUrl>https://github.com/orgs/googleapis/teams/senseai-eco</organizationUrl>
         </developer>
-        <developer>
-            <id>toolbox-contributors</id>
-            <name>Toolbox Contributors</name>
-            <organization>Google</organization>
-            <organizationUrl>https://github.com/orgs/googleapis/teams/toolbox-contributors</organizationUrl>
-        </developer>
     </developers>
 
     <scm>
