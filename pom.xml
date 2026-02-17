@@ -49,7 +49,7 @@
     </developers>
 
     <scm>
-        <connection>scm:git:git://github.com/googleapis/mcp-toolbox-sdk-java.git</connection>
+        <connection>scm:git:https://github.com/googleapis/mcp-toolbox-sdk-java.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/googleapis/mcp-toolbox-sdk-java.git</developerConnection>
         <url>https://github.com/googleapis/mcp-toolbox-sdk-java</url>
     </scm>
