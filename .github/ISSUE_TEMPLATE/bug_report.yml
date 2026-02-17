@@ -67,7 +67,7 @@ body:
     id: client
     attributes:
       label: Client
-      description: "How are you connecting to Toolbox?"
+      description: "How are you connecting to MCP Toolbox?"
       value: |
         1. Client: <name and link to the SDK are you using>
         2. Version: <what exact version of the SDK are you using>
