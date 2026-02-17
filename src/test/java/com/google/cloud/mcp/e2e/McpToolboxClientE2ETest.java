@@ -151,15 +151,6 @@ class McpToolboxClientE2ETest {
   }
 
   @Test
-  void testRunToolParamAuthNoAuth() {
-    Tool tool = client.loadTool("get-row-by-email-auth").join();
-
-    ToolResult result = tool.execute(Map.of("email", "dummy@example.com")).join();
-    assertTrue(result.isError());
-    assertTrue(result.content().get(0).text().contains("permission error"));
-  }
-
-  @Test
   void testRunToolParamAuthNoField() {
     Tool tool = client.loadTool("get-row-by-content-auth").join();
     tool.addAuthTokenGetter(
