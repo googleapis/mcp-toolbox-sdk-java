@@ -1,5 +1,5 @@
 /*
- * Copyright 2026Google LLC
+ * Copyright 2026 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,31 +16,35 @@
 
 package com.google.cloud.mcp;
 
+/** Implementation of the {@link McpToolboxClient.Builder} interface. */
 public class McpToolboxClientBuilder implements McpToolboxClient.Builder {
-    private String baseUrl;
-    private String apiKey;
+  private String baseUrl;
+  private String apiKey;
 
-    @Override
-    public McpToolboxClient.Builder baseUrl(String baseUrl) {
-        this.baseUrl = baseUrl;
-        return this;
-    }
+  /** Constructs a new McpToolboxClientBuilder. */
+  public McpToolboxClientBuilder() {}
 
-    @Override
-    public McpToolboxClient.Builder apiKey(String apiKey) {
-        this.apiKey = apiKey;
-        return this;
-    }
+  @Override
+  public McpToolboxClient.Builder baseUrl(String baseUrl) {
+    this.baseUrl = baseUrl;
+    return this;
+  }
 
-    @Override
-    public McpToolboxClient build() {
-        if (baseUrl == null || baseUrl.isEmpty()) {
-            throw new IllegalArgumentException("Base URL must be provided");
-        }
-        // Normalize URL: remove trailing slash if present
-        if (baseUrl.endsWith("/")) {
-            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
-        }
-        return new HttpMcpToolboxClient(baseUrl, apiKey);
+  @Override
+  public McpToolboxClient.Builder apiKey(String apiKey) {
+    this.apiKey = apiKey;
+    return this;
+  }
+
+  @Override
+  public McpToolboxClient build() {
+    if (baseUrl == null || baseUrl.isEmpty()) {
+      throw new IllegalArgumentException("Base URL must be provided");
     }
+    // Normalize URL: remove trailing slash if present
+    if (baseUrl.endsWith("/")) {
+      baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+    }
+    return new HttpMcpToolboxClient(baseUrl, apiKey);
+  }
 }

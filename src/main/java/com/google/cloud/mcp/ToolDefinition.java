@@ -16,20 +16,32 @@
 
 package com.google.cloud.mcp;
 
-import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.util.List;
 
+/**
+ * Represents the definition of a tool, including its description and parameters.
+ *
+ * @param description A description of what the tool does.
+ * @param parameters A list of parameters the tool accepts.
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record ToolDefinition(
-    String description,
-    List<Parameter> parameters
-) {
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Parameter(
-        String name,
-        String type,
-        boolean required,
-        String description,
-        List<String> authSources // Maps services to parameters
-    ) {}
+public record ToolDefinition(String description, List<Parameter> parameters) {
+  /**
+   * Represents a parameter of a tool.
+   *
+   * @param name The name of the parameter.
+   * @param type The type of the parameter (e.g., "string", "number").
+   * @param required Whether the parameter is required.
+   * @param description A description of the parameter.
+   * @param authSources A list of authentication sources for this parameter.
+   */
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record Parameter(
+      String name,
+      String type,
+      boolean required,
+      String description,
+      List<String> authSources // Maps services to parameters
+      ) {}
 }
