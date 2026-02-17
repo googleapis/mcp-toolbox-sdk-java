@@ -28,7 +28,7 @@ branchProtectionRules:
       - "cla/google"
       - "conventionalcommits.org"
       - "header-check"
-    #  - "lint" // disabling lint until all code is checked in
+      - "lint"
     # - Add required status checks like presubmit tests
     requiredApprovingReviewCount: 1
     requiresCodeOwnerReviews: true
