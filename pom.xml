@@ -29,6 +29,30 @@
     <version>0.1.1-SNAPSHOT</version><!-- {x-version-update:mcp-toolbox-sdk-java:current} -->
     <name>MCP Toolbox SDK for Java</name>
     <description>Java client library for the Model Context Protocol (MCP) Toolbox.</description>
+    <url>https://github.com/googleapis/mcp-toolbox-sdk-java</url>
+
+    <licenses>
+        <license>
+            <name>Apache-2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>senseai-eco</id>
+            <name>SenseAI Ecosystems Team</name>
+            <organization>Google</organization>
+            <organizationUrl>https://github.com/orgs/googleapis/teams/senseai-eco</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/googleapis/mcp-toolbox-sdk-java.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/googleapis/mcp-toolbox-sdk-java.git</developerConnection>
+        <url>https://github.com/googleapis/mcp-toolbox-sdk-java</url>
+    </scm>
 
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
@@ -37,6 +61,23 @@
         <animal.sniffer.skip>true</animal.sniffer.skip>
         <checkstyle.header.file>java.header</checkstyle.header.file>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.google.cloud</groupId>
+                <artifactId>libraries-bom</artifactId>
+                <version>26.32.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.google.errorprone</groupId>
+                <artifactId>error_prone_annotations</artifactId>
+                <version>2.21.1</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <!-- JSON Processing -->
@@ -50,7 +91,6 @@
         <dependency>
             <groupId>com.google.auth</groupId>
             <artifactId>google-auth-library-oauth2-http</artifactId>
-            <version>${google.auth.version}</version>
         </dependency>
 
         <!-- Testing -->
@@ -66,6 +106,18 @@
             <version>5.5.0</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-storage</artifactId>
+            <version>2.32.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-secretmanager</artifactId>
+            <version>2.32.0</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -73,7 +125,7 @@
             <plugin>
                 <groupId>com.spotify.fmt</groupId>
                 <artifactId>fmt-maven-plugin</artifactId>
-                <version>2.28</version>
+                <version>2.29</version>
                 <executions>
                     <execution>
                         <goals>
