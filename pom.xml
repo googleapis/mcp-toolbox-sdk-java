@@ -37,6 +37,18 @@
         <animal.sniffer.skip>true</animal.sniffer.skip>
         <checkstyle.header.file>java.header</checkstyle.header.file>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.google.cloud</groupId>
+                <artifactId>libraries-bom</artifactId>
+                <version>26.32.0</version> <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <!-- JSON Processing -->
         <dependency>
