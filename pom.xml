@@ -29,6 +29,30 @@
     <version>0.1.1-SNAPSHOT</version><!-- {x-version-update:mcp-toolbox-sdk-java:current} -->
     <name>MCP Toolbox SDK for Java</name>
     <description>Java client library for the Model Context Protocol (MCP) Toolbox.</description>
+    <url>https://github.com/googleapis/mcp-toolbox-sdk-java</url>
+
+    <licenses>
+        <license>
+            <name>Apache-2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>senseai-eco</id>
+            <name>SenseAI Ecosystems Team</name>
+            <organization>Google</organization>
+            <organizationUrl>https://github.com/orgs/googleapis/teams/senseai-eco</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://github.com/googleapis/mcp-toolbox-sdk-java.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/googleapis/mcp-toolbox-sdk-java.git</developerConnection>
+        <url>https://github.com/googleapis/mcp-toolbox-sdk-java</url>
+    </scm>
 
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
