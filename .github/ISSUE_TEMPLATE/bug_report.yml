@@ -36,7 +36,7 @@ body:
         - label: "I've searched the current open issues"
           required: true
         - label: "I've updated to the latest version of MCP Toolbox"
-        - label: "I've updated to the latest version of the SDK"
+        - label: "I've updated to the latest version of the MCP Toolbox SDK"
 
   - type: input
     id: version
