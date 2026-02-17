@@ -41,7 +41,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Toolbox version
+      label: MCP Toolbox version
       description: |
         What version of Toolbox are you using (`toolbox --version`)? e.g.
         - toolbox version 0.3.0
