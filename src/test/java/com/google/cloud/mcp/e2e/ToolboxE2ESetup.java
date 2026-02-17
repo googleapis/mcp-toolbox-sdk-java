@@ -91,10 +91,7 @@ public class ToolboxE2ESetup implements BeforeAllCallback, AfterAllCallback {
           .idTokenWithAudience(audience, java.util.Collections.emptyList())
           .getTokenValue();
     } else {
-      // Fallback or error. In some envs (like local user creds), ID tokens might not be directly
-      // supported without extra config.
-      // But for this environment (likely mimicking CI/Cloud), it should work or fail.
-      // Creating dummy token if real one fails? No, user wants real E2E.
+      // Creating dummy token if real one fails
       System.err.println("WARNING: Credentials do not support ID Tokens. Auth tests might fail.");
       return "fake-token-for-" + audience;
     }
