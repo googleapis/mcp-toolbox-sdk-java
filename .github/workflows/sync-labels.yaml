@@ -12,22 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+name: Sync Labels
+on:
+  push:
+    branches:
+      - main
 
-# Presubmit test that ensures that source files contain valid license headers
-# https://github.com/googleapis/repo-automation-bots/tree/main/packages/header-checker-lint
-# Install: https://github.com/apps/license-header-lint-gcf
+# Declare default permissions as read only.
+permissions: read-all
 
-allowedCopyrightHolders:
-  - 'Google LLC'
-allowedLicenses:
-  - 'Apache-2.0'
-sourceFileExtensions:
-  - 'yaml'
-  - 'yml'
-  - 'sh'
-  - 'java'
-  - 'html'
-  - 'txt'
-  - 'Dockerfile'
-  - 'tf'
-  - 'proto'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      issues: 'write'
+      pull-requests: 'write'
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: micnncim/action-label-syncer@3abd5ab72fda571e69fffd97bd4e0033dd5f495c # v1.3.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          manifest: .github/labels.yml

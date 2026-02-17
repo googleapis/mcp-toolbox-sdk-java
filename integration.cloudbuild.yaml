@@ -12,22 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-# Presubmit test that ensures that source files contain valid license headers
-# https://github.com/googleapis/repo-automation-bots/tree/main/packages/header-checker-lint
-# Install: https://github.com/apps/license-header-lint-gcf
-
-allowedCopyrightHolders:
-  - 'Google LLC'
-allowedLicenses:
-  - 'Apache-2.0'
-sourceFileExtensions:
-  - 'yaml'
-  - 'yml'
-  - 'sh'
-  - 'java'
-  - 'html'
-  - 'txt'
-  - 'Dockerfile'
-  - 'tf'
-  - 'proto'
+steps:
+  - id: Install library requirements
+    name: 'maven:3.9.6-eclipse-temurin-17'
+    entrypoint: 'mvn'
+    args: ['clean', 'install', '-DskipTests']
+  - id: Run integration tests
+    name: 'maven:3.9.6-eclipse-temurin-17'
+    entrypoint: 'mvn'
+    args: ['test']
+    env:
+      - GOOGLE_CLOUD_PROJECT=$PROJECT_ID
+      - TOOLBOX_VERSION=${_TOOLBOX_VERSION}
+      - TOOLBOX_MANIFEST_VERSION=${_TOOLBOX_MANIFEST_VERSION}
+substitutions:
+  _TOOLBOX_VERSION: '0.26.0'
+  _TOOLBOX_MANIFEST_VERSION: '34'
+options:
+  logging: CLOUD_LOGGING_ONLY
