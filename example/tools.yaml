@@ -1,19 +1,19 @@
 sources:
     alloydb:
         kind: "alloydb-postgres"
-        project: "YOUR_PROJECT"
+        project: ${GCP_PROJECT}
         region: "us-central1"
-        cluster: "YOUR_CLUSTER"
-        instance: "YOUR_INSTANCE"
+        cluster: ${CLUSTER}
+        instance: ${INSTANCE}
         database: "postgres"
         user: "postgres"
-        password: "YOUR_PASSWORD"
+        password: ${PASSWORD}
 
 authServices:
     google_auth:
       kind: google
       # The client ID that issues the tokens (e.g., your Cloud Run service account or OAuth client)
-      clientId: "https://YOUR_CLOUD_RUN_DEPLOYED_TOOLBOX_SERVER-uc.a.run.app"
+      clientId: ${CLOUD_RUN_DEPLOYED_TOOLBOX_SERVER}
 
 tools:
    get-toy-price:
