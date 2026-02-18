@@ -33,7 +33,7 @@
     <dependency>
         <groupId>com.google.cloud.mcp</groupId>
         <artifactId>mcp-toolbox-sdk-java</artifactId>
-        <version>0.1.0</version><!-- {x-version-update:mcp-toolbox-sdk-java:released} -->
+        <version>0.1.1</version><!-- {x-version-update:mcp-toolbox-sdk-java:released} -->
     </dependency>
 
     <dependency>
