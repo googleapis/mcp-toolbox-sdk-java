@@ -21,7 +21,7 @@
       ./toolbox --ui
 
 7. You can then deploy this in Cloud Run to test the application or use the local instance running, while you try the example Java applications.
-In any case remember to change the TOOLBOX ENDPOINT placeholder in the respective files.
+In any case remember to change the `YOUR_TOOLBOX_SERVICE_ENDPOINT` placeholder in the respective files.
 
 If you decide to deploy your toolbox endpoint in cloud run, here's how you can do it:
 [https://googleapis.github.io/genai-toolbox/how-to/deploy_toolbox](url)
