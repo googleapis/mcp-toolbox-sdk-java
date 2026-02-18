@@ -3,7 +3,7 @@
 1. To start with go ahead and create the MCP Toolbox Server for the sameple use case we are looking at.
   
 2. To set up & install **Toolbox Server**, install the latest version from here:
-   [https://github.com/googleapis/genai-toolbox?tab=readme-ov-file#installing-the-server](url)
+   https://github.com/googleapis/genai-toolbox?tab=readme-ov-file#installing-the-server
    
 3. Next, create **tools.yaml**, you can find the one we are using in our example in this repo.
    
