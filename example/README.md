@@ -7,7 +7,10 @@
    
 3. Next, create **tools.yaml**, you can find the one we are using in our example in this repo.
    
-4. Replace the placeholder variables in tools.yaml with values from your instance / environment (Recommedation: Do not hardcode for production applications)
+4. Replace the placeholder variables in `tools.yaml` with values from your instance / environment
+
+> [!TIP]
+> Do not hardcode for production applications.
    
 5. Once it's done, from within the folder where your MCP Toolbox binary & `tools.yaml` are residing, run the following command:
    ```bash
