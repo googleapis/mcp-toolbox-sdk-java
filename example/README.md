@@ -1,6 +1,6 @@
 **These sample Java files allow you to test the features supported in the Java version of the MCP Toolbox SDK. **
 
-1. To start with go ahead and create the Toolbox Server for the sameple use case we are looking at.
+1. To start with go ahead and create the MCP Toolbox Server for the sameple use case we are looking at.
   
 2. To set up & install **Toolbox Server**, install the latest version from here:
    [https://github.com/googleapis/genai-toolbox?tab=readme-ov-file#installing-the-server](url)
