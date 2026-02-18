@@ -29,13 +29,6 @@
     <maven.compiler.source>17</maven.compiler.source>
   </properties>
 
-  <repositories>
-    <repository>
-        <id>gcs-repo</id>
-        <url>https://storage.googleapis.com/mcp-toolbox-java-sdk/maven</url>
-    </repository>
-</repositories>
-
   <dependencies>
     <dependency>
         <groupId>com.google.cloud.mcp</groupId>
