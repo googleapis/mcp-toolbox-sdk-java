@@ -9,7 +9,7 @@
    
 4. Replace the placeholder variables in tools.yaml with values from your instance / environment (Recommedation: Do not hardcode for production applications)
    
-5. Once it's done, from within the folder where your toolbox binary & tools.yaml are residing, run the following command:
+5. Once it's done, from within the folder where your MCP Toolbox binary & `tools.yaml` are residing, run the following command:
    ```bash
    ./toolbox --tools-file "tools.yaml"
    ```
