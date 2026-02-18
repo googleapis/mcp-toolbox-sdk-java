@@ -9,7 +9,7 @@
    
 3. Next, create **tools.yaml**, you can find the one we are using in our example in this repo.
    
-4. Replace the placeholder variables in `tools.yaml` with values from your instance / environment
+4. Make sure to set the environment variables for the corresponding ones in `tools.yaml` with values from your instance / environment 
 
 > [!TIP]
 > Do not hardcode for production applications.
