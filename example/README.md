@@ -1,6 +1,6 @@
-# Guide for Example Usage of the MCP Toolbox Java SDK
+# Example Usage
 
-## These sample Java files allow you to test the features supported in the Java version of the MCP Toolbox SDK.
+These sample Java files allow you to test the features supported in the Java version of the MCP Toolbox SDK.
 
 1. To start with go ahead and create the MCP Toolbox Server for the sameple use case we are looking at.
   
@@ -20,10 +20,35 @@
    ```
 
 6. If you want to look at the toolset and tools in a simple web UI, use the command:
-      ./toolbox --ui
+   ```bash
+   ./toolbox --ui
+   ```
 
 7. You can then deploy this in Cloud Run to test the application or use the local instance running, while you try the example Java applications.
 In any case remember to change the `YOUR_TOOLBOX_SERVICE_ENDPOINT` placeholder in the respective files.
 
-If you decide to deploy your toolbox endpoint in cloud run, here's how you can do it:
-[https://googleapis.github.io/genai-toolbox/how-to/deploy_toolbox](url)
+    If you decide to deploy your toolbox endpoint in cloud run, here's how you can do it: https://googleapis.github.io/genai-toolbox/how-to/deploy_toolbox
+
+> [!NOTE]
+> At this point you must be having a working MCP Toolbox server accessible.
+
+8. You should be able to run the Java classes in this example to understand the usage of this library.
+
+9. Use the `pom.xml` from this repo. Note that we have the dependency `mcp-toolbox-sdk-java` included:
+   ```xml
+   <dependency>
+     <groupId>com.google.cloud.mcp</groupId>
+     <artifactId>mcp-toolbox-sdk-java</artifactId>
+     <version>0.1.0</version>
+   </dependency>
+   ```
+
+10. Compile the class that you want to test:
+    ```bash
+    mvn compile
+    ```
+    Now run the example class:
+    ```bash
+    mvn clean compile exec:java -Dexec.mainClass="cloudcode.helloworld.ExampleUsage"
+    ```
+
