@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/googleapis/mcp-toolbox-sdk-java/compare/v0.1.1...v0.1.2) (2026-02-19)
+
+
+### Miscellaneous Chores
+
+* **main:** release 0.1.2-SNAPSHOT ([#32](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/32)) ([ae025d4](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/ae025d47a05fc95a356fcff90abfc1b7178b68dc))
+
 ## [0.1.1](https://github.com/googleapis/mcp-toolbox-sdk-java/compare/v0.1.0...v0.1.1) (2026-02-18)
 
 
