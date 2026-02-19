@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.1.1](https://github.com/googleapis/mcp-toolbox-sdk-java/compare/v0.1.0...v0.1.1) (2026-02-18)
+
+
+### Miscellaneous Chores
+
+* Add E2E test and cloudbuild config ([#9](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/9)) ([dbd66ce](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/dbd66ce27f94e32759643678cc03217339d33459))
+* add project-specific metadata to `pom.xml` ([#25](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/25)) ([ee0fb62](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/ee0fb628eda80c57b716d58d919039229c2facf0))
+* Add Workflows for nightly and on-merge tests ([#26](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/26)) ([3346c2c](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/3346c2cbfa29376c4f0355d55dce5b48d5db525a))
+* Create tools.yaml for the sample usage project ([#27](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/27)) ([1d4c374](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/1d4c37434311c2ffc4866726983efa76024b4f31))
+* disable component inclusion in release tags ([#17](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/17)) ([36fd6dd](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/36fd6dd51dd22a31f0c08baf98d91846d1fe853c))
+* **main:** release 0.1.1-SNAPSHOT ([#20](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/20)) ([cb47ec4](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/cb47ec4114e7eec7dcbecb96e73d9e573f430da1))
+* modify issue templates ([#3](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/3)) ([c30a6fa](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/c30a6fa5b5f57d396f4724fede1b83932e0d253b))
+* Remove GCS repository from pom.xml ([#29](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/29)) ([1759fd2](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/1759fd2b09049499313891567c08b9f79c7db1b5))
+* Set up test / sample files and instructions for the Java SDK ([#19](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/19)) ([6f408d6](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/6f408d6f3240fc1972971a482dd9d79b23592390))
+* Update github configs ([#4](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/4)) ([dd9e466](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/dd9e46644e99a0d35bd100dcf58ea848014e3e60))
+
+
+### Documentation
+
+* fix javadoc issues and update CI to check generation ([#23](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/23)) ([5b7f215](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/5b7f215def12e98592490c681efb3e561b3fe613))
+
 ## 0.1.0 (2026-02-11)
 
 

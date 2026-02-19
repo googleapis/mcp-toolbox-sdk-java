@@ -87,50 +87,28 @@ First make sure Toolbox Server is set up and is running (either locally or deplo
 
 ## Installation
 
-This SDK is distributed via a Google Cloud Storage Maven Repository.
+This SDK is distributed via a Maven Central Repository.
 
 ### Maven
-
-Add the repository to your pom.xml:
-
-```
-
-<repositories>
-    <repository>
-        <id>gcs-repo</id>
-        <url>[https://storage.googleapis.com/mcp-toolbox-java-sdk/maven](https://storage.googleapis.com/mcp-toolbox-java-sdk/maven)</url>
-    </repository>
-</repositories>
-```
-
-Add the dependency to your pom.xml:
-```
-<dependencies>
-    <dependency>
-        <groupId>com.google.cloud.mcp</groupId>
-        <artifactId>mcp-toolbox-sdk-java</artifactId>
-        <version>0.1.0</version>
-    </dependency>
-</dependencies>
-
+Add the dependency to your `pom.xml`:
+```xml
+<!-- Source: https://mvnrepository.com/artifact/com.google.cloud.mcp/mcp-toolbox-sdk-java -->
+<dependency>
+    <groupId>com.google.cloud.mcp</groupId>
+    <artifactId>mcp-toolbox-sdk-java</artifactId>
+    <version>0.1.0</version>
+    <scope>compile</scope>
+</dependency>
 ```
 
 ### Gradle
 
 ```
-
-repositories {
-    maven {
-        url = uri("[https://storage.googleapis.com/mcp-toolbox-java-sdk/maven](https://storage.googleapis.com/mcp-toolbox-java-sdk/maven)")
-    }
-}
-
 dependencies {
+    // Source: https://mvnrepository.com/artifact/com.google.cloud.mcp/mcp-toolbox-sdk-java
     implementation("com.google.cloud.mcp:mcp-toolbox-sdk-java:0.1.0")
 }
-
 ```
-
 
 ## Usage
 

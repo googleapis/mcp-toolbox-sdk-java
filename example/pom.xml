@@ -29,18 +29,11 @@
     <maven.compiler.source>17</maven.compiler.source>
   </properties>
 
-  <repositories>
-    <repository>
-        <id>gcs-repo</id>
-        <url>https://storage.googleapis.com/mcp-toolbox-java-sdk/maven</url>
-    </repository>
-</repositories>
-
   <dependencies>
     <dependency>
         <groupId>com.google.cloud.mcp</groupId>
         <artifactId>mcp-toolbox-sdk-java</artifactId>
-        <version>0.1.0</version><!-- {x-version-update:mcp-toolbox-sdk-java:released} -->
+        <version>0.1.1</version><!-- {x-version-update:mcp-toolbox-sdk-java:released} -->
     </dependency>
 
     <dependency>

@@ -1,4 +1,4 @@
 # Format:
 # module:released-version:current-version
 
-mcp-toolbox-sdk-java:0.1.0:0.1.1-SNAPSHOT
+mcp-toolbox-sdk-java:0.1.1:0.1.2-SNAPSHOT
