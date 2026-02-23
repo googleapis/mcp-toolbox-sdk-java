@@ -2,14 +2,20 @@
 
 These sample Java files allow you to test the features supported in the Java version of the MCP Toolbox SDK.
 
-1. To start with go ahead and create the MCP Toolbox Server for the sameple use case we are looking at.
+1. First set up database (AlloyDB in this case) and ingest data for the tools referenced in this example. In order to demonstrate the use of tools across applications, we have considered a RETAIL STORE and TOY STORE application data together. In order to install cluster, instance and setup data, for this sample use case, follow the first 4 steps of the below codelabs:
+
+   [https://codelabs.developers.google.com/hybrid-search-on-cloudrun](url)
+   and
+   [https://codelabs.developers.google.com/toy-store-app](url)
+
+2. To start with tools, go ahead and create the MCP Toolbox Server for the sameple use case we are looking at.
   
-2. To set up & install **MCP Toolbox Server**, install the latest version from here:
+3. To set up & install **MCP Toolbox Server**, install the latest version from here:
    https://github.com/googleapis/genai-toolbox?tab=readme-ov-file#installing-the-server
    
-3. Next, create **tools.yaml**, you can find the one we are using in our example in this repo.
+4. Next, create **tools.yaml**, you can find the one we are using in our example in this repo.
    
-4. Replace the placeholder variables in `tools.yaml` with values from your instance / environment
+5. Replace the placeholder variables in `tools.yaml` with values from your instance / environment
 
 > [!TIP]
 > Do not hardcode for production applications.
