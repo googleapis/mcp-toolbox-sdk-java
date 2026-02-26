@@ -57,7 +57,7 @@
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
         <jackson.version>2.15.2</jackson.version>
-        <google.auth.version>1.23.0</google.auth.version>
+        <google.auth.version>1.22.0</google.auth.version>
         <animal.sniffer.skip>true</animal.sniffer.skip>
         <checkstyle.header.file>java.header</checkstyle.header.file>
     </properties>
@@ -91,6 +91,7 @@
         <dependency>
             <groupId>com.google.auth</groupId>
             <artifactId>google-auth-library-oauth2-http</artifactId>
+            <version>${google.auth.version}</version>
         </dependency>
 
         <!-- Testing -->

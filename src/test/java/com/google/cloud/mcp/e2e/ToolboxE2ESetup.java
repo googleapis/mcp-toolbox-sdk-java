@@ -120,7 +120,7 @@ public class ToolboxE2ESetup implements BeforeAllCallback, AfterAllCallback {
   }
 
   public String getBaseUrl() {
-    return "http://localhost:5000";
+    return "http://localhost:5000/mcp";
   }
 
   private void startServer() throws IOException, InterruptedException {
