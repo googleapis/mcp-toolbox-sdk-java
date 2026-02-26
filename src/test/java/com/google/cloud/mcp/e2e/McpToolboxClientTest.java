@@ -32,8 +32,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 class McpToolboxClientE2ETest {
 
-  @RegisterExtension
-  static ToolboxE2ESetup server = new ToolboxE2ESetup();
+  @RegisterExtension static ToolboxE2ESetup server = new ToolboxE2ESetup();
 
   private McpToolboxClient client;
 
@@ -78,7 +77,9 @@ class McpToolboxClientE2ETest {
       System.out.println("ERROR OUTPUT: " + result.content().get(0).text());
     }
 
-    assertFalse(result.isError(), "Expected successful result, but got error: " + result.content().get(0).text());
+    assertFalse(
+        result.isError(),
+        "Expected successful result, but got error: " + result.content().get(0).text());
     String output = result.content().get(0).text();
     assertTrue(output.contains("row1"), "Output didn't contain row1. Actual output: " + output);
     assertTrue(output.contains("row2"));
@@ -137,7 +138,9 @@ class McpToolboxClientE2ETest {
         "my-test-auth", () -> CompletableFuture.completedFuture(server.getAuthToken2()));
 
     ToolResult result = tool.execute(Map.of("id", "2")).join();
-    assertTrue(result.isError(), "Expected error for wrong auth. Actual output: " + result.content().get(0).text());
+    assertTrue(
+        result.isError(),
+        "Expected error for wrong auth. Actual output: " + result.content().get(0).text());
     assertTrue(result.content().get(0).text().contains("not authorized"));
   }
 
@@ -148,7 +151,8 @@ class McpToolboxClientE2ETest {
         "my-test-auth", () -> CompletableFuture.completedFuture(server.getAuthToken1()));
 
     ToolResult result = tool.execute(Map.of()).join();
-    assertFalse(result.isError(), "Expected success but got error: " + result.content().get(0).text());
+    assertFalse(
+        result.isError(), "Expected success but got error: " + result.content().get(0).text());
     String output = result.content().get(0).text();
     assertTrue(output.contains("row4"), "Actual output: " + output);
     assertTrue(output.contains("row5"));
