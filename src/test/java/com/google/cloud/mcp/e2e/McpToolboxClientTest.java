@@ -137,7 +137,7 @@ class McpToolboxClientE2ETest {
 
     ToolResult result = tool.execute(Map.of("id", "2")).join();
     assertTrue(result.isError(), "Expected error for wrong auth. Actual output: " + result.text());
-    assertTrue(result.text().contains("Unauthorized"), "Actual output: " + result.text());
+    assertTrue(result.text().toLowerCase().contains("unauthorized"), "Actual output: " + result.text());
   }
 
   @Test
