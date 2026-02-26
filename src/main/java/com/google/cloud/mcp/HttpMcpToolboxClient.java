@@ -372,18 +372,20 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
             true);
       }
 
+      boolean isError = root.has("isError") && root.get("isError").asBoolean();
+
       JsonNode result = root.get("result");
       if (result != null) {
         ToolResult parsedResult = objectMapper.treeToValue(result, ToolResult.class);
         if (parsedResult.content() == null) {
           return new ToolResult(
-              java.util.List.of(new ToolResult.Content("text", result.toString())),
-              parsedResult.isError());
+              java.util.List.of(new ToolResult.Content("text", result.asText())),
+              isError || parsedResult.isError());
         }
         return parsedResult;
       }
 
-      return new ToolResult(java.util.List.of(new ToolResult.Content("text", body)), false);
+      return new ToolResult(java.util.List.of(new ToolResult.Content("text", body)), isError);
     } catch (Exception e) {
       return new ToolResult(java.util.List.of(new ToolResult.Content("text", body)), false);
     }
