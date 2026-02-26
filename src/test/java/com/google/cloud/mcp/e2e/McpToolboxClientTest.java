@@ -74,13 +74,11 @@ class McpToolboxClientE2ETest {
     ToolResult result = tool.execute(Map.of("num_rows", "2")).join();
 
     if (result.isError()) {
-      System.out.println("ERROR OUTPUT: " + result.content().get(0).text());
+      System.out.println("ERROR OUTPUT: " + result.text());
     }
 
-    assertFalse(
-        result.isError(),
-        "Expected successful result, but got error: " + result.content().get(0).text());
-    String output = result.content().get(0).text();
+    assertFalse(result.isError(), "Expected successful result, but got error: " + result.text());
+    String output = result.text();
     assertTrue(output.contains("row1"), "Output didn't contain row1. Actual output: " + output);
     assertTrue(output.contains("row2"));
     assertFalse(output.contains("row3"));
@@ -94,7 +92,7 @@ class McpToolboxClientE2ETest {
     Tool boundTool = tool.bindParam("num_rows", "3");
 
     ToolResult result = boundTool.execute(Map.of()).join();
-    String output = result.content().get(0).text();
+    String output = result.text();
 
     assertTrue(output.contains("row1"), "Actual output: " + output);
     assertTrue(output.contains("row2"));
@@ -108,7 +106,7 @@ class McpToolboxClientE2ETest {
     Tool boundTool = tool.bindParam("num_rows", () -> "3");
 
     ToolResult result = boundTool.execute(Map.of()).join();
-    String output = result.content().get(0).text();
+    String output = result.text();
 
     assertTrue(output.contains("row1"), "Actual output: " + output);
     assertTrue(output.contains("row2"));
@@ -126,7 +124,7 @@ class McpToolboxClientE2ETest {
 
     ToolResult result = tool.execute(Map.of("id", "2")).join();
     assertFalse(result.isError());
-    String output = result.content().get(0).text();
+    String output = result.text();
     assertTrue(output.contains("row2"));
   }
 
@@ -138,10 +136,8 @@ class McpToolboxClientE2ETest {
         "my-test-auth", () -> CompletableFuture.completedFuture(server.getAuthToken2()));
 
     ToolResult result = tool.execute(Map.of("id", "2")).join();
-    assertTrue(
-        result.isError(),
-        "Expected error for wrong auth. Actual output: " + result.content().get(0).text());
-    assertTrue(result.content().get(0).text().contains("not authorized"));
+    assertTrue(result.isError(), "Expected error for wrong auth. Actual output: " + result.text());
+    assertTrue(result.text().contains("not authorized"));
   }
 
   @Test
@@ -151,9 +147,8 @@ class McpToolboxClientE2ETest {
         "my-test-auth", () -> CompletableFuture.completedFuture(server.getAuthToken1()));
 
     ToolResult result = tool.execute(Map.of()).join();
-    assertFalse(
-        result.isError(), "Expected success but got error: " + result.content().get(0).text());
-    String output = result.content().get(0).text();
+    assertFalse(result.isError(), "Expected success but got error: " + result.text());
+    String output = result.text();
     assertTrue(output.contains("row4"), "Actual output: " + output);
     assertTrue(output.contains("row5"));
     assertTrue(output.contains("row6"));
@@ -167,6 +162,6 @@ class McpToolboxClientE2ETest {
 
     ToolResult result = tool.execute(Map.of()).join();
     assertTrue(result.isError());
-    assertTrue(result.content().get(0).text().contains("no field named row_data"));
+    assertTrue(result.text().contains("no field named row_data"));
   }
 }
