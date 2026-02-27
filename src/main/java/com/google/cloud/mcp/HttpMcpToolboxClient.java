@@ -302,6 +302,17 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
           String description =
               toolNode.has("description") ? toolNode.get("description").asText() : "";
 
+          List<String> authRequired = new ArrayList<>();
+          JsonNode metaNode = toolNode.get("_meta");
+          if (metaNode != null && metaNode.has("toolbox/authInvoke")) {
+            JsonNode invokeAuthNode = metaNode.get("toolbox/authInvoke");
+            if (invokeAuthNode != null && invokeAuthNode.isArray()) {
+              for (JsonNode src : invokeAuthNode) {
+                authRequired.add(src.asText());
+              }
+            }
+          }
+
           List<ToolDefinition.Parameter> params = new ArrayList<>();
           JsonNode inputSchema = toolNode.get("inputSchema");
           JsonNode requiredNode = inputSchema != null ? inputSchema.get("required") : null;
@@ -326,7 +337,6 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
 
               List<String> authSources = new ArrayList<>();
               // Extract from _meta if exists
-              JsonNode metaNode = toolNode.get("_meta");
               if (metaNode != null && metaNode.has("toolbox/authParam")) {
                 JsonNode paramAuthNode = metaNode.get("toolbox/authParam").get(paramName);
                 if (paramAuthNode != null && paramAuthNode.isArray()) {
@@ -346,7 +356,7 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
             }
           }
 
-          toolsMap.put(name, new ToolDefinition(description, params));
+          toolsMap.put(name, new ToolDefinition(description, params, authRequired));
         }
       }
       return toolsMap;

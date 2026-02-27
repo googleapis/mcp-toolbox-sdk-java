@@ -26,7 +26,8 @@ import java.util.List;
  * @param parameters A list of parameters the tool accepts.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record ToolDefinition(String description, List<Parameter> parameters) {
+public record ToolDefinition(
+    String description, List<Parameter> parameters, List<String> authRequired) {
   /**
    * Represents a parameter of a tool.
    *
