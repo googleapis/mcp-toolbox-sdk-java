@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.2](https://github.com/googleapis/mcp-toolbox-sdk-java/compare/v0.1.1...v0.1.2) (2026-02-27)
+
+
+### Features
+
+* add Cymbal Transit Spring Boot sample application ([#37](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/37)) ([45c4f48](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/45c4f48bfc696f9b07cb3a4c9e26eeb8695f1ff6))
+
+
+### Miscellaneous Chores
+
+* **main:** release 0.1.2-SNAPSHOT ([#32](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/32)) ([ae025d4](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/ae025d47a05fc95a356fcff90abfc1b7178b68dc))
+* replace old partner teams with new ones (Wave 2) ([#34](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/34)) ([12ab167](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/12ab1678a57630b5b14eb492abf870625ec3c267))
+* Revise README for MCP Toolbox setup instructions ([#36](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/36)) ([66f926a](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/66f926a367c65bcab61173bf2f0dfac575b17946))
+* Revised the dependency version for the SDK to 0.1.1 ([#39](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/39)) ([fb65e26](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/fb65e26630367bd0a08881a68ed211f6f1eaee23))
+* Revised the dependency version for the SDK to 0.1.1 ([#40](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/40)) ([86da889](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/86da88988a1300902cbcc536393a6b4b5f39a7f4))
+* Revised the dependency version for the SDK to 0.1.1 ([#41](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/41)) ([61f7e87](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/61f7e875877c3cb2167827b1f729faa43581fc50))
+* Revised the dependency version for the SDK to 0.1.1 ([#42](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/42)) ([53679dc](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/53679dcc8b4a5400b550a43324016864621e7d37))
+
 ## [0.1.1](https://github.com/googleapis/mcp-toolbox-sdk-java/compare/v0.1.0...v0.1.1) (2026-02-18)
 
 
