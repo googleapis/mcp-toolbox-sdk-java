@@ -58,8 +58,9 @@
         <maven.compiler.release>17</maven.compiler.release>
         <jackson.version>2.15.2</jackson.version>
         <google.auth.version>1.23.0</google.auth.version>
+        <langchain4j.version>0.35.0</langchain4j.version>
         <animal.sniffer.skip>true</animal.sniffer.skip>
-        <checkstyle.header.file>java.header</checkstyle.header.file>
+        <checkstyle.header.file>java.header</checkstyle.header.file
     </properties>
 
     <dependencyManagement>
@@ -93,6 +94,20 @@
             <artifactId>google-auth-library-oauth2-http</artifactId>
         </dependency>
 
+        <!-- LangChain4j Integration -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-core</artifactId>
+            <version>${langchain4j.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j</artifactId>
+            <version>${langchain4j.version}</version>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -122,6 +137,14 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <release>17</release>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>com.spotify.fmt</groupId>
                 <artifactId>fmt-maven-plugin</artifactId>
