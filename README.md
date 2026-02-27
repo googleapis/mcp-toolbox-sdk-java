@@ -120,7 +120,7 @@ The McpToolboxClient is your entry point. It is thread-safe and designed to be i
 import com.google.cloud.mcp.McpToolboxClient;
 
 McpToolboxClient client = McpToolboxClient.builder()
-    .baseUrl("[https://my-toolbox-service.a.run.app/mcp](https://my-toolbox-service.a.run.app/mcp)") 
+    .baseUrl("https://my-toolbox-service.a.run.app/mcp") 
     // .apiKey("...") // Optional: Overrides automatic Google Auth
     .build();
 ```
@@ -188,7 +188,7 @@ public class App {
     public static void main(String[] args) {
         // 1. Create the Client
         McpToolboxClient client = McpToolboxClient.builder()
-            .baseUrl("[https://my-toolbox-service.a.run.app/mcp](https://my-toolbox-service.a.run.app/mcp)") 
+            .baseUrl("https://my-toolbox-service.a.run.app/mcp") 
             .build();
 
         // 2. Invoke a Tool
@@ -347,7 +347,7 @@ public class AuthExample {
 
         // 2. Initialize the client
         McpToolboxClient client = McpToolboxClient.builder()
-            .baseUrl("[http://127.0.0.1:5000/mcp](http://127.0.0.1:5000/mcp)")
+            .baseUrl("http://127.0.0.1:5000/mcp")
             .build();
 
         // 3. Load tool, attach auth, and execute
