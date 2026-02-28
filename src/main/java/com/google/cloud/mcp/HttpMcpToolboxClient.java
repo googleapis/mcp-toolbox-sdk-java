@@ -245,9 +245,9 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
                                     .POST(HttpRequest.BodyPublishers.ofString(requestBody));
 
                             if (reqAuth != null) {
-                              requestBuilder.header("Authorization", reqAuth);
+                              requestBuilder.setHeader("Authorization", reqAuth);
                             }
-                            extraHeaders.forEach(requestBuilder::header);
+                            extraHeaders.forEach(requestBuilder::setHeader);
 
                             return httpClient
                                 .sendAsync(

@@ -173,7 +173,11 @@ Map<String, Object> args = Map.of(
 );
 
 client.invokeTool("get-toy-price", args).thenAccept(result -> {
-    System.out.println("Result: " + result.content().get(0).text());
+    String output = result.content().stream()
+        .filter(c -> "text".equals(c.type()) && c.text() != null)
+        .map(c -> c.text())
+        .collect(java.util.stream.Collectors.joining("\n"));
+    System.out.println("Result:\n" + output);
 ```
 
 ## Quickstart
@@ -194,7 +198,11 @@ public class App {
         // 2. Invoke a Tool
         client.invokeTool("get-toy-price", Map.of("description", "plush dinosaur"))
             .thenAccept(result -> {
-                System.out.println("Tool Output: " + result.content().get(0).text());
+                String output = result.content().stream()
+                    .filter(c -> "text".equals(c.type()) && c.text() != null)
+                    .map(c -> c.text())
+                    .collect(java.util.stream.Collectors.joining("\n"));
+                System.out.println("Tool Output:\n" + output);
             })
             .exceptionally(ex -> {
                 System.err.println("Error: " + ex.getMessage());
@@ -359,7 +367,11 @@ public class AuthExample {
                 return tool.execute(Map.of("input", "some input"));
             })
             .thenAccept(result -> {
-                System.out.println(result.content().get(0).text());
+                String output = result.content().stream()
+                    .filter(c -> "text".equals(c.type()) && c.text() != null)
+                    .map(c -> c.text())
+                    .collect(java.util.stream.Collectors.joining("\n"));
+                System.out.println(output);
             })
             .join();
     }

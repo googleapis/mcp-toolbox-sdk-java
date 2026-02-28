@@ -37,22 +37,4 @@ public record ToolResult(
    */
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record Content(@JsonProperty("type") String type, @JsonProperty("text") String text) {}
-
-  /**
-   * Helper method to retrieve all text content from the result as a single string stream.
-   *
-   * @return A single concatenated string of all text content.
-   */
-  public String text() {
-    if (content == null || content.isEmpty()) {
-      return "";
-    }
-    StringBuilder sb = new StringBuilder();
-    for (Content c : content) {
-      if ("text".equals(c.type()) && c.text() != null) {
-        sb.append(c.text()).append("\n");
-      }
-    }
-    return sb.toString().trim();
-  }
 }
