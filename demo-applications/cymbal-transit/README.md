@@ -120,6 +120,6 @@ or
 To directly deploy your agent to Cloud Run and test there:
 
 ``` bash
-gcloud run deploy cymbal-transit --source . --set-env-vars GCP_PROJECT_ID=<<YOUR_PROJECT_ID>>,GCP_REGION=us-central1,GEMINI_MODEL_NAME=gemini-2.5-flash,MCP_TOOLBOX_URL=<<YOUR_MCP_TOOLBOX_URL>> --allow-unauthenticated
+gcloud run deploy cymbal-transit --source . --set-env-vars GCP_PROJECT_ID=<<YOUR_PROJECT_ID>>,GCP_REGION=us-central1,GEMINI_MODEL_NAME=gemini-2.5-flash,MCP_TOOLBOX_URL=<<YOUR_MCP_TOOLBOX_URL_ENDING_IN_/mcp>> --allow-unauthenticated
 ```
-Replace the placeholder variables enclosed within <<>>.
+Replace the placeholder variables enclosed within <<>>. Ensure that your `MCP_TOOLBOX_URL` explicitly ends with `/mcp` (e.g., `https://my-toolbox-service.a.run.app/mcp`).

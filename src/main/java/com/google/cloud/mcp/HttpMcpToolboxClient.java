@@ -16,7 +16,6 @@
 
 package com.google.cloud.mcp;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -26,9 +25,12 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -40,6 +42,8 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
   private final String apiKey;
   private final HttpClient httpClient;
   private final ObjectMapper objectMapper;
+  private boolean initialized = false;
+  private final String protocolVersion = "2025-11-25";
 
   /**
    * Constructs a new HttpMcpToolboxClient.
@@ -48,22 +52,97 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
    * @param apiKey The API key for authentication (optional).
    */
   public HttpMcpToolboxClient(String baseUrl, String apiKey) {
-    this.baseUrl = baseUrl;
+    this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     this.apiKey = apiKey;
     this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     this.objectMapper = new ObjectMapper();
   }
 
+  private synchronized CompletableFuture<Void> ensureInitialized(String authHeader) {
+    if (initialized) return CompletableFuture.completedFuture(null);
+    try {
+      JsonRpc.Request initReq =
+          new JsonRpc.Request(
+              "initialize", new JsonRpc.InitializeParams(protocolVersion, "mcp-toolbox-sdk-java"));
+      String body = objectMapper.writeValueAsString(initReq);
+      HttpRequest.Builder req =
+          HttpRequest.newBuilder()
+              .uri(URI.create(baseUrl))
+              .header("Content-Type", "application/json")
+              .POST(HttpRequest.BodyPublishers.ofString(body));
+      if (authHeader != null) req.header("Authorization", authHeader);
+
+      return httpClient
+          .sendAsync(req.build(), HttpResponse.BodyHandlers.ofString())
+          .thenCompose(
+              res -> {
+                if (res.statusCode() != 200) {
+                  return CompletableFuture.failedFuture(
+                      new RuntimeException("Init failed: " + res.statusCode() + " " + res.body()));
+                }
+                try {
+                  JsonRpc.Notification notif =
+                      new JsonRpc.Notification("notifications/initialized", Map.of());
+                  String notifBody = objectMapper.writeValueAsString(notif);
+                  HttpRequest.Builder nReq =
+                      HttpRequest.newBuilder()
+                          .uri(URI.create(baseUrl))
+                          .header("Content-Type", "application/json")
+                          .header("MCP-Protocol-Version", protocolVersion)
+                          .POST(HttpRequest.BodyPublishers.ofString(notifBody));
+                  if (authHeader != null) nReq.header("Authorization", authHeader);
+
+                  return httpClient
+                      .sendAsync(nReq.build(), HttpResponse.BodyHandlers.ofString())
+                      .thenAccept(
+                          nRes -> {
+                            initialized = true;
+                          });
+                } catch (Exception e) {
+                  return CompletableFuture.failedFuture(e);
+                }
+              });
+    } catch (Exception e) {
+      return CompletableFuture.failedFuture(e);
+    }
+  }
+
   @Override
   public CompletableFuture<Map<String, ToolDefinition>> listTools() {
-    return CompletableFuture.supplyAsync(this::getAuthorizationHeader)
-        .thenCompose(authHeader -> sendGetRequest("/api/toolset", authHeader));
+    return loadToolset("");
   }
 
   @Override
   public CompletableFuture<Map<String, ToolDefinition>> loadToolset(String toolsetName) {
     return CompletableFuture.supplyAsync(this::getAuthorizationHeader)
-        .thenCompose(authHeader -> sendGetRequest("/api/toolset/" + toolsetName, authHeader));
+        .thenCompose(
+            authHeader ->
+                ensureInitialized(authHeader)
+                    .thenCompose(
+                        v -> {
+                          String path =
+                              toolsetName != null && !toolsetName.isEmpty()
+                                  ? "/" + toolsetName
+                                  : "";
+                          String url = baseUrl + path;
+                          try {
+                            JsonRpc.Request listReq = new JsonRpc.Request("tools/list", Map.of());
+                            String body = objectMapper.writeValueAsString(listReq);
+                            HttpRequest.Builder req =
+                                HttpRequest.newBuilder()
+                                    .uri(URI.create(url))
+                                    .header("Content-Type", "application/json")
+                                    .header("MCP-Protocol-Version", protocolVersion)
+                                    .POST(HttpRequest.BodyPublishers.ofString(body));
+                            if (authHeader != null) req.header("Authorization", authHeader);
+
+                            return httpClient
+                                .sendAsync(req.build(), HttpResponse.BodyHandlers.ofString())
+                                .thenApply(this::handleListToolsResponse);
+                          } catch (Exception e) {
+                            return CompletableFuture.failedFuture(e);
+                          }
+                        }));
   }
 
   @Override
@@ -73,58 +152,35 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
       Map<String, Map<String, AuthTokenGetter>> authBinds,
       boolean strict) {
 
-    // 1. Determine which fetch method to use
-    CompletableFuture<Map<String, ToolDefinition>> definitionsFuture =
-        (toolsetName == null || toolsetName.isEmpty()) ? listTools() : loadToolset(toolsetName);
+    CompletableFuture<Map<String, ToolDefinition>> definitionsFuture = loadToolset(toolsetName);
 
     return definitionsFuture.thenApply(
         defs -> {
-          // 2. Strict Mode Validation
           if (strict) {
             Set<String> unknownTools = new HashSet<>();
             if (paramBinds != null) unknownTools.addAll(paramBinds.keySet());
             if (authBinds != null) unknownTools.addAll(authBinds.keySet());
-
-            // Remove all valid tools from the set of keys we are trying to bind to
             unknownTools.removeAll(defs.keySet());
-
             if (!unknownTools.isEmpty()) {
               throw new IllegalArgumentException(
                   "Strict mode error: Bindings provided for unknown tools: " + unknownTools);
             }
           }
 
-          // 3. Build Tool Objects & Apply Bindings
           Map<String, Tool> tools = new HashMap<>();
           for (Map.Entry<String, ToolDefinition> entry : defs.entrySet()) {
             String toolName = entry.getKey();
             Tool tool = new Tool(toolName, entry.getValue(), this);
-
-            // Apply Parameter Bindings
             if (paramBinds != null && paramBinds.containsKey(toolName)) {
               paramBinds.get(toolName).forEach(tool::bindParam);
             }
-
-            // Apply Auth Bindings
             if (authBinds != null && authBinds.containsKey(toolName)) {
               authBinds.get(toolName).forEach(tool::addAuthTokenGetter);
             }
-
             tools.put(toolName, tool);
           }
           return tools;
         });
-  }
-
-  private CompletableFuture<Map<String, ToolDefinition>> sendGetRequest(
-      String path, String authHeader) {
-    HttpRequest.Builder requestBuilder =
-        HttpRequest.newBuilder().uri(URI.create(baseUrl + path)).GET();
-    if (authHeader != null) requestBuilder.header("Authorization", authHeader);
-
-    return httpClient
-        .sendAsync(requestBuilder.build(), HttpResponse.BodyHandlers.ofString())
-        .thenApply(this::handleListToolsResponse);
   }
 
   @Override
@@ -135,22 +191,17 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
   @Override
   public CompletableFuture<Tool> loadTool(
       String toolName, Map<String, AuthTokenGetter> authTokenGetters) {
-    return CompletableFuture.supplyAsync(this::getAuthorizationHeader)
-        .thenCompose(
-            authHeader -> {
-              HttpRequest.Builder requestBuilder =
-                  HttpRequest.newBuilder().uri(URI.create(baseUrl + "/api/tool/" + toolName)).GET();
-              if (authHeader != null) requestBuilder.header("Authorization", authHeader);
-
-              return httpClient
-                  .sendAsync(requestBuilder.build(), HttpResponse.BodyHandlers.ofString())
-                  .thenApply(
-                      res -> {
-                        ToolDefinition def = handleLoadToolResponse(res, toolName);
-                        Tool tool = new Tool(toolName, def, this);
-                        authTokenGetters.forEach(tool::addAuthTokenGetter);
-                        return tool;
-                      });
+    return listTools()
+        .thenApply(
+            tools -> {
+              if (!tools.containsKey(toolName)) {
+                throw new RuntimeException("Tool not found: " + toolName);
+              }
+              Tool tool = new Tool(toolName, tools.get(toolName), this);
+              if (authTokenGetters != null) {
+                authTokenGetters.forEach(tool::addAuthTokenGetter);
+              }
+              return tool;
             });
   }
 
@@ -166,24 +217,46 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
         .thenCompose(
             adcHeader -> {
               try {
-                String requestBody = objectMapper.writeValueAsString(arguments);
-                HttpRequest.Builder requestBuilder =
-                    HttpRequest.newBuilder()
-                        .uri(URI.create(baseUrl + "/api/tool/" + toolName + "/invoke"))
-                        .header("Content-Type", "application/json")
-                        .POST(HttpRequest.BodyPublishers.ofString(requestBody));
-
-                // Priority Logic: If tool provides 'Authorization', use it. Else use ADC.
+                // Determine priority Auth header before init so init requests can use it if
+                // needed
+                String finalAuthHeader = null;
                 if (extraHeaders.containsKey("Authorization")) {
-                  // Tool specific auth wins
+                  finalAuthHeader = extraHeaders.get("Authorization");
                 } else if (adcHeader != null) {
-                  requestBuilder.header("Authorization", adcHeader);
+                  finalAuthHeader = adcHeader;
                 }
-                extraHeaders.forEach(requestBuilder::header);
 
-                return httpClient
-                    .sendAsync(requestBuilder.build(), HttpResponse.BodyHandlers.ofString())
-                    .thenApply(response -> handleInvokeResponse(response, toolName));
+                final String reqAuth = finalAuthHeader;
+
+                return ensureInitialized(reqAuth)
+                    .thenCompose(
+                        v -> {
+                          try {
+                            JsonRpc.Request invokeReq =
+                                new JsonRpc.Request(
+                                    "tools/call", new JsonRpc.CallToolParams(toolName, arguments));
+                            String requestBody = objectMapper.writeValueAsString(invokeReq);
+
+                            HttpRequest.Builder requestBuilder =
+                                HttpRequest.newBuilder()
+                                    .uri(URI.create(baseUrl))
+                                    .header("Content-Type", "application/json")
+                                    .header("MCP-Protocol-Version", protocolVersion)
+                                    .POST(HttpRequest.BodyPublishers.ofString(requestBody));
+
+                            if (reqAuth != null) {
+                              requestBuilder.setHeader("Authorization", reqAuth);
+                            }
+                            extraHeaders.forEach(requestBuilder::setHeader);
+
+                            return httpClient
+                                .sendAsync(
+                                    requestBuilder.build(), HttpResponse.BodyHandlers.ofString())
+                                .thenApply(response -> handleInvokeResponse(response, toolName));
+                          } catch (Exception e) {
+                            return CompletableFuture.failedFuture(e);
+                          }
+                        });
 
               } catch (Exception e) {
                 return CompletableFuture.failedFuture(e);
@@ -199,7 +272,6 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
       GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
       credentials.refreshIfExpired();
       if (credentials instanceof IdTokenProvider) {
-        // If we can get a token for the base URL, we use it for global auth
         return "Bearer "
             + ((IdTokenProvider) credentials)
                 .idTokenWithAudience(this.baseUrl, java.util.List.of())
@@ -213,20 +285,84 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
 
   private Map<String, ToolDefinition> handleListToolsResponse(HttpResponse<String> response) {
     if (response.statusCode() != 200)
-      throw new RuntimeException("Failed to list tools. Status: " + response.statusCode());
+      throw new RuntimeException(
+          "Failed to list tools. Status: " + response.statusCode() + " " + response.body());
     try {
       JsonNode root = objectMapper.readTree(response.body());
-      return objectMapper.convertValue(
-          root.get("tools"), new TypeReference<Map<String, ToolDefinition>>() {});
+      if (root.has("error")) {
+        throw new RuntimeException("MCP Error: " + root.get("error").toString());
+      }
+      JsonNode result = root.get("result");
+      JsonNode toolsNode = result.get("tools");
+
+      Map<String, ToolDefinition> toolsMap = new HashMap<>();
+      if (toolsNode != null && toolsNode.isArray()) {
+        for (JsonNode toolNode : toolsNode) {
+          String name = toolNode.get("name").asText();
+          String description =
+              toolNode.has("description") ? toolNode.get("description").asText() : "";
+
+          List<String> authRequired = new ArrayList<>();
+          JsonNode metaNode = toolNode.get("_meta");
+          if (metaNode != null && metaNode.has("toolbox/authInvoke")) {
+            JsonNode invokeAuthNode = metaNode.get("toolbox/authInvoke");
+            if (invokeAuthNode != null && invokeAuthNode.isArray()) {
+              for (JsonNode src : invokeAuthNode) {
+                authRequired.add(src.asText());
+              }
+            }
+          }
+
+          List<ToolDefinition.Parameter> params = new ArrayList<>();
+          JsonNode inputSchema = toolNode.get("inputSchema");
+          JsonNode requiredNode = inputSchema != null ? inputSchema.get("required") : null;
+          Set<String> requiredSet = new HashSet<>();
+          if (requiredNode != null && requiredNode.isArray()) {
+            for (JsonNode req : requiredNode) {
+              requiredSet.add(req.asText());
+            }
+          }
+
+          JsonNode propertiesNode = inputSchema != null ? inputSchema.get("properties") : null;
+          if (propertiesNode != null && propertiesNode.isObject()) {
+            Iterator<Map.Entry<String, JsonNode>> fields = propertiesNode.fields();
+            while (fields.hasNext()) {
+              Map.Entry<String, JsonNode> entry = fields.next();
+              String paramName = entry.getKey();
+              JsonNode propNode = entry.getValue();
+
+              String paramType = propNode.has("type") ? propNode.get("type").asText() : "string";
+              String paramDesc =
+                  propNode.has("description") ? propNode.get("description").asText() : "";
+
+              List<String> authSources = new ArrayList<>();
+              // Extract from _meta if exists
+              if (metaNode != null && metaNode.has("toolbox/authParam")) {
+                JsonNode paramAuthNode = metaNode.get("toolbox/authParam").get(paramName);
+                if (paramAuthNode != null && paramAuthNode.isArray()) {
+                  for (JsonNode src : paramAuthNode) {
+                    authSources.add(src.asText());
+                  }
+                }
+              }
+
+              params.add(
+                  new ToolDefinition.Parameter(
+                      paramName,
+                      paramType,
+                      requiredSet.contains(paramName),
+                      paramDesc,
+                      authSources));
+            }
+          }
+
+          toolsMap.put(name, new ToolDefinition(description, params, authRequired));
+        }
+      }
+      return toolsMap;
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
-  }
-
-  private ToolDefinition handleLoadToolResponse(HttpResponse<String> response, String toolName) {
-    Map<String, ToolDefinition> tools = handleListToolsResponse(response);
-    if (tools.containsKey(toolName)) return tools.get(toolName);
-    throw new RuntimeException("Tool not found: " + toolName);
   }
 
   private ToolResult handleInvokeResponse(HttpResponse<String> response, String toolName) {
@@ -238,15 +374,29 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
           true);
     }
     try {
-      ToolResult result = objectMapper.readValue(body, ToolResult.class);
-      // Robust check: if content is null (schema mismatch), wrap body as text
-      if (result.content() == null) {
+      JsonNode root = objectMapper.readTree(body);
+      if (root.has("error")) {
         return new ToolResult(
-            java.util.List.of(new ToolResult.Content("text", body)), result.isError());
+            java.util.List.of(
+                new ToolResult.Content("text", "MCP Error: " + root.get("error").toString())),
+            true);
       }
-      return result;
+
+      boolean isError = root.has("isError") && root.get("isError").asBoolean();
+
+      JsonNode result = root.get("result");
+      if (result != null) {
+        ToolResult parsedResult = objectMapper.treeToValue(result, ToolResult.class);
+        if (parsedResult.content() == null) {
+          return new ToolResult(
+              java.util.List.of(new ToolResult.Content("text", result.asText())),
+              isError || parsedResult.isError());
+        }
+        return parsedResult;
+      }
+
+      return new ToolResult(java.util.List.of(new ToolResult.Content("text", body)), isError);
     } catch (Exception e) {
-      // Parsing failed, return raw body
       return new ToolResult(java.util.List.of(new ToolResult.Content("text", body)), false);
     }
   }

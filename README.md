@@ -96,7 +96,7 @@ Add the dependency to your `pom.xml`:
 <dependency>
     <groupId>com.google.cloud.mcp</groupId>
     <artifactId>mcp-toolbox-sdk-java</artifactId>
-    <version>0.1.1</version>
+    <version>0.1.1</version> <!-- x-release-please-version -->
     <scope>compile</scope>
 </dependency>
 ```
@@ -106,7 +106,7 @@ Add the dependency to your `pom.xml`:
 ```
 dependencies {
     // Source: https://mvnrepository.com/artifact/com.google.cloud.mcp/mcp-toolbox-sdk-java
-    implementation("com.google.cloud.mcp:mcp-toolbox-sdk-java:0.1.1")
+    implementation("com.google.cloud.mcp:mcp-toolbox-sdk-java:0.1.1") // x-release-please-version
 }
 ```
 
@@ -116,11 +116,15 @@ dependencies {
 
 The McpToolboxClient is your entry point. It is thread-safe and designed to be instantiated once and reused.
 
-```
-import com.google.cloud.mcp.McpToolboxClient;
-
+```java
+// Local Development
 McpToolboxClient client = McpToolboxClient.builder()
-    .baseUrl("[https://my-toolbox-service.a.run.app](https://my-toolbox-service.a.run.app)") 
+    .baseUrl("http://localhost:5000/mcp")
+    .build();
+
+// Cloud Run Production
+McpToolboxClient client = McpToolboxClient.builder()
+    .baseUrl("https://my-toolbox-service.a.run.app/mcp")
     // .apiKey("...") // Optional: Overrides automatic Google Auth
     .build();
 ```
@@ -173,7 +177,11 @@ Map<String, Object> args = Map.of(
 );
 
 client.invokeTool("get-toy-price", args).thenAccept(result -> {
-    System.out.println("Result: " + result.content().get(0).text());
+    String output = result.content().stream()
+        .filter(c -> "text".equals(c.type()) && c.text() != null)
+        .map(c -> c.text())
+        .collect(java.util.stream.Collectors.joining("\n"));
+    System.out.println("Result:\n" + output);
 ```
 
 ## Quickstart
@@ -188,13 +196,17 @@ public class App {
     public static void main(String[] args) {
         // 1. Create the Client
         McpToolboxClient client = McpToolboxClient.builder()
-            .baseUrl("[https://my-toolbox-service.a.run.app](https://my-toolbox-service.a.run.app)") 
+            .baseUrl("https://my-toolbox-service.a.run.app/mcp") 
             .build();
 
         // 2. Invoke a Tool
         client.invokeTool("get-toy-price", Map.of("description", "plush dinosaur"))
             .thenAccept(result -> {
-                System.out.println("Tool Output: " + result.content().get(0).text());
+                String output = result.content().stream()
+                    .filter(c -> "text".equals(c.type()) && c.text() != null)
+                    .map(c -> c.text())
+                    .collect(java.util.stream.Collectors.joining("\n"));
+                System.out.println("Tool Output:\n" + output);
             })
             .exceptionally(ex -> {
                 System.err.println("Error: " + ex.getMessage());
@@ -346,10 +358,9 @@ public class AuthExample {
         };
 
         // 2. Initialize the client
-        McpToolboxClient client = McpToolboxClient.builder()
-            .baseUrl("[http://127.0.0.1:5000](http://127.0.0.1:5000)")
-            .build();
-
+    McpToolboxClient client = McpToolboxClient.builder()
+        .baseUrl("http://127.0.0.1:5000/mcp")
+        .build();
         // 3. Load tool, attach auth, and execute
         client.loadTool("my-tool")
             .thenCompose(tool -> {
@@ -359,7 +370,11 @@ public class AuthExample {
                 return tool.execute(Map.of("input", "some input"));
             })
             .thenAccept(result -> {
-                System.out.println(result.content().get(0).text());
+                String output = result.content().stream()
+                    .filter(c -> "text".equals(c.type()) && c.text() != null)
+                    .map(c -> c.text())
+                    .collect(java.util.stream.Collectors.joining("\n"));
+                System.out.println(output);
             })
             .join();
     }

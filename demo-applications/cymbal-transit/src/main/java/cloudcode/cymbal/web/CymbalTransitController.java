@@ -189,7 +189,7 @@ class McpToolboxService {
     public CompletableFuture<String> findAllSchedules() {
         return mcpClient.invokeTool("find-bus-schedules", Collections.emptyMap()).thenApply(result -> {
             if (result.isError() || result.content() == null || result.content().isEmpty()) return "No schedules found.";
-            return result.content().get(0).text();
+            return getTextContent(result);
         });
     }
 
@@ -201,7 +201,7 @@ class McpToolboxService {
         return mcpClient.invokeTool("query-schedules", params).thenApply(result -> {
             if (result.isError() || result.content() == null || result.content().isEmpty()) return "No specific schedules found.";
             System.out.println(result);
-            return result.content().get(0).text();
+            return getTextContent(result);
         });
     }
 
@@ -214,7 +214,7 @@ class McpToolboxService {
             })
             .thenApply(result -> {
                 if (result.isError() || result.content() == null || result.content().isEmpty()) return "Transaction failed.";
-                return result.content().get(0).text();
+                    return getTextContent(result);
             });
     }
 
@@ -222,8 +222,17 @@ class McpToolboxService {
         return mcpClient.invokeTool("search-policies", Map.of("search_query", searchQuery))
             .thenApply(result -> {
                 if (result.isError() || result.content() == null || result.content().isEmpty()) return "No policy information found.";
-                return result.content().get(0).text();
+                    return getTextContent(result);
             });
+    }
+
+    private String getTextContent(com.google.cloud.mcp.ToolResult result) {
+        if (result.content() == null)
+            return "";
+        return result.content().stream()
+                .filter(c -> "text".equals(c.type()) && c.text() != null)
+                .map(c -> c.text())
+                .collect(java.util.stream.Collectors.joining("\n"));
     }
 }
 

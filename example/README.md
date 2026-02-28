@@ -4,9 +4,9 @@ These sample Java files allow you to test the features supported in the Java ver
 
 1. First set up database (AlloyDB in this case) and ingest data for the tools referenced in this example. In order to demonstrate the use of tools across applications, we have considered a RETAIL STORE and TOY STORE application data together. In order to install cluster, instance and setup data, for this sample use case, follow the first 4 steps of the first codelab (hybrid search) and the 5th step of the second codelab (toystore app) below:
 
-   [https://codelabs.developers.google.com/hybrid-search-on-cloudrun](url)
+   https://codelabs.developers.google.com/hybrid-search-on-cloudrun
    and
-   [https://codelabs.developers.google.com/toy-store-app](url)
+   https://codelabs.developers.google.com/toy-store-app
 
 2. To start with tools, go ahead and create the MCP Toolbox Server for the sameple use case we are looking at.
   
@@ -45,7 +45,7 @@ In any case remember to change the `YOUR_TOOLBOX_SERVICE_ENDPOINT` placeholder i
    <dependency>
      <groupId>com.google.cloud.mcp</groupId>
      <artifactId>mcp-toolbox-sdk-java</artifactId>
-     <version>0.1.1</version>
+     <version>0.1.1</version> <!-- x-release-please-version -->
    </dependency>
    ```
 
