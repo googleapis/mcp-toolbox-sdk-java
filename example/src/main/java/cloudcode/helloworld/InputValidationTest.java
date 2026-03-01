@@ -70,8 +70,7 @@ public class InputValidationTest {
             try {
                 Map<String, Object> validArgs = Map.of("description", "barbie");
                 var result = tool.execute(validArgs).join();
-                System.out.println(
-                        "    ✅ Success! Output: " + (result.content().isEmpty() ? "Empty" : getTextContent(result)));
+                System.out.println("    ✅ Success! Output: " + (result.content().isEmpty() ? "Empty" : result.content().get(0).text()));
             } catch (Exception e) {
                 System.err.println("    ❌ Unexpected failure: " + e.getMessage());
                 e.printStackTrace();
@@ -112,14 +111,5 @@ public class InputValidationTest {
             e.printStackTrace();
         }
         System.out.println("\n--- Done ---");
-    }
-
-    private static String getTextContent(com.google.cloud.mcp.ToolResult result) {
-        if (result.content() == null)
-            return "";
-        return result.content().stream()
-                .filter(c -> "text".equals(c.type()) && c.text() != null)
-                .map(c -> c.text())
-                .collect(java.util.stream.Collectors.joining("\n"));
     }
 }
