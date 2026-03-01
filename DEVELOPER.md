@@ -30,11 +30,6 @@ Commits](https://www.conventionalcommits.org/) for structuring commit messages.
     ```
 This will generate the package JAR in your local `.m2` repository, making it available for other local Maven projects.
 
-1. (Optional) Run deploy to a local directory for verification:
-   ```bash
-    mvn deploy -DaltDeploymentRepository=local::default::file://$(pwd)/target/staging-deploy
-    ```
-
 ## Release Process
 
 This repository uses [Release Please](https://github.com/googleapis/release-please) to automate the release process.
