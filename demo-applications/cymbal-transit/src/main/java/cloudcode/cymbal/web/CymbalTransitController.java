@@ -222,9 +222,7 @@ class McpToolboxService {
                     System.err.println("Tool execution failed: " + result.content().get(0).text());
                     return "Transaction failed.";
                 }
-                return result.content().stream()
-                .map(content -> content.text())
-                .toString();
+                return result.content().get(0).text();
             });
     }
 
