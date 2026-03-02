@@ -209,6 +209,7 @@ class McpToolboxService {
             .map(content -> content.text())
             .collect(Collectors.joining(", ", "[", "]"));
         });
+    }
 
     public CompletableFuture<String> bookTicket(String tripId, String passengerName) {
         AuthTokenGetter toolAuthGetter = () -> CompletableFuture.completedFuture(idToken);
