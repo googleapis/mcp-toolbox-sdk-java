@@ -26,7 +26,11 @@
   "packages": {
     ".": {
       "release-type": "java-yoshi",
-      "package-name": "mcp-toolbox-sdk-java"
+      "package-name": "mcp-toolbox-sdk-java",
+      "extra-files": [
+        "README.md",
+        "example/README.md"
+      ]
     }
   },
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
