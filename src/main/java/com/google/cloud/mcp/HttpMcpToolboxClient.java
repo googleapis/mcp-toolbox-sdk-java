@@ -31,7 +31,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -44,7 +43,6 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
   private static final String HTTP_WARNING =
       "This connection is using HTTP. To prevent credential exposure, please ensure all"
           + " communication is sent over HTTPS.";
-
   private final String baseUrl;
   private final Map<String, String> headers;
   private final HttpClient httpClient;
@@ -70,19 +68,9 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
    */
   public HttpMcpToolboxClient(String baseUrl, Map<String, String> headers) {
     this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
-    this.headers = headers != null ? new HashMap<>(headers) : new HashMap<>();
+    this.headers = headers != null ? java.util.Collections.unmodifiableMap(new java.util.HashMap<>(headers)) : java.util.Collections.emptyMap();
     this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     this.objectMapper = new ObjectMapper();
-
-    if (this.baseUrl.toLowerCase(Locale.ROOT).startsWith("http://")) {
-      for (String headerName : this.headers.keySet()) {
-        String lower = headerName.toLowerCase(Locale.ROOT);
-        if (lower.contains("authorization") || lower.contains("api-key") || lower.contains("token")) {
-          logger.warning("WARNING: Sending credentials over unencrypted HTTP! This exposes credentials to network interception.");
-          break;
-        }
-      }
-    }
   }
 
   private synchronized CompletableFuture<Void> ensureInitialized(String authHeader) {
@@ -101,7 +89,9 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
               .uri(URI.create(baseUrl))
               .header("Content-Type", "application/json")
               .POST(HttpRequest.BodyPublishers.ofString(body));
-      this.headers.forEach(req::setHeader);
+      this.headers.forEach((k, v) -> {
+        if (!"Authorization".equalsIgnoreCase(k)) req.setHeader(k, v);
+      });
       if (authHeader != null) req.setHeader("Authorization", authHeader);
 
       return httpClient
@@ -122,7 +112,9 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
                           .header("Content-Type", "application/json")
                           .header("MCP-Protocol-Version", protocolVersion)
                           .POST(HttpRequest.BodyPublishers.ofString(notifBody));
-                  this.headers.forEach(nReq::setHeader);
+                  this.headers.forEach((k, val) -> {
+                    if (!"Authorization".equalsIgnoreCase(k)) nReq.setHeader(k, val);
+                  });
                   if (authHeader != null) nReq.setHeader("Authorization", authHeader);
 
                   return httpClient
@@ -167,7 +159,9 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
                                     .header("Content-Type", "application/json")
                                     .header("MCP-Protocol-Version", protocolVersion)
                                     .POST(HttpRequest.BodyPublishers.ofString(body));
-                            this.headers.forEach(req::setHeader);
+                            this.headers.forEach((k, val) -> {
+        if (!"Authorization".equalsIgnoreCase(k)) req.setHeader(k, val);
+      });
                             if (authHeader != null) req.setHeader("Authorization", authHeader);
 
                             return httpClient
@@ -299,8 +293,12 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
                                     .header("MCP-Protocol-Version", protocolVersion)
                                     .POST(HttpRequest.BodyPublishers.ofString(requestBody));
 
-                            this.headers.forEach(requestBuilder::setHeader);
-                            extraHeaders.forEach(requestBuilder::setHeader);
+                            this.headers.forEach((k, val) -> {
+                              if (!"Authorization".equalsIgnoreCase(k)) requestBuilder.setHeader(k, val);
+                            });
+                            extraHeaders.forEach((k, val) -> {
+                              if (!"Authorization".equalsIgnoreCase(k)) requestBuilder.setHeader(k, val);
+                            });
                             if (reqAuth != null) {
                               requestBuilder.setHeader("Authorization", reqAuth);
                             }
