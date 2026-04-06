@@ -100,7 +100,6 @@ public interface McpToolboxClient {
   CompletableFuture<ToolResult> invokeTool(
       String toolName, Map<String, Object> arguments, Map<String, String> extraHeaders);
 
-
   /**
    * Builder pattern for creating client instances.
    *

@@ -40,7 +40,9 @@ import java.util.logging.Logger;
 public class HttpMcpToolboxClient implements McpToolboxClient {
 
   private static final Logger logger = Logger.getLogger(HttpMcpToolboxClient.class.getName());
-  private static final String HTTP_WARNING = "This connection is using HTTP. To prevent credential exposure, please ensure all communication is sent over HTTPS.";
+  private static final String HTTP_WARNING =
+      "This connection is using HTTP. To prevent credential exposure, please ensure all"
+          + " communication is sent over HTTPS.";
 
   private final String baseUrl;
   private final String apiKey;
@@ -65,7 +67,8 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
   private synchronized CompletableFuture<Void> ensureInitialized(String authHeader) {
     if (initialized) return CompletableFuture.completedFuture(null);
     try {
-      if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://") && authHeader != null) {
+      if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
+          && authHeader != null) {
         logger.warning(HTTP_WARNING);
       }
       JsonRpc.Request initReq =
@@ -159,7 +162,9 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
       Map<String, Map<String, AuthTokenGetter>> authBinds,
       boolean strict) {
 
-    if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://") && authBinds != null && !authBinds.isEmpty()) {
+    if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
+        && authBinds != null
+        && !authBinds.isEmpty()) {
       logger.warning(HTTP_WARNING);
     }
 
@@ -202,7 +207,9 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
   @Override
   public CompletableFuture<Tool> loadTool(
       String toolName, Map<String, AuthTokenGetter> authTokenGetters) {
-    if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://") && authTokenGetters != null && !authTokenGetters.isEmpty()) {
+    if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
+        && authTokenGetters != null
+        && !authTokenGetters.isEmpty()) {
       logger.warning(HTTP_WARNING);
     }
     return listTools()
@@ -227,7 +234,9 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
   @Override
   public CompletableFuture<ToolResult> invokeTool(
       String toolName, Map<String, Object> arguments, Map<String, String> extraHeaders) {
-    if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://") && extraHeaders != null && !extraHeaders.isEmpty()) {
+    if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
+        && extraHeaders != null
+        && !extraHeaders.isEmpty()) {
       logger.warning(HTTP_WARNING);
     }
     return CompletableFuture.supplyAsync(this::getAuthorizationHeader)
