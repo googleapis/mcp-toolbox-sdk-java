@@ -31,15 +31,19 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Logger;
 
 /** Default implementation using Java 11 HttpClient. */
 public class HttpMcpToolboxClient implements McpToolboxClient {
 
+  private static final Logger logger = Logger.getLogger(HttpMcpToolboxClient.class.getName());
+
   private final String baseUrl;
-  private final String apiKey;
+  private final Map<String, String> headers;
   private final HttpClient httpClient;
   private final ObjectMapper objectMapper;
   private boolean initialized = false;
@@ -52,10 +56,30 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
    * @param apiKey The API key for authentication (optional).
    */
   public HttpMcpToolboxClient(String baseUrl, String apiKey) {
+    this(baseUrl, apiKey != null && !apiKey.isEmpty() ? Map.of("Authorization", apiKey.startsWith("Bearer ") ? apiKey : "Bearer " + apiKey) : Collections.emptyMap());
+  }
+
+  /**
+   * Constructs a new HttpMcpToolboxClient with generic headers.
+   *
+   * @param baseUrl The base URL of the MCP Toolbox Server.
+   * @param headers The HTTP headers to include in requests.
+   */
+  public HttpMcpToolboxClient(String baseUrl, Map<String, String> headers) {
     this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
-    this.apiKey = apiKey;
+    this.headers = headers != null ? new HashMap<>(headers) : new HashMap<>();
     this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     this.objectMapper = new ObjectMapper();
+
+    if (this.baseUrl.toLowerCase(Locale.ROOT).startsWith("http://")) {
+      for (String headerName : this.headers.keySet()) {
+        String lower = headerName.toLowerCase(Locale.ROOT);
+        if (lower.contains("authorization") || lower.contains("api-key") || lower.contains("token")) {
+          logger.warning("WARNING: Sending credentials over unencrypted HTTP! This exposes credentials to network interception.");
+          break;
+        }
+      }
+    }
   }
 
   private synchronized CompletableFuture<Void> ensureInitialized(String authHeader) {
@@ -70,7 +94,8 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
               .uri(URI.create(baseUrl))
               .header("Content-Type", "application/json")
               .POST(HttpRequest.BodyPublishers.ofString(body));
-      if (authHeader != null) req.header("Authorization", authHeader);
+      this.headers.forEach(req::setHeader);
+      if (authHeader != null) req.setHeader("Authorization", authHeader);
 
       return httpClient
           .sendAsync(req.build(), HttpResponse.BodyHandlers.ofString())
@@ -90,7 +115,8 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
                           .header("Content-Type", "application/json")
                           .header("MCP-Protocol-Version", protocolVersion)
                           .POST(HttpRequest.BodyPublishers.ofString(notifBody));
-                  if (authHeader != null) nReq.header("Authorization", authHeader);
+                  this.headers.forEach(nReq::setHeader);
+                  if (authHeader != null) nReq.setHeader("Authorization", authHeader);
 
                   return httpClient
                       .sendAsync(nReq.build(), HttpResponse.BodyHandlers.ofString())
@@ -134,7 +160,8 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
                                     .header("Content-Type", "application/json")
                                     .header("MCP-Protocol-Version", protocolVersion)
                                     .POST(HttpRequest.BodyPublishers.ofString(body));
-                            if (authHeader != null) req.header("Authorization", authHeader);
+                            this.headers.forEach(req::setHeader);
+                            if (authHeader != null) req.setHeader("Authorization", authHeader);
 
                             return httpClient
                                 .sendAsync(req.build(), HttpResponse.BodyHandlers.ofString())
@@ -220,8 +247,13 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
                 // Determine priority Auth header before init so init requests can use it if
                 // needed
                 String finalAuthHeader = null;
-                if (extraHeaders.containsKey("Authorization")) {
-                  finalAuthHeader = extraHeaders.get("Authorization");
+                String authKeyInExtra = extraHeaders.keySet().stream()
+                    .filter(k -> "Authorization".equalsIgnoreCase(k))
+                    .findFirst()
+                    .orElse(null);
+
+                if (authKeyInExtra != null) {
+                  finalAuthHeader = extraHeaders.get(authKeyInExtra);
                 } else if (adcHeader != null) {
                   finalAuthHeader = adcHeader;
                 }
@@ -244,10 +276,11 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
                                     .header("MCP-Protocol-Version", protocolVersion)
                                     .POST(HttpRequest.BodyPublishers.ofString(requestBody));
 
+                            this.headers.forEach(requestBuilder::setHeader);
+                            extraHeaders.forEach(requestBuilder::setHeader);
                             if (reqAuth != null) {
                               requestBuilder.setHeader("Authorization", reqAuth);
                             }
-                            extraHeaders.forEach(requestBuilder::setHeader);
 
                             return httpClient
                                 .sendAsync(
@@ -265,8 +298,10 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
   }
 
   private String getAuthorizationHeader() {
-    if (this.apiKey != null && !this.apiKey.isEmpty()) {
-      return this.apiKey.startsWith("Bearer ") ? this.apiKey : "Bearer " + this.apiKey;
+    for (Map.Entry<String, String> entry : this.headers.entrySet()) {
+      if ("Authorization".equalsIgnoreCase(entry.getKey())) {
+        return entry.getValue();
+      }
     }
     try {
       GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
