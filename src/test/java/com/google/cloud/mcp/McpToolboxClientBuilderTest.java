@@ -32,7 +32,7 @@ class McpToolboxClientBuilderTest {
             .apiKey("my-api-key")
             .headers(Map.of("X-Custom-Header", "value1", "Authorization", "Bearer custom-token"))
             .build();
-    
+
     assertNotNull(client);
     assertTrue(client instanceof HttpMcpToolboxClient);
   }
