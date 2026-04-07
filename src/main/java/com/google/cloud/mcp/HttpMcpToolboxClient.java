@@ -44,6 +44,8 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
   private final ObjectMapper objectMapper;
   private boolean initialized = false;
   private final String protocolVersion = "2025-11-25";
+  private final List<ToolPreProcessor> preProcessors;
+  private final List<ToolPostProcessor> postProcessors;
 
   /**
    * Constructs a new HttpMcpToolboxClient.
@@ -52,10 +54,28 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
    * @param apiKey The API key for authentication (optional).
    */
   public HttpMcpToolboxClient(String baseUrl, String apiKey) {
+    this(baseUrl, apiKey, Collections.emptyList(), Collections.emptyList());
+  }
+
+  /**
+   * Constructs a new HttpMcpToolboxClient with processors.
+   *
+   * @param baseUrl The base URL of the MCP Toolbox Server.
+   * @param apiKey The API key for authentication (optional).
+   * @param preProcessors The pre-processors to apply.
+   * @param postProcessors The post-processors to apply.
+   */
+  public HttpMcpToolboxClient(
+      String baseUrl,
+      String apiKey,
+      List<ToolPreProcessor> preProcessors,
+      List<ToolPostProcessor> postProcessors) {
     this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     this.apiKey = apiKey;
     this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     this.objectMapper = new ObjectMapper();
+    this.preProcessors = preProcessors != null ? new ArrayList<>(preProcessors) : new ArrayList<>();
+    this.postProcessors = postProcessors != null ? new ArrayList<>(postProcessors) : new ArrayList<>();
   }
 
   private synchronized CompletableFuture<Void> ensureInitialized(String authHeader) {
@@ -177,6 +197,12 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
             if (authBinds != null && authBinds.containsKey(toolName)) {
               authBinds.get(toolName).forEach(tool::addAuthTokenGetter);
             }
+            for (ToolPreProcessor preProcessor : this.preProcessors) {
+              tool.addPreProcessor(preProcessor);
+            }
+            for (ToolPostProcessor postProcessor : this.postProcessors) {
+              tool.addPostProcessor(postProcessor);
+            }
             tools.put(toolName, tool);
           }
           return tools;
@@ -200,6 +226,12 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
               Tool tool = new Tool(toolName, tools.get(toolName), this);
               if (authTokenGetters != null) {
                 authTokenGetters.forEach(tool::addAuthTokenGetter);
+              }
+              for (ToolPreProcessor preProcessor : this.preProcessors) {
+                tool.addPreProcessor(preProcessor);
+              }
+              for (ToolPostProcessor postProcessor : this.postProcessors) {
+                tool.addPostProcessor(postProcessor);
               }
               return tool;
             });

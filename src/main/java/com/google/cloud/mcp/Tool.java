@@ -16,7 +16,9 @@
 
 package com.google.cloud.mcp;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -33,6 +35,8 @@ public class Tool {
 
   private final Map<String, Object> boundParameters = new HashMap<>();
   private final Map<String, AuthTokenGetter> authGetters = new HashMap<>();
+  private final List<ToolPreProcessor> preProcessors = new ArrayList<>();
+  private final List<ToolPostProcessor> postProcessors = new ArrayList<>();
 
   /**
    * Constructs a new Tool.
@@ -102,6 +106,28 @@ public class Tool {
   }
 
   /**
+   * Adds a pre-processor to the tool.
+   *
+   * @param processor The pre-processor to add.
+   * @return The tool instance.
+   */
+  public Tool addPreProcessor(ToolPreProcessor processor) {
+    this.preProcessors.add(processor);
+    return this;
+  }
+
+  /**
+   * Adds a post-processor to the tool.
+   *
+   * @param processor The post-processor to add.
+   * @return The tool instance.
+   */
+  public Tool addPostProcessor(ToolPostProcessor processor) {
+    this.postProcessors.add(processor);
+    return this;
+  }
+
+  /**
    * Executes the tool with the provided arguments, applying any bound parameters and resolving
    * authentication tokens.
    *
@@ -109,55 +135,81 @@ public class Tool {
    * @return A CompletableFuture containing the result of the tool execution.
    */
   public CompletableFuture<ToolResult> execute(Map<String, Object> args) {
-    Map<String, Object> finalArgs = new HashMap<>(args);
-    Map<String, String> extraHeaders = new HashMap<>();
+    CompletableFuture<Map<String, Object>> argsFuture =
+        CompletableFuture.completedFuture(new HashMap<>(args));
 
-    // 1. Apply Bound Parameters
-    for (Map.Entry<String, Object> entry : boundParameters.entrySet()) {
-      Object val = entry.getValue();
-      if (val instanceof Supplier) {
-        finalArgs.put(entry.getKey(), ((Supplier<?>) val).get());
-      } else {
-        finalArgs.put(entry.getKey(), val);
-      }
+    for (ToolPreProcessor preProcessor : preProcessors) {
+      argsFuture = argsFuture.thenCompose(currentArgs -> preProcessor.process(name, currentArgs));
     }
 
-    // 2. Resolve Auth Tokens
-    return CompletableFuture.allOf(
-            authGetters.entrySet().stream()
-                .map(
-                    entry -> {
-                      String serviceName = entry.getKey();
-                      return entry
-                          .getValue()
-                          .getToken()
-                          .thenAccept(
-                              token -> {
-                                // A. Check if mapped to a Parameter (Authenticated Parameters)
-                                String paramName = findParameterForService(serviceName);
-                                if (paramName != null) {
-                                  finalArgs.put(paramName, token);
-                                }
+    CompletableFuture<ToolResult> resultFuture =
+        argsFuture.thenCompose(
+            processedArgs -> {
+              Map<String, Object> finalArgs = new HashMap<>(processedArgs);
+              Map<String, String> extraHeaders = new HashMap<>();
 
-                                // B. Always add to Headers to support Authorized Invocation
-                                // 1. Standard OIDC Header (Cloud Run)
-                                extraHeaders.put("Authorization", "Bearer " + token);
-
-                                // 2. SDK Convention Header (Framework Compatibility)
-                                extraHeaders.put(serviceName + "_token", token);
-                              });
-                    })
-                .toArray(CompletableFuture[]::new))
-        .thenCompose(
-            v -> {
-              try {
-                // 3. Validation & Cleanup
-                validateAndSanitizeArgs(finalArgs);
-                return client.invokeTool(name, finalArgs, extraHeaders);
-              } catch (Exception e) {
-                return CompletableFuture.failedFuture(e);
+              // 1. Apply Bound Parameters
+              for (Map.Entry<String, Object> entry : boundParameters.entrySet()) {
+                Object val = entry.getValue();
+                if (val instanceof Supplier) {
+                  finalArgs.put(entry.getKey(), ((Supplier<?>) val).get());
+                } else {
+                  finalArgs.put(entry.getKey(), val);
+                }
               }
+
+              // 2. Resolve Auth Tokens
+              return CompletableFuture.allOf(
+                      authGetters.entrySet().stream()
+                          .map(
+                              entry -> {
+                                String serviceName = entry.getKey();
+                                return entry
+                                    .getValue()
+                                    .getToken()
+                                    .thenAccept(
+                                        token -> {
+                                          // A. Check if mapped to a Parameter (Authenticated Parameters)
+                                          String paramName = findParameterForService(serviceName);
+                                          if (paramName != null) {
+                                            finalArgs.put(paramName, token);
+                                          }
+
+                                          // B. Always add to Headers to support Authorized Invocation
+                                          // 1. Standard OIDC Header (Cloud Run)
+                                          extraHeaders.put("Authorization", "Bearer " + token);
+
+                                          // 2. SDK Convention Header (Framework Compatibility)
+                                          extraHeaders.put(serviceName + "_token", token);
+                                        });
+                              })
+                          .toArray(CompletableFuture[]::new))
+                  .thenCompose(
+                      v -> {
+                        try {
+                          // 3. Validation & Cleanup
+                          validateAndSanitizeArgs(finalArgs);
+                          return client.invokeTool(name, finalArgs, extraHeaders);
+                        } catch (Exception e) {
+                          return CompletableFuture.failedFuture(e);
+                        }
+                      });
             });
+
+    for (ToolPostProcessor postProcessor : postProcessors) {
+      resultFuture =
+          resultFuture
+              .handle(
+                  (res, err) -> {
+                    if (err != null) {
+                      return CompletableFuture.<ToolResult>failedFuture(err);
+                    }
+                    return postProcessor.process(name, res);
+                  })
+              .thenCompose(f -> f);
+    }
+
+    return resultFuture;
   }
 
   private String findParameterForService(String serviceName) {
