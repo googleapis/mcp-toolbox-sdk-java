@@ -57,7 +57,11 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
    * @param apiKey The API key for authentication (optional).
    */
   public HttpMcpToolboxClient(String baseUrl, String apiKey) {
-    this(baseUrl, apiKey != null && !apiKey.isEmpty() ? Map.of("Authorization", apiKey.startsWith("Bearer ") ? apiKey : "Bearer " + apiKey) : Collections.emptyMap());
+    this(
+        baseUrl,
+        apiKey != null && !apiKey.isEmpty()
+            ? Map.of("Authorization", apiKey.startsWith("Bearer ") ? apiKey : "Bearer " + apiKey)
+            : Collections.emptyMap());
   }
 
   /**
@@ -68,7 +72,10 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
    */
   public HttpMcpToolboxClient(String baseUrl, Map<String, String> headers) {
     this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
-    this.headers = headers != null ? java.util.Collections.unmodifiableMap(new java.util.HashMap<>(headers)) : java.util.Collections.emptyMap();
+    this.headers =
+        headers != null
+            ? java.util.Collections.unmodifiableMap(new java.util.HashMap<>(headers))
+            : java.util.Collections.emptyMap();
     this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     this.objectMapper = new ObjectMapper();
   }
@@ -89,9 +96,10 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
               .uri(URI.create(baseUrl))
               .header("Content-Type", "application/json")
               .POST(HttpRequest.BodyPublishers.ofString(body));
-      this.headers.forEach((k, v) -> {
-        if (!"Authorization".equalsIgnoreCase(k)) req.setHeader(k, v);
-      });
+      this.headers.forEach(
+          (k, v) -> {
+            if (!"Authorization".equalsIgnoreCase(k)) req.setHeader(k, v);
+          });
       if (authHeader != null) req.setHeader("Authorization", authHeader);
 
       return httpClient
@@ -112,9 +120,10 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
                           .header("Content-Type", "application/json")
                           .header("MCP-Protocol-Version", protocolVersion)
                           .POST(HttpRequest.BodyPublishers.ofString(notifBody));
-                  this.headers.forEach((k, val) -> {
-                    if (!"Authorization".equalsIgnoreCase(k)) nReq.setHeader(k, val);
-                  });
+                  this.headers.forEach(
+                      (k, val) -> {
+                        if (!"Authorization".equalsIgnoreCase(k)) nReq.setHeader(k, val);
+                      });
                   if (authHeader != null) nReq.setHeader("Authorization", authHeader);
 
                   return httpClient
@@ -159,9 +168,10 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
                                     .header("Content-Type", "application/json")
                                     .header("MCP-Protocol-Version", protocolVersion)
                                     .POST(HttpRequest.BodyPublishers.ofString(body));
-                            this.headers.forEach((k, val) -> {
-        if (!"Authorization".equalsIgnoreCase(k)) req.setHeader(k, val);
-      });
+                            this.headers.forEach(
+                                (k, val) -> {
+                                  if (!"Authorization".equalsIgnoreCase(k)) req.setHeader(k, val);
+                                });
                             if (authHeader != null) req.setHeader("Authorization", authHeader);
 
                             return httpClient
@@ -264,10 +274,11 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
                 // Determine priority Auth header before init so init requests can use it if
                 // needed
                 String finalAuthHeader = null;
-                String authKeyInExtra = extraHeaders.keySet().stream()
-                    .filter(k -> "Authorization".equalsIgnoreCase(k))
-                    .findFirst()
-                    .orElse(null);
+                String authKeyInExtra =
+                    extraHeaders.keySet().stream()
+                        .filter(k -> "Authorization".equalsIgnoreCase(k))
+                        .findFirst()
+                        .orElse(null);
 
                 if (authKeyInExtra != null) {
                   finalAuthHeader = extraHeaders.get(authKeyInExtra);
@@ -293,12 +304,16 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
                                     .header("MCP-Protocol-Version", protocolVersion)
                                     .POST(HttpRequest.BodyPublishers.ofString(requestBody));
 
-                            this.headers.forEach((k, val) -> {
-                              if (!"Authorization".equalsIgnoreCase(k)) requestBuilder.setHeader(k, val);
-                            });
-                            extraHeaders.forEach((k, val) -> {
-                              if (!"Authorization".equalsIgnoreCase(k)) requestBuilder.setHeader(k, val);
-                            });
+                            this.headers.forEach(
+                                (k, val) -> {
+                                  if (!"Authorization".equalsIgnoreCase(k))
+                                    requestBuilder.setHeader(k, val);
+                                });
+                            extraHeaders.forEach(
+                                (k, val) -> {
+                                  if (!"Authorization".equalsIgnoreCase(k))
+                                    requestBuilder.setHeader(k, val);
+                                });
                             if (reqAuth != null) {
                               requestBuilder.setHeader("Authorization", reqAuth);
                             }
