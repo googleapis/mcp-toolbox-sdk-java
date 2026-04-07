@@ -37,6 +37,8 @@ public class McpToolboxClientImpl implements McpToolboxClient {
   private final Map<String, String> headers;
   private final CredentialsProvider credentialsProvider;
   private final ObjectMapper objectMapper;
+  private final List<ToolPreProcessor> preProcessors;
+  private final List<ToolPostProcessor> postProcessors;
 
   /**
    * Constructs a new McpToolboxClientImpl.
@@ -46,13 +48,7 @@ public class McpToolboxClientImpl implements McpToolboxClient {
    */
   public McpToolboxClientImpl(
       Transport transport, Map<String, String> headers, CredentialsProvider credentialsProvider) {
-    this.transport = transport;
-    this.headers =
-        headers != null
-            ? java.util.Collections.unmodifiableMap(new java.util.HashMap<>(headers))
-            : java.util.Collections.emptyMap();
-    this.credentialsProvider = credentialsProvider;
-    this.objectMapper = new ObjectMapper();
+    this(transport, headers, credentialsProvider, null, null);
   }
 
   /**
@@ -108,6 +104,24 @@ public class McpToolboxClientImpl implements McpToolboxClient {
     }
     String bearerKey = apiKey.startsWith("Bearer ") ? apiKey : "Bearer " + apiKey;
     return () -> CompletableFuture.completedFuture(bearerKey);
+  }
+
+  /** Primary constructor for McpToolboxClientImpl. */
+  public McpToolboxClientImpl(
+      Transport transport,
+      Map<String, String> headers,
+      CredentialsProvider credentialsProvider,
+      List<ToolPreProcessor> preProcessors,
+      List<ToolPostProcessor> postProcessors) {
+    this.transport = transport;
+    this.headers =
+        headers != null
+            ? java.util.Collections.unmodifiableMap(new java.util.HashMap<>(headers))
+            : java.util.Collections.emptyMap();
+    this.credentialsProvider = credentialsProvider;
+    this.preProcessors = preProcessors != null ? List.copyOf(preProcessors) : List.of();
+    this.postProcessors = postProcessors != null ? List.copyOf(postProcessors) : List.of();
+    this.objectMapper = new ObjectMapper();
   }
 
   @Override
@@ -168,6 +182,12 @@ public class McpToolboxClientImpl implements McpToolboxClient {
             if (authBinds != null && authBinds.containsKey(toolName)) {
               authBinds.get(toolName).forEach(tool::addAuthTokenGetter);
             }
+            for (ToolPreProcessor preProcessor : this.preProcessors) {
+              tool.addPreProcessor(preProcessor);
+            }
+            for (ToolPostProcessor postProcessor : this.postProcessors) {
+              tool.addPostProcessor(postProcessor);
+            }
             tools.put(toolName, tool);
           }
           return tools;
@@ -196,6 +216,12 @@ public class McpToolboxClientImpl implements McpToolboxClient {
               Tool tool = new Tool(toolName, tools.get(toolName), this);
               if (authTokenGetters != null) {
                 authTokenGetters.forEach(tool::addAuthTokenGetter);
+              }
+              for (ToolPreProcessor preProcessor : this.preProcessors) {
+                tool.addPreProcessor(preProcessor);
+              }
+              for (ToolPostProcessor postProcessor : this.postProcessors) {
+                tool.addPostProcessor(postProcessor);
               }
               return tool;
             });

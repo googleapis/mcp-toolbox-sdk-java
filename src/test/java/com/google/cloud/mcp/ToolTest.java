@@ -18,12 +18,15 @@ package com.google.cloud.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -34,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
@@ -45,15 +49,23 @@ import org.mockito.ArgumentCaptor;
 class ToolTest {
 
   private ExecutorService pool;
+  private McpToolboxClient mockClient;
+  private ToolDefinition toolDefinition;
+  private Tool tool;
 
   @BeforeEach
   void setUp() {
     pool = Executors.newFixedThreadPool(8);
+    mockClient = mock(McpToolboxClient.class);
+    toolDefinition = new ToolDefinition("Test Tool", null, null);
+    tool = new Tool("test_tool", toolDefinition, mockClient);
   }
 
   @AfterEach
   void tearDown() {
-    pool.shutdownNow();
+    if (pool != null) {
+      pool.shutdownNow();
+    }
   }
 
   /**
@@ -86,10 +98,10 @@ class ToolTest {
                   new ToolResult(List.of(new ToolResult.Content("text", "ok")), false));
             });
 
-    Tool tool = new Tool("race-tool", def, client);
+    Tool raceTool = new Tool("race-tool", def, client);
     for (int i = 0; i < services; i++) {
       final String token = "tok-" + i;
-      tool.addAuthTokenGetter(
+      raceTool.addAuthTokenGetter(
           "svc" + i,
           () ->
               CompletableFuture.supplyAsync(
@@ -104,7 +116,7 @@ class ToolTest {
     }
 
     for (int iter = 0; iter < iterations; iter++) {
-      tool.execute(new HashMap<>()).join();
+      raceTool.execute(new HashMap<>()).join();
     }
 
     assertEquals(iterations, capturedHeaders.size(), "every invocation should reach the client");
@@ -543,5 +555,92 @@ class ToolTest {
     ToolDefinition defWithoutHints = new ToolDefinition("A test tool", List.of(), List.of());
     assertEquals(null, defWithoutHints.readOnlyHint());
     assertEquals(null, defWithoutHints.destructiveHint());
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testExecute_withPreAndPostProcessors_modifiesArgsAndResult() throws Exception {
+    // Arrange
+    Map<String, Object> initialArgs = new HashMap<>();
+    initialArgs.put("arg1", "val1");
+
+    ToolResult originalResult =
+        new ToolResult(List.of(new ToolResult.Content("text", "original")), false);
+    ToolResult modifiedResult =
+        new ToolResult(List.of(new ToolResult.Content("text", "modified")), false);
+
+    ToolPreProcessor preProcessor1 =
+        (name, args) -> {
+          Map<String, Object> newArgs = new HashMap<>(args);
+          newArgs.put("arg2", "val2");
+          return CompletableFuture.completedFuture(newArgs);
+        };
+
+    ToolPreProcessor preProcessor2 =
+        (name, args) -> {
+          Map<String, Object> newArgs = new HashMap<>(args);
+          newArgs.put("arg3", "val3");
+          return CompletableFuture.completedFuture(newArgs);
+        };
+
+    ToolPostProcessor postProcessor =
+        (name, result) -> {
+          if (result.content().get(0).text().equals("original")) {
+            return CompletableFuture.completedFuture(modifiedResult);
+          }
+          return CompletableFuture.completedFuture(result);
+        };
+
+    tool.addPreProcessor(preProcessor1);
+    tool.addPreProcessor(preProcessor2);
+    tool.addPostProcessor(postProcessor);
+
+    when(mockClient.invokeTool(eq("test_tool"), anyMap(), anyMap()))
+        .thenReturn(CompletableFuture.completedFuture(originalResult));
+
+    // Act
+    CompletableFuture<ToolResult> futureResult = tool.execute(initialArgs);
+    ToolResult finalResult = futureResult.get();
+
+    // Assert
+    ArgumentCaptor<Map<String, Object>> argsCaptor = ArgumentCaptor.forClass(Map.class);
+    verify(mockClient, times(1)).invokeTool(eq("test_tool"), argsCaptor.capture(), anyMap());
+
+    Map<String, Object> capturedArgs = argsCaptor.getValue();
+    assertEquals(3, capturedArgs.size());
+    assertEquals("val1", capturedArgs.get("arg1"));
+    assertEquals("val2", capturedArgs.get("arg2"));
+    assertEquals("val3", capturedArgs.get("arg3"));
+
+    assertSame(modifiedResult, finalResult);
+  }
+
+  @Test
+  void testExecute_preProcessorException_failsFutureWithoutInvokingClient() {
+    // Arrange
+    Map<String, Object> initialArgs = new HashMap<>();
+
+    ToolPreProcessor preProcessor =
+        (name, args) -> CompletableFuture.failedFuture(new RuntimeException("PreProcessor failed"));
+
+    tool.addPreProcessor(preProcessor);
+
+    // Act
+    CompletableFuture<ToolResult> futureResult = tool.execute(initialArgs);
+
+    // Assert
+    assertTrue(futureResult.isCompletedExceptionally());
+
+    Exception exception = null;
+    try {
+      futureResult.get();
+    } catch (InterruptedException | ExecutionException e) {
+      exception = e;
+    }
+    assertTrue(exception.getCause() instanceof RuntimeException);
+    assertEquals("PreProcessor failed", exception.getCause().getMessage());
+
+    verify(mockClient, never()).invokeTool(eq("test_tool"), anyMap(), anyMap());
+    verify(mockClient, never()).invokeTool(eq("test_tool"), anyMap());
   }
 }

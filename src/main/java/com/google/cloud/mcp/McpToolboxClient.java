@@ -136,12 +136,29 @@ public interface McpToolboxClient {
     Builder headers(Map<String, String> headers);
 
     /**
+    /**
      * Sets the credentials provider for dynamic authorization header resolution.
      *
      * @param credentialsProvider The credentials provider.
      * @return The builder instance.
      */
     Builder credentialsProvider(CredentialsProvider credentialsProvider);
+
+    /**
+     * Adds a global pre-processor that will be applied to all tools loaded by this client.
+     *
+     * @param preProcessor The pre-processor to add.
+     * @return The builder instance.
+     */
+    Builder preProcessor(ToolPreProcessor preProcessor);
+
+    /**
+     * Adds a global post-processor that will be applied to all tools loaded by this client.
+     *
+     * @param postProcessor The post-processor to add.
+     * @return The builder instance.
+     */
+    Builder postProcessor(ToolPostProcessor postProcessor);
 
     /**
      * Builds and returns a new {@link McpToolboxClient} instance.
