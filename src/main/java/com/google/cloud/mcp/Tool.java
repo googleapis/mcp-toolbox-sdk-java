@@ -197,16 +197,7 @@ public class Tool {
             });
 
     for (ToolPostProcessor postProcessor : postProcessors) {
-      resultFuture =
-          resultFuture
-              .handle(
-                  (res, err) -> {
-                    if (err != null) {
-                      return CompletableFuture.<ToolResult>failedFuture(err);
-                    }
-                    return postProcessor.process(name, res);
-                  })
-              .thenCompose(f -> f);
+      resultFuture = resultFuture.thenCompose(res -> postProcessor.process(name, res));
     }
 
     return resultFuture;
