@@ -128,6 +128,22 @@ public interface McpToolboxClient {
     Builder apiKey(String apiKey);
 
     /**
+     * Adds a global pre-processor that will be applied to all tools loaded by this client.
+     *
+     * @param preProcessor The pre-processor to add.
+     * @return The builder instance.
+     */
+    Builder preProcessor(ToolPreProcessor preProcessor);
+
+    /**
+     * Adds a global post-processor that will be applied to all tools loaded by this client.
+     *
+     * @param postProcessor The post-processor to add.
+     * @return The builder instance.
+     */
+    Builder postProcessor(ToolPostProcessor postProcessor);
+
+    /**
      * Builds and returns a new {@link McpToolboxClient} instance.
      *
      * @return The new client instance.
