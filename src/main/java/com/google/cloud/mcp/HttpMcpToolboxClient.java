@@ -75,7 +75,8 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
     this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     this.objectMapper = new ObjectMapper();
     this.preProcessors = preProcessors != null ? new ArrayList<>(preProcessors) : new ArrayList<>();
-    this.postProcessors = postProcessors != null ? new ArrayList<>(postProcessors) : new ArrayList<>();
+    this.postProcessors =
+        postProcessors != null ? new ArrayList<>(postProcessors) : new ArrayList<>();
   }
 
   private synchronized CompletableFuture<Void> ensureInitialized(String authHeader) {

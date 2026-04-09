@@ -169,13 +169,15 @@ public class Tool {
                                     .getToken()
                                     .thenAccept(
                                         token -> {
-                                          // A. Check if mapped to a Parameter (Authenticated Parameters)
+                                          // A. Check if mapped to a Parameter (Authenticated
+                                          // Parameters)
                                           String paramName = findParameterForService(serviceName);
                                           if (paramName != null) {
                                             finalArgs.put(paramName, token);
                                           }
 
-                                          // B. Always add to Headers to support Authorized Invocation
+                                          // B. Always add to Headers to support Authorized
+                                          // Invocation
                                           // 1. Standard OIDC Header (Cloud Run)
                                           extraHeaders.put("Authorization", "Bearer " + token);
 
