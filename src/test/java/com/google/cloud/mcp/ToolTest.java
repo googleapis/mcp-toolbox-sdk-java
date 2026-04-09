@@ -36,67 +36,78 @@ class ToolTest {
   @Test
   void testDefaultValueInjection() throws Exception {
     McpToolboxClient mockClient = mock(McpToolboxClient.class);
-    
-    ToolDefinition.Parameter paramWithDefault = new ToolDefinition.Parameter(
-        "param1", "string", false, "A parameter", null, "default_value");
-    ToolDefinition.Parameter paramNoDefault = new ToolDefinition.Parameter(
-        "param2", "string", false, "Another parameter", null, null);
-        
-    ToolDefinition def = new ToolDefinition("A test tool", List.of(paramWithDefault, paramNoDefault), null);
-    
+
+    ToolDefinition.Parameter paramWithDefault =
+        new ToolDefinition.Parameter(
+            "param1", "string", false, "A parameter", null, "default_value");
+    ToolDefinition.Parameter paramNoDefault =
+        new ToolDefinition.Parameter("param2", "string", false, "Another parameter", null, null);
+
+    ToolDefinition def =
+        new ToolDefinition("A test tool", List.of(paramWithDefault, paramNoDefault), null);
+
     Tool tool = new Tool("testTool", def, mockClient);
-    
+
     when(mockClient.invokeTool(eq("testTool"), any(), any()))
-        .thenReturn(CompletableFuture.completedFuture(new ToolResult(Collections.emptyList(), false)));
-        
+        .thenReturn(
+            CompletableFuture.completedFuture(new ToolResult(Collections.emptyList(), false)));
+
     Map<String, Object> args = new HashMap<>();
     args.put("param2", "provided_value");
-    
+
     CompletableFuture<ToolResult> future = tool.execute(args);
     future.join(); // Wait for execution
-    
+
     @SuppressWarnings("unchecked")
     ArgumentCaptor<Map<String, Object>> argsCaptor = ArgumentCaptor.forClass(Map.class);
     @SuppressWarnings("unchecked")
     ArgumentCaptor<Map<String, String>> headersCaptor = ArgumentCaptor.forClass(Map.class);
-    
+
     verify(mockClient).invokeTool(eq("testTool"), argsCaptor.capture(), headersCaptor.capture());
-    
+
     Map<String, Object> capturedArgs = argsCaptor.getValue();
-    
-    assertEquals("default_value", capturedArgs.get("param1"), "Default value should be injected when not provided");
+
+    assertEquals(
+        "default_value",
+        capturedArgs.get("param1"),
+        "Default value should be injected when not provided");
     assertEquals("provided_value", capturedArgs.get("param2"), "Provided value should be kept");
   }
 
   @Test
   void testDefaultValueNotOverwritten() throws Exception {
     McpToolboxClient mockClient = mock(McpToolboxClient.class);
-    
-    ToolDefinition.Parameter paramWithDefault = new ToolDefinition.Parameter(
-        "param1", "string", false, "A parameter", null, "default_value");
-        
+
+    ToolDefinition.Parameter paramWithDefault =
+        new ToolDefinition.Parameter(
+            "param1", "string", false, "A parameter", null, "default_value");
+
     ToolDefinition def = new ToolDefinition("A test tool", List.of(paramWithDefault), null);
-    
+
     Tool tool = new Tool("testTool", def, mockClient);
-    
+
     when(mockClient.invokeTool(eq("testTool"), any(), any()))
-        .thenReturn(CompletableFuture.completedFuture(new ToolResult(Collections.emptyList(), false)));
-        
+        .thenReturn(
+            CompletableFuture.completedFuture(new ToolResult(Collections.emptyList(), false)));
+
     Map<String, Object> args = new HashMap<>();
     args.put("param1", "custom_value");
-    
+
     CompletableFuture<ToolResult> future = tool.execute(args);
     future.join(); // Wait for execution
-    
+
     @SuppressWarnings("unchecked")
     ArgumentCaptor<Map<String, Object>> argsCaptor = ArgumentCaptor.forClass(Map.class);
     @SuppressWarnings("unchecked")
     ArgumentCaptor<Map<String, String>> headersCaptor = ArgumentCaptor.forClass(Map.class);
-    
+
     verify(mockClient).invokeTool(eq("testTool"), argsCaptor.capture(), headersCaptor.capture());
-    
+
     Map<String, Object> capturedArgs = argsCaptor.getValue();
-    
-    assertEquals("custom_value", capturedArgs.get("param1"), "Provided value should not be overwritten by default value");
+
+    assertEquals(
+        "custom_value",
+        capturedArgs.get("param1"),
+        "Provided value should not be overwritten by default value");
   }
 }
