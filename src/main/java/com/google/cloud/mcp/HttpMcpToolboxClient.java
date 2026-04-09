@@ -346,13 +346,20 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
                 }
               }
 
+              Object defaultValue = null;
+              if (propNode.has("default")) {
+                JsonNode defNode = propNode.get("default");
+                defaultValue = objectMapper.treeToValue(defNode, Object.class);
+              }
+
               params.add(
                   new ToolDefinition.Parameter(
                       paramName,
                       paramType,
                       requiredSet.contains(paramName),
                       paramDesc,
-                      authSources));
+                      authSources,
+                      defaultValue));
             }
           }
 
