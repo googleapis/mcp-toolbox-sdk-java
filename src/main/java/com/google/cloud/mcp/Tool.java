@@ -180,6 +180,11 @@ public class Tool {
     for (ToolDefinition.Parameter param : definition.parameters()) {
       Object value = args.get(param.name());
 
+      if (value == null && param.defaultValue() != null) {
+        value = param.defaultValue();
+        args.put(param.name(), value);
+      }
+
       // A. Check Required Parameters
       if (param.required() && value == null) {
         throw new IllegalArgumentException(

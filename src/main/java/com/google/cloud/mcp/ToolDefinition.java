@@ -17,6 +17,7 @@
 package com.google.cloud.mcp;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 /**
@@ -36,6 +37,7 @@ public record ToolDefinition(
    * @param required Whether the parameter is required.
    * @param description A description of the parameter.
    * @param authSources A list of authentication sources for this parameter.
+   * @param defaultValue The default value for the parameter.
    */
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record Parameter(
@@ -43,6 +45,6 @@ public record ToolDefinition(
       String type,
       boolean required,
       String description,
-      List<String> authSources // Maps services to parameters
-      ) {}
+      List<String> authSources, // Maps services to parameters
+      @JsonProperty("default") Object defaultValue) {}
 }
