@@ -3,16 +3,13 @@
 ### Cymbal Bus Agent
 
 ##### 1. AlloyDB database and MCP Toolbox for AlloyDB for tools integration.
-##### 2. Cloud Run for Toolbox Deployment and Application (agent deployment).
+##### 2. Cloud Run for MCP Toolbox Deployment and Application (agent deployment).
 ##### 3. LangChain4J library for the agent and LLM framework in a Spring Boot Application with Java 17.
 
 #### AlloyDB Setup
 
 ##### Install AlloyDB Cluster and Instance
-Once click setup here:
-``` url
-https://codelabs.developers.google.com/quick-alloydb-setup
-```
+Follow the [AlloyDB 1-Click Setup](https://codelabs.developers.google.com/quick-alloydb-setup) instructions.
 
 ##### Extensions
 ``` sql
@@ -89,20 +86,20 @@ Check repo for file.
 Replace the placeholders represented by "*****" with your values in Tools.yaml file.
 You can parameterize these values as environment variables.
 
-#### Install Toolbox
+#### Install MCP Toolbox
 
 ``` bash
 # see releases page for other versions
-export VERSION=0.27.0
-curl -L -o toolbox https://storage.googleapis.com/genai-toolbox/v$VERSION/linux/amd64/toolbox
+export VERSION=1.1.0
+curl -L -o toolbox https://storage.googleapis.com/mcp-toolbox-for-databases/v$VERSION/linux/amd64/toolbox
 chmod +x toolbox
 ```
 
-#### Deploy Toolbox to Cloud Run
-Follow all the steps in the documentation. Including the authentication part. This is critical.
-``` url
-https://googleapis.github.io/genai-toolbox/how-to/deploy_toolbox/
-```
+#### Deploy MCP Toolbox
+Follow all the steps in the [Deployment Documentation](https://mcp-toolbox.dev/documentation/deploy-to/).
+
+> [!IMPORTANT]
+> Setting up client authentication is critical for secure integrations.
 
 #### Clone this repo
 Replace your environment variables locally in the controller class and run it locally. To run locally:

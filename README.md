@@ -1,5 +1,5 @@
 ![MCP Toolbox
-Logo](https://raw.githubusercontent.com/googleapis/genai-toolbox/main/logo.png)
+Logo](https://raw.githubusercontent.com/googleapis/mcp-toolbox/main/logo.png)
 
 # MCP Toolbox SDK for Java ☕
 
@@ -13,7 +13,7 @@ The official Java Client SDK for the MCP Toolbox.
 
 This repository contains SDK designed to seamlessly integrate the
 functionalities of the [MCP
-Toolbox](https://github.com/googleapis/genai-toolbox) into your Agentic
+Toolbox](https://github.com/googleapis/mcp-toolbox) into your Agentic
 applications. This allows you to load tools defined in Toolbox and use them
 as standard Java applications (Spring Boot, Quarkus, Jakarta EE) or your custom code. It empowers your AI Agents to "use tools"—querying databases, calling APIs, or managing files—without you writing the boilerplate integration code.
 
@@ -82,8 +82,8 @@ This SDK is designed to be versatile, supporting both modern cloud infrastructur
 
 ## Getting Started
 
-First make sure Toolbox Server is set up and is running (either locally or deployed on Cloud Run). Follow the instructions here: [**Toolbox Getting Started
-    Guide**](https://github.com/googleapis/genai-toolbox?tab=readme-ov-file#getting-started)
+First make sure MCP Toolbox Server is set up and is running (either locally or deployed on Cloud Run). Follow the instructions here: [**MCP Toolbox Getting Started
+    Guide**](https://mcp-toolbox.dev/documentation/introduction/#getting-started)
 
 ## Installation
 
@@ -299,11 +299,11 @@ Authentication is configured per-tool within the Toolbox service itself. If a to
 
 ### Supported Authentication Mechanisms
 
-The Toolbox service enables secure tool usage through Authenticated Parameters. For detailed information on how these mechanisms work within the Toolbox service and how to configure them, please refer to [Toolbox Service Documentation \- Authenticated Parameters](https://googleapis.github.io/genai-toolbox/resources/tools/#authenticated-parameters)
+The Toolbox service enables secure tool usage through Authenticated Parameters. For detailed information on how these mechanisms work within the Toolbox service and how to configure them, please refer to [MCP Toolbox Authentication](https://mcp-toolbox.dev/documentation/configuration/authentication/)
 
 ### Step 1: Configure Tools in Toolbox Service
 
-First, ensure the target tool(s) are configured correctly in the Toolbox service to require authentication. Refer to the [Toolbox Service Documentation \- Authenticated Parameters](https://googleapis.github.io/genai-toolbox/resources/tools/#authenticated-parameters) for instructions.
+First, ensure the target tool(s) are configured correctly in the Toolbox service to require authentication. Refer to the [Authenticated Parameters](https://mcp-toolbox.dev/documentation/configuration/tools/#authenticated-parameters) for instructions.
 
 ### Step 2: Configure SDK Client
 
