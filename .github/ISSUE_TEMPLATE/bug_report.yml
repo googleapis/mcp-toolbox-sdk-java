@@ -44,9 +44,9 @@ body:
       label: MCP Toolbox version
       description: |
         What version of MCP Toolbox are you using (`toolbox --version`)? e.g.
-        - toolbox version 0.3.0
-        - us-central1-docker.pkg.dev/database-toolbox/toolbox/toolbox:0.3.0
-      placeholder: e.g. toolbox version 0.3.0
+        - toolbox version 1.1.0
+        - us-central1-docker.pkg.dev/database-toolbox/toolbox/toolbox:1.1.0
+      placeholder: e.g. toolbox version 1.1.0
     validations:
       required: true
 
