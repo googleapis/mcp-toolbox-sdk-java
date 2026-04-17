@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.2.1](https://github.com/googleapis/mcp-toolbox-sdk-java/compare/v0.2.0...v0.2.1) (2026-04-17)
+
+
+### Features
+
+* Add HTTP credential exposure warnings ([#55](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/55)) ([1e7b2ee](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/1e7b2eef51c2c93c818d64a17a089b9289c7b83b))
+
+
+### Miscellaneous Chores
+
+* auto-update package version in docs ([#51](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/51)) ([7cad88a](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/7cad88a8ea57bd85e2f31adb002814af2e44fc82))
+* Included ipType parameter private ([#53](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/53)) ([f6a67a1](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/f6a67a1dccac5d39798a59a1e1f22c37f4a2a382))
+* **main:** release 0.2.1-SNAPSHOT ([#43](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/43)) ([11abd5d](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/11abd5d45e0c4b694fda00246333998de9f2f821))
+* Revised controller after response retrieval ([#48](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/48)) ([99c78b3](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/99c78b3190cfde4c32ed816bfda2496c77bcdcd1))
+* Revised the dependency version for the SDK to 0.2.0 ([#46](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/46)) ([f08b3f3](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/f08b3f34f34502b1803c190a188c1c9700e1098d))
+* Revised the dependency version in the documentation ([#49](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/49)) ([51e0273](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/51e0273801bfa296b76f1e73ab96dcf9964f0132))
+* Revised the dependency version in the documentation ([#50](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/50)) ([d86ac08](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/d86ac08cef20098af91effac05ce8eb4225de7f7))
+* Update response handling ([#45](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/45)) ([af6c436](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/af6c4364f3a5bc06682ceac7b05f471bba81bb21))
+* Update response handling ([#47](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/47)) ([c0e4c06](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/c0e4c06613deb328bcea762fd694a5527abde84c))
+
 ## [0.2.0](https://github.com/googleapis/mcp-toolbox-sdk-java/compare/v0.1.1...v0.2.0) (2026-03-02)
 
 
