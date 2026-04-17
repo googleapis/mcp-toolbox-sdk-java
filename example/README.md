@@ -11,11 +11,11 @@ These sample Java files allow you to test the features supported in the Java ver
 2. To start with tools, go ahead and create the MCP Toolbox Server for the sameple use case we are looking at.
   
 3. To set up & install **MCP Toolbox Server**, install the latest version from here:
-   https://github.com/googleapis/genai-toolbox?tab=readme-ov-file#installing-the-server
+   https://mcp-toolbox.dev/documentation/introduction/#install-toolbox
    
 4. Next, create **tools.yaml**, you can find the one we are using in our example in this repo.
    
-5. Replace the placeholder variables in `tools.yaml` with values from your instance / environment
+5. Replace the placeholder variables in `tools.yaml` with values from your instance / environment.
 
 > [!TIP]
 > Do not hardcode for production applications.
@@ -33,7 +33,7 @@ These sample Java files allow you to test the features supported in the Java ver
 7. You can then deploy this in Cloud Run to test the application or use the local instance running, while you try the example Java applications.
 In any case remember to change the `YOUR_TOOLBOX_SERVICE_ENDPOINT` placeholder in the respective files.
 
-    If you decide to deploy your toolbox endpoint in cloud run, here's how you can do it: https://googleapis.github.io/genai-toolbox/how-to/deploy_toolbox
+    If you decide to deploy your toolbox endpoint in cloud run, here's how you can do it: https://mcp-toolbox.dev/documentation/deploy-to/cloud-run/
 
 > [!NOTE]
 > At this point you must be having a working MCP Toolbox server accessible.

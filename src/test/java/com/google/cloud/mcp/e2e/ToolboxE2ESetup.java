@@ -161,7 +161,7 @@ public class ToolboxE2ESetup implements BeforeAllCallback, AfterAllCallback {
     logger.info("Downloading toolbox binary from: " + blobName);
 
     Storage storage = StorageOptions.getDefaultInstance().getService();
-    Blob blob = storage.get("genai-toolbox", blobName);
+    Blob blob = storage.get("mcp-toolbox-for-databases", blobName);
     if (blob == null) {
       throw new RuntimeException("Toolbox binary not found in GCS: " + blobName);
     }
