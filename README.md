@@ -125,7 +125,8 @@ McpToolboxClient client = McpToolboxClient.builder()
 // Cloud Run Production
 McpToolboxClient client = McpToolboxClient.builder()
     .baseUrl("https://my-toolbox-service.a.run.app/mcp")
-    // .apiKey("...") // Optional: Overrides automatic Google Auth
+    // .headers(Map.of("Authorization", "Bearer YOUR_TOKEN")) // Optional: Add custom headers, overrides automatic Google Auth
+    // .apiKey("...") // Optional: Deprecated but supported for backward compatibility
     .build();
 ```
 
@@ -283,7 +284,7 @@ export GOOGLE_APPLICATION_CREDENTIALS="/path/to/key.json"
 | **Cloud Run** | Uses Service Account | **None.** (Automatic) |
 | **CI/CD** | Uses Service Account Key | Set GOOGLE\_APPLICATION\_CREDENTIALS=/path/to/key.json |
 
-*Note: If you provide an `.apiKey()` in the builder, it overrides the automatic ADC mechanism.*
+*Note: If you provide an `.apiKey()` or `Authorization` in `.headers()` in the builder, it overrides the automatic ADC mechanism.*
 
 ### Authenticating the Tools
 

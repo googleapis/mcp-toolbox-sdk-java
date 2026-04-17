@@ -128,6 +128,14 @@ public interface McpToolboxClient {
     Builder apiKey(String apiKey);
 
     /**
+     * Sets additional HTTP headers to be included in all requests to the MCP Toolbox Server.
+     *
+     * @param headers The HTTP headers.
+     * @return The builder instance.
+     */
+    Builder headers(Map<String, String> headers);
+
+    /**
      * Builds and returns a new {@link McpToolboxClient} instance.
      *
      * @return The new client instance.
