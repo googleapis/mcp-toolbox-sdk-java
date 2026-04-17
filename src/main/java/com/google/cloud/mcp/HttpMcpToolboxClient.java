@@ -34,9 +34,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Logger;
 
 /** Default implementation using Java 11 HttpClient. */
 public class HttpMcpToolboxClient implements McpToolboxClient {
+
+  private static final Logger logger = Logger.getLogger(HttpMcpToolboxClient.class.getName());
+  private static final String HTTP_WARNING =
+      "This connection is using HTTP. To prevent credential exposure, please ensure all"
+          + " communication is sent over HTTPS.";
 
   private final String baseUrl;
   private final String apiKey;
@@ -61,6 +67,10 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
   private synchronized CompletableFuture<Void> ensureInitialized(String authHeader) {
     if (initialized) return CompletableFuture.completedFuture(null);
     try {
+      if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
+          && authHeader != null) {
+        logger.warning(HTTP_WARNING);
+      }
       JsonRpc.Request initReq =
           new JsonRpc.Request(
               "initialize", new JsonRpc.InitializeParams(protocolVersion, "mcp-toolbox-sdk-java"));
@@ -152,6 +162,12 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
       Map<String, Map<String, AuthTokenGetter>> authBinds,
       boolean strict) {
 
+    if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
+        && authBinds != null
+        && !authBinds.isEmpty()) {
+      logger.warning(HTTP_WARNING);
+    }
+
     CompletableFuture<Map<String, ToolDefinition>> definitionsFuture = loadToolset(toolsetName);
 
     return definitionsFuture.thenApply(
@@ -191,6 +207,11 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
   @Override
   public CompletableFuture<Tool> loadTool(
       String toolName, Map<String, AuthTokenGetter> authTokenGetters) {
+    if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
+        && authTokenGetters != null
+        && !authTokenGetters.isEmpty()) {
+      logger.warning(HTTP_WARNING);
+    }
     return listTools()
         .thenApply(
             tools -> {
@@ -213,6 +234,11 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
   @Override
   public CompletableFuture<ToolResult> invokeTool(
       String toolName, Map<String, Object> arguments, Map<String, String> extraHeaders) {
+    if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
+        && extraHeaders != null
+        && !extraHeaders.isEmpty()) {
+      logger.warning(HTTP_WARNING);
+    }
     return CompletableFuture.supplyAsync(this::getAuthorizationHeader)
         .thenCompose(
             adcHeader -> {
