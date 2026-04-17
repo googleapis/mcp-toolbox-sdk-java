@@ -16,10 +16,15 @@
 
 package com.google.cloud.mcp;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** Implementation of the {@link McpToolboxClient.Builder} interface. */
 public class McpToolboxClientBuilder implements McpToolboxClient.Builder {
   private String baseUrl;
   private String apiKey;
+  private final List<ToolPreProcessor> preProcessors = new ArrayList<>();
+  private final List<ToolPostProcessor> postProcessors = new ArrayList<>();
 
   /** Constructs a new McpToolboxClientBuilder. */
   public McpToolboxClientBuilder() {}
@@ -37,6 +42,22 @@ public class McpToolboxClientBuilder implements McpToolboxClient.Builder {
   }
 
   @Override
+  public McpToolboxClient.Builder preProcessor(ToolPreProcessor preProcessor) {
+    if (preProcessor != null) {
+      this.preProcessors.add(preProcessor);
+    }
+    return this;
+  }
+
+  @Override
+  public McpToolboxClient.Builder postProcessor(ToolPostProcessor postProcessor) {
+    if (postProcessor != null) {
+      this.postProcessors.add(postProcessor);
+    }
+    return this;
+  }
+
+  @Override
   public McpToolboxClient build() {
     if (baseUrl == null || baseUrl.isEmpty()) {
       throw new IllegalArgumentException("Base URL must be provided");
@@ -45,6 +66,6 @@ public class McpToolboxClientBuilder implements McpToolboxClient.Builder {
     if (baseUrl.endsWith("/")) {
       baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
     }
-    return new HttpMcpToolboxClient(baseUrl, apiKey);
+    return new HttpMcpToolboxClient(baseUrl, apiKey, preProcessors, postProcessors);
   }
 }
