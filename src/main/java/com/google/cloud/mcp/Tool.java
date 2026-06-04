@@ -16,11 +16,14 @@
 
 package com.google.cloud.mcp;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * Represents a loaded tool ready to be invoked. Handles parameter binding, authentication token
@@ -122,35 +125,38 @@ public class Tool {
       }
     }
 
-    // 2. Resolve Auth Tokens
-    return CompletableFuture.allOf(
-            authGetters.entrySet().stream()
-                .map(
-                    entry -> {
-                      String serviceName = entry.getKey();
-                      return entry
-                          .getValue()
-                          .getToken()
-                          .thenAccept(
-                              token -> {
-                                // A. Check if mapped to a Parameter (Authenticated Parameters)
-                                String paramName = findParameterForService(serviceName);
-                                if (paramName != null) {
-                                  finalArgs.put(paramName, token);
-                                }
+    // 2. Resolve Auth Tokens.
+    // The tokens are fetched concurrently, but their results are applied to the
+    // (non-thread-safe) finalArgs / extraHeaders maps on a single thread, after all
+    // futures have completed. Mutating those HashMaps from each getter's completion
+    // thread (as the previous implementation did) is a data race that can drop a
+    // credential header or an authenticated argument from the outgoing request.
+    List<Map.Entry<String, AuthTokenGetter>> getters = new ArrayList<>(authGetters.entrySet());
+    List<CompletableFuture<String>> tokenFutures =
+        getters.stream().map(entry -> entry.getValue().getToken()).collect(Collectors.toList());
 
-                                // B. Always add to Headers to support Authorized Invocation
-                                // 1. Standard OIDC Header (Cloud Run)
-                                extraHeaders.put("Authorization", "Bearer " + token);
-
-                                // 2. SDK Convention Header (Framework Compatibility)
-                                extraHeaders.put(serviceName + "_token", token);
-                              });
-                    })
-                .toArray(CompletableFuture[]::new))
+    return CompletableFuture.allOf(tokenFutures.toArray(new CompletableFuture[0]))
         .thenCompose(
             v -> {
               try {
+                for (int i = 0; i < getters.size(); i++) {
+                  String serviceName = getters.get(i).getKey();
+                  String token = tokenFutures.get(i).join();
+
+                  // A. Check if mapped to a Parameter (Authenticated Parameters)
+                  String paramName = findParameterForService(serviceName);
+                  if (paramName != null) {
+                    finalArgs.put(paramName, token);
+                  }
+
+                  // B. Always add to Headers to support Authorized Invocation
+                  // 1. Standard OIDC Header (Cloud Run)
+                  extraHeaders.put("Authorization", "Bearer " + token);
+
+                  // 2. SDK Convention Header (Framework Compatibility)
+                  extraHeaders.put(serviceName + "_token", token);
+                }
+
                 // 3. Validation & Cleanup
                 validateAndSanitizeArgs(finalArgs);
                 return client.invokeTool(name, finalArgs, extraHeaders);
