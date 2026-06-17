@@ -53,7 +53,8 @@ class HttpMcpTransportTest {
     HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
     when(mockInitResponse.statusCode()).thenReturn(200);
     when(mockInitResponse.body())
-        .thenReturn("{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"protocolVersion\":\"2025-11-25\"}}");
+        .thenReturn(
+            "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"protocolVersion\":\"2025-11-25\"}}");
 
     // 2. Mock response for 'notifications/initialized'
     HttpResponse<String> mockInitializedResponse = mock(HttpResponse.class);
@@ -65,14 +66,18 @@ class HttpMcpTransportTest {
     when(mockListResponse.statusCode()).thenReturn(200);
     when(mockListResponse.body())
         .thenReturn(
-            "{\"jsonrpc\":\"2.0\",\"id\":\"2\",\"result\":{\"tools\":[{\"name\":\"test-tool\","
-                + "\"description\":\"A test tool\",\"inputSchema\":{\"type\":\"object\","
-                + "\"properties\":{\"param1\":{\"type\":\"string\",\"description\":\"param desc\"}},"
+            "{\"jsonrpc\":\"2.0\",\"id\":\"2\",\"result\":{\"tools\":[{\"name\":\"test-tool\",\"description\":\"A"
+                + " test"
+                + " tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"param1\":{\"type\":\"string\",\"description\":\"param"
+                + " desc\"}},"
                 + "\"required\":[\"param1\"]},\"_meta\":{\"toolbox/authInvoke\":[\"gcp\"]}}]}}");
 
-    CompletableFuture<HttpResponse<String>> initFuture = CompletableFuture.completedFuture(mockInitResponse);
-    CompletableFuture<HttpResponse<String>> initializedFuture = CompletableFuture.completedFuture(mockInitializedResponse);
-    CompletableFuture<HttpResponse<String>> listFuture = CompletableFuture.completedFuture(mockListResponse);
+    CompletableFuture<HttpResponse<String>> initFuture =
+        CompletableFuture.completedFuture(mockInitResponse);
+    CompletableFuture<HttpResponse<String>> initializedFuture =
+        CompletableFuture.completedFuture(mockInitializedResponse);
+    CompletableFuture<HttpResponse<String>> listFuture =
+        CompletableFuture.completedFuture(mockListResponse);
 
     // Set up mock calls sequentially with type hint
     when(mockClient.<String>sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
@@ -101,7 +106,8 @@ class HttpMcpTransportTest {
     HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
     when(mockInitResponse.statusCode()).thenReturn(200);
     when(mockInitResponse.body())
-        .thenReturn("{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"protocolVersion\":\"2025-11-25\"}}");
+        .thenReturn(
+            "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"protocolVersion\":\"2025-11-25\"}}");
 
     // 2. Mock response for 'notifications/initialized'
     HttpResponse<String> mockInitializedResponse = mock(HttpResponse.class);
@@ -112,11 +118,15 @@ class HttpMcpTransportTest {
     HttpResponse<String> mockInvokeResponse = mock(HttpResponse.class);
     when(mockInvokeResponse.statusCode()).thenReturn(200);
     when(mockInvokeResponse.body())
-        .thenReturn("{\"jsonrpc\":\"2.0\",\"id\":\"3\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"success\"}]}}");
+        .thenReturn(
+            "{\"jsonrpc\":\"2.0\",\"id\":\"3\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"success\"}]}}");
 
-    CompletableFuture<HttpResponse<String>> initFuture = CompletableFuture.completedFuture(mockInitResponse);
-    CompletableFuture<HttpResponse<String>> initializedFuture = CompletableFuture.completedFuture(mockInitializedResponse);
-    CompletableFuture<HttpResponse<String>> invokeFuture = CompletableFuture.completedFuture(mockInvokeResponse);
+    CompletableFuture<HttpResponse<String>> initFuture =
+        CompletableFuture.completedFuture(mockInitResponse);
+    CompletableFuture<HttpResponse<String>> initializedFuture =
+        CompletableFuture.completedFuture(mockInitializedResponse);
+    CompletableFuture<HttpResponse<String>> invokeFuture =
+        CompletableFuture.completedFuture(mockInvokeResponse);
 
     when(mockClient.<String>sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
         .thenReturn(initFuture)
@@ -138,7 +148,8 @@ class HttpMcpTransportTest {
     HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
     when(mockInitResponse.statusCode()).thenReturn(200);
     when(mockInitResponse.body())
-        .thenReturn("{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"protocolVersion\":\"2025-11-25\"}}");
+        .thenReturn(
+            "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"protocolVersion\":\"2025-11-25\"}}");
 
     // 2. Mock response for 'notifications/initialized'
     HttpResponse<String> mockInitializedResponse = mock(HttpResponse.class);
@@ -157,10 +168,14 @@ class HttpMcpTransportTest {
     when(mockListResponse2.body())
         .thenReturn("{\"jsonrpc\":\"2.0\",\"id\":\"3\",\"result\":{\"tools\":[]}}");
 
-    CompletableFuture<HttpResponse<String>> initFuture = CompletableFuture.completedFuture(mockInitResponse);
-    CompletableFuture<HttpResponse<String>> initializedFuture = CompletableFuture.completedFuture(mockInitializedResponse);
-    CompletableFuture<HttpResponse<String>> listFuture1 = CompletableFuture.completedFuture(mockListResponse1);
-    CompletableFuture<HttpResponse<String>> listFuture2 = CompletableFuture.completedFuture(mockListResponse2);
+    CompletableFuture<HttpResponse<String>> initFuture =
+        CompletableFuture.completedFuture(mockInitResponse);
+    CompletableFuture<HttpResponse<String>> initializedFuture =
+        CompletableFuture.completedFuture(mockInitializedResponse);
+    CompletableFuture<HttpResponse<String>> listFuture1 =
+        CompletableFuture.completedFuture(mockListResponse1);
+    CompletableFuture<HttpResponse<String>> listFuture2 =
+        CompletableFuture.completedFuture(mockListResponse2);
 
     // Set up sequential answers
     when(mockClient.<String>sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
@@ -176,6 +191,7 @@ class HttpMcpTransportTest {
     transport.listTools("", Collections.emptyMap()).get();
 
     // Total calls to sendAsync should be 4 (1: init, 2: initialized, 3: list1, 4: list2)
-    verify(mockClient, times(4)).sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    verify(mockClient, times(4))
+        .sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
   }
 }
