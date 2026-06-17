@@ -122,35 +122,14 @@ public class Tool {
       }
     }
 
-    // 2. Resolve Auth Tokens
-    return CompletableFuture.allOf(
-            authGetters.entrySet().stream()
-                .map(
-                    entry -> {
-                      String serviceName = entry.getKey();
-                      return entry
-                          .getValue()
-                          .getToken()
-                          .thenAccept(
-                              token -> {
-                                // A. Check if mapped to a Parameter (Authenticated Parameters)
-                                String paramName = findParameterForService(serviceName);
-                                if (paramName != null) {
-                                  finalArgs.put(paramName, token);
-                                }
-
-                                // B. Always add to Headers to support Authorized Invocation
-                                // 1. Standard OIDC Header (Cloud Run)
-                                extraHeaders.put("Authorization", "Bearer " + token);
-
-                                // 2. SDK Convention Header (Framework Compatibility)
-                                extraHeaders.put(serviceName + "_token", token);
-                              });
-                    })
-                .toArray(CompletableFuture[]::new))
+    // 2. Resolve Auth & Execute
+    return AuthResolver.resolve(authGetters)
         .thenCompose(
-            v -> {
+            resolvedAuth -> {
               try {
+                // Apply credential parameter bindings and extra headers
+                resolvedAuth.applyTo(finalArgs, extraHeaders, definition);
+
                 // 3. Validation & Cleanup
                 validateAndSanitizeArgs(finalArgs);
                 return client.invokeTool(name, finalArgs, extraHeaders);
@@ -158,16 +137,6 @@ public class Tool {
                 return CompletableFuture.failedFuture(e);
               }
             });
-  }
-
-  private String findParameterForService(String serviceName) {
-    if (definition.parameters() == null) return null;
-    for (ToolDefinition.Parameter param : definition.parameters()) {
-      if (param.authSources() != null && param.authSources().contains(serviceName)) {
-        return param.name();
-      }
-    }
-    return null;
   }
 
   /** Validates arguments against the tool definition and removes null values. */
