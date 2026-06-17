@@ -45,6 +45,7 @@ public class McpToolboxClientImpl implements McpToolboxClient {
           + " communication is sent over HTTPS.";
   private final String baseUrl;
   private final Map<String, String> headers;
+  private final CredentialsProvider credentialsProvider;
   private final HttpClient httpClient;
   private final ObjectMapper objectMapper;
   private boolean initialized = false;
@@ -54,14 +55,18 @@ public class McpToolboxClientImpl implements McpToolboxClient {
    * Constructs a new McpToolboxClientImpl.
    *
    * @param baseUrl The base URL of the MCP Toolbox Server.
-   * @param apiKey The API key for authentication (optional).
+   * @param credentialsProvider The provider for authentication headers (optional).
    */
-  public McpToolboxClientImpl(String baseUrl, String apiKey) {
-    this(
-        baseUrl,
-        apiKey != null && !apiKey.isEmpty()
-            ? Map.of("Authorization", apiKey.startsWith("Bearer ") ? apiKey : "Bearer " + apiKey)
-            : Collections.emptyMap());
+  public McpToolboxClientImpl(
+      String baseUrl, Map<String, String> headers, CredentialsProvider credentialsProvider) {
+    this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+    this.headers =
+        headers != null
+            ? java.util.Collections.unmodifiableMap(new java.util.HashMap<>(headers))
+            : java.util.Collections.emptyMap();
+    this.credentialsProvider = credentialsProvider;
+    this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    this.objectMapper = new ObjectMapper();
   }
 
   /**
@@ -71,13 +76,31 @@ public class McpToolboxClientImpl implements McpToolboxClient {
    * @param headers The HTTP headers to include in requests.
    */
   public McpToolboxClientImpl(String baseUrl, Map<String, String> headers) {
-    this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
-    this.headers =
-        headers != null
-            ? java.util.Collections.unmodifiableMap(new java.util.HashMap<>(headers))
-            : java.util.Collections.emptyMap();
-    this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
-    this.objectMapper = new ObjectMapper();
+    this(baseUrl, headers, null);
+  }
+
+  /**
+   * Constructs a new McpToolboxClientImpl with a credentials provider.
+   *
+   * @param baseUrl The base URL of the MCP Toolbox Server.
+   * @param credentialsProvider The provider for authentication headers.
+   */
+  public McpToolboxClientImpl(String baseUrl, CredentialsProvider credentialsProvider) {
+    this(baseUrl, Collections.emptyMap(), credentialsProvider);
+  }
+
+  /** Deprecated constructor. */
+  @Deprecated
+  public McpToolboxClientImpl(String baseUrl, String apiKey) {
+    this(baseUrl, Collections.emptyMap(), apiKeyToProvider(apiKey));
+  }
+
+  private static CredentialsProvider apiKeyToProvider(String apiKey) {
+    if (apiKey == null || apiKey.isEmpty()) {
+      return null;
+    }
+    String bearerKey = apiKey.startsWith("Bearer ") ? apiKey : "Bearer " + apiKey;
+    return () -> CompletableFuture.completedFuture(bearerKey);
   }
 
   private synchronized CompletableFuture<Void> ensureInitialized(String authHeader) {
@@ -148,7 +171,7 @@ public class McpToolboxClientImpl implements McpToolboxClient {
 
   @Override
   public CompletableFuture<Map<String, ToolDefinition>> loadToolset(String toolsetName) {
-    return CompletableFuture.supplyAsync(this::getAuthorizationHeader)
+    return getAuthorizationHeader()
         .thenCompose(
             authHeader ->
                 ensureInitialized(authHeader)
@@ -267,7 +290,7 @@ public class McpToolboxClientImpl implements McpToolboxClient {
         && !extraHeaders.isEmpty()) {
       logger.warning(HTTP_WARNING);
     }
-    return CompletableFuture.supplyAsync(this::getAuthorizationHeader)
+    return getAuthorizationHeader()
         .thenCompose(
             adcHeader -> {
               try {
@@ -333,25 +356,16 @@ public class McpToolboxClientImpl implements McpToolboxClient {
             });
   }
 
-  private String getAuthorizationHeader() {
+  private CompletableFuture<String> getAuthorizationHeader() {
+    if (this.credentialsProvider != null) {
+      return this.credentialsProvider.getAuthorizationHeader();
+    }
     for (Map.Entry<String, String> entry : this.headers.entrySet()) {
       if ("Authorization".equalsIgnoreCase(entry.getKey())) {
-        return entry.getValue();
+        return CompletableFuture.completedFuture(entry.getValue());
       }
     }
-    try {
-      GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
-      credentials.refreshIfExpired();
-      if (credentials instanceof IdTokenProvider) {
-        return "Bearer "
-            + ((IdTokenProvider) credentials)
-                .idTokenWithAudience(this.baseUrl, java.util.List.of())
-                .getTokenValue();
-      }
-    } catch (Exception e) {
-      // ADC not available or not OIDC-compatible. Proceed without global auth.
-    }
-    return null;
+    return CompletableFuture.completedFuture(null);
   }
 
   private Map<String, ToolDefinition> handleListToolsResponse(HttpResponse<String> response) {
