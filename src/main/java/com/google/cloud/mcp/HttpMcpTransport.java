@@ -44,9 +44,13 @@ public class HttpMcpTransport implements Transport {
   private final String baseUrl;
   private final Map<String, String> clientHeaders;
   private final HttpClient httpClient;
+  private final java.util.concurrent.Executor executor;
   private final ObjectMapper objectMapper;
-  private final String protocolVersion = "2025-11-25";
-  private boolean initialized = false;
+  private final ProtocolVersion preferredProtocolVersion;
+  private final Object initLock = new Object();
+  private CompletableFuture<Void> initFuture;
+  private volatile ProtocolVersion negotiatedProtocolVersion;
+  private volatile String sessionId;
 
   /**
    * Constructs a new HttpMcpTransport with a base URL.
@@ -57,33 +61,45 @@ public class HttpMcpTransport implements Transport {
     this(baseUrl, Map.of());
   }
 
-  /**
-   * Constructs a new HttpMcpTransport with a base URL and client-level headers.
-   *
-   * @param baseUrl The base URL of the remote service.
-   * @param clientHeaders The client-level headers.
-   */
   public HttpMcpTransport(String baseUrl, Map<String, String> clientHeaders) {
-    this(
-        baseUrl,
-        clientHeaders,
-        HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build());
+    this(baseUrl, clientHeaders, null, null, null);
   }
 
-  /** Package-private constructor for unit testing. */
-  HttpMcpTransport(String baseUrl, HttpClient httpClient) {
-    this(baseUrl, Map.of(), httpClient);
-  }
-
-  /** Package-private constructor for unit testing. */
-  HttpMcpTransport(String baseUrl, Map<String, String> clientHeaders, HttpClient httpClient) {
+  public HttpMcpTransport(
+      String baseUrl,
+      Map<String, String> clientHeaders,
+      ProtocolVersion preferredProtocolVersion,
+      HttpClient httpClient,
+      java.util.concurrent.Executor executor) {
+    if (baseUrl == null || baseUrl.isEmpty()) {
+      throw new IllegalArgumentException("Base URL must be provided");
+    }
     this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     this.clientHeaders =
         clientHeaders != null
             ? java.util.Collections.unmodifiableMap(new java.util.HashMap<>(clientHeaders))
             : java.util.Collections.emptyMap();
-    this.httpClient = httpClient;
+    this.preferredProtocolVersion =
+        preferredProtocolVersion != null
+            ? preferredProtocolVersion
+            : ProtocolVersion.VERSION_2025_11_25;
+    this.httpClient =
+        httpClient != null
+            ? httpClient
+            : HttpClient.newBuilder()
+                .cookieHandler(new java.net.CookieManager())
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+    this.executor = executor;
     this.objectMapper = new ObjectMapper();
+  }
+
+  HttpMcpTransport(String baseUrl, HttpClient httpClient) {
+    this(baseUrl, Map.of(), null, httpClient, null);
+  }
+
+  HttpMcpTransport(String baseUrl, Map<String, String> clientHeaders, HttpClient httpClient) {
+    this(baseUrl, clientHeaders, null, httpClient, null);
   }
 
   @Override
@@ -91,28 +107,39 @@ public class HttpMcpTransport implements Transport {
     return this.baseUrl;
   }
 
-  private synchronized CompletableFuture<Void> ensureInitialized(Map<String, String> headers) {
-    if (initialized) return CompletableFuture.completedFuture(null);
-    try {
-      Map<String, String> handshakeHeaders = new HashMap<>(this.clientHeaders);
-      String authHeader = headers.get("Authorization");
-      if (authHeader != null) {
-        handshakeHeaders.put("Authorization", authHeader);
+  private CompletableFuture<Void> ensureInitialized(Map<String, String> headers) {
+    synchronized (initLock) {
+      if (initFuture == null) {
+        String authHeader = headers.get("Authorization");
+        initFuture = performInitialization(authHeader);
       }
+      return initFuture;
+    }
+  }
+
+  private CompletableFuture<Void> performInitialization(String authHeader) {
+    try {
       if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
           && authHeader != null) {
         logger.warning(HTTP_WARNING);
       }
       JsonRpc.Request initReq =
           new JsonRpc.Request(
-              "initialize", new JsonRpc.InitializeParams(protocolVersion, "mcp-toolbox-sdk-java"));
+              "initialize",
+              new JsonRpc.InitializeParams(
+                  preferredProtocolVersion.getValue(), "mcp-toolbox-sdk-java"));
       String body = objectMapper.writeValueAsString(initReq);
       HttpRequest.Builder req =
           HttpRequest.newBuilder()
               .uri(URI.create(baseUrl))
-              .header("Content-Type", "application/json")
               .POST(HttpRequest.BodyPublishers.ofString(body));
+
+      Map<String, String> handshakeHeaders = new HashMap<>(this.clientHeaders);
+      if (authHeader != null) {
+        handshakeHeaders.put("Authorization", authHeader);
+      }
       handshakeHeaders.forEach(req::setHeader);
+      applyProtocolHeaders(req);
 
       return httpClient
           .sendAsync(req.build(), HttpResponse.BodyHandlers.ofString())
@@ -120,32 +147,85 @@ public class HttpMcpTransport implements Transport {
               res -> {
                 if (res.statusCode() != 200) {
                   return CompletableFuture.failedFuture(
-                      new RuntimeException("Init failed: " + res.statusCode() + " " + res.body()));
+                      new McpException("Init failed: " + res.statusCode() + " " + res.body()));
                 }
                 try {
+                  JsonNode responseJson = objectMapper.readTree(res.body());
+                  if (responseJson.has("error")) {
+                    return CompletableFuture.failedFuture(
+                        new McpException("MCP Error: " + responseJson.get("error").toString()));
+                  }
+                  JsonNode result = responseJson.get("result");
+                  String serverVersion;
+                  if (result != null && result.has("protocolVersion")) {
+                    serverVersion = result.get("protocolVersion").asText();
+                  } else {
+                    // Fallback to the client's preferred version for backward-compatible/mock
+                    // servers
+                    serverVersion = preferredProtocolVersion.getValue();
+                  }
+
+                  // Verify strict compliance with Python/Go behavior
+                  if (!preferredProtocolVersion.getValue().equals(serverVersion)) {
+                    return CompletableFuture.failedFuture(
+                        new McpException(
+                            "MCP version mismatch: client ("
+                                + preferredProtocolVersion.getValue()
+                                + ") != server ("
+                                + serverVersion
+                                + ")"));
+                  }
+
+                  this.negotiatedProtocolVersion = ProtocolVersion.fromString(serverVersion);
+
+                  if (negotiatedProtocolVersion == ProtocolVersion.VERSION_2025_03_26) {
+                    java.util.Optional<String> sessionIdOpt =
+                        res.headers().firstValue("Mcp-Session-Id");
+                    if (sessionIdOpt.isEmpty()) {
+                      return CompletableFuture.failedFuture(
+                          new McpException(
+                              "Server did not return a Mcp-Session-Id header during"
+                                  + " initialization."));
+                    }
+                    this.sessionId = sessionIdOpt.get();
+                  }
+
                   JsonRpc.Notification notif =
                       new JsonRpc.Notification("notifications/initialized", Map.of());
                   String notifBody = objectMapper.writeValueAsString(notif);
                   HttpRequest.Builder nReq =
                       HttpRequest.newBuilder()
                           .uri(URI.create(baseUrl))
-                          .header("Content-Type", "application/json")
-                          .header("MCP-Protocol-Version", protocolVersion)
                           .POST(HttpRequest.BodyPublishers.ofString(notifBody));
+
                   handshakeHeaders.forEach(nReq::setHeader);
+                  applyProtocolHeaders(nReq);
 
                   return httpClient
                       .sendAsync(nReq.build(), HttpResponse.BodyHandlers.ofString())
-                      .thenAccept(
-                          nRes -> {
-                            initialized = true;
-                          });
+                      .thenAccept(nRes -> {});
                 } catch (Exception e) {
                   return CompletableFuture.failedFuture(e);
                 }
               });
     } catch (Exception e) {
       return CompletableFuture.failedFuture(e);
+    }
+  }
+
+  private void applyProtocolHeaders(HttpRequest.Builder builder) {
+    builder.header("Content-Type", "application/json");
+    if (negotiatedProtocolVersion == null) {
+      return;
+    }
+    if (negotiatedProtocolVersion.requiresAcceptJson()) {
+      builder.header("Accept", "application/json");
+    }
+    if (negotiatedProtocolVersion.requiresVersionHeader()) {
+      builder.header("MCP-Protocol-Version", negotiatedProtocolVersion.getValue());
+    }
+    if (negotiatedProtocolVersion.requiresSessionIdHeader() && sessionId != null) {
+      builder.header("Mcp-Session-Id", sessionId);
     }
   }
 
@@ -167,10 +247,9 @@ public class HttpMcpTransport implements Transport {
                 HttpRequest.Builder req =
                     HttpRequest.newBuilder()
                         .uri(URI.create(url))
-                        .header("Content-Type", "application/json")
-                        .header("MCP-Protocol-Version", protocolVersion)
                         .POST(HttpRequest.BodyPublishers.ofString(body));
                 headers.forEach(req::setHeader);
+                applyProtocolHeaders(req);
 
                 return httpClient
                     .sendAsync(req.build(), HttpResponse.BodyHandlers.ofString())
@@ -200,11 +279,10 @@ public class HttpMcpTransport implements Transport {
                 HttpRequest.Builder requestBuilder =
                     HttpRequest.newBuilder()
                         .uri(URI.create(baseUrl))
-                        .header("Content-Type", "application/json")
-                        .header("MCP-Protocol-Version", protocolVersion)
                         .POST(HttpRequest.BodyPublishers.ofString(requestBody));
 
                 headers.forEach(requestBuilder::setHeader);
+                applyProtocolHeaders(requestBuilder);
 
                 return httpClient
                     .sendAsync(requestBuilder.build(), HttpResponse.BodyHandlers.ofString())

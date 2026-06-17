@@ -195,4 +195,33 @@ class HttpMcpTransportTest {
     verify(mockClient, times(4))
         .sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
   }
+
+  @Test
+  void testConstructor_InvalidBaseUrlThrows() {
+    org.junit.jupiter.api.Assertions.assertThrows(
+        IllegalArgumentException.class, () -> new HttpMcpTransport(null));
+    org.junit.jupiter.api.Assertions.assertThrows(
+        IllegalArgumentException.class, () -> new HttpMcpTransport(""));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testInitialize_ServerReturnsErrorJsonRpcResponse() throws Exception {
+    HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
+    when(mockInitResponse.statusCode()).thenReturn(200);
+    when(mockInitResponse.body())
+        .thenReturn(
+            "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"error\":{\"code\":-32603,\"message\":\"Internal"
+                + " error\"}}");
+
+    when(mockClient.<String>sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockInitResponse));
+
+    CompletableFuture<TransportManifest> future = transport.listTools("", Collections.emptyMap());
+    java.util.concurrent.ExecutionException ex =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            java.util.concurrent.ExecutionException.class, future::get);
+    assertTrue(ex.getCause() instanceof McpException);
+    assertTrue(ex.getCause().getMessage().contains("MCP Error"));
+  }
 }

@@ -567,9 +567,10 @@ class McpToolboxClientImplTest {
   @Test
   void testInvokeTool_withInvalidUriThrowsException() throws Exception {
     HttpMcpTransport transport = new HttpMcpTransport("http://invalid uri", mockHttpClient);
-    Field initField = HttpMcpTransport.class.getDeclaredField("initialized");
-    initField.setAccessible(true);
-    initField.set(transport, true); // bypass initialization
+    Field initFutureField = HttpMcpTransport.class.getDeclaredField("initFuture");
+    initFutureField.setAccessible(true);
+    initFutureField.set(
+        transport, CompletableFuture.completedFuture(null)); // bypass initialization
     McpToolboxClientImpl badClient =
         new McpToolboxClientImpl(transport, java.util.Collections.emptyMap(), null);
 
@@ -834,9 +835,9 @@ class McpToolboxClientImplTest {
     HttpMcpTransport transport = new HttpMcpTransport("http://localhost:8080", mockHttpClient);
 
     // Force transport to be initialized first
-    Field initField = HttpMcpTransport.class.getDeclaredField("initialized");
-    initField.setAccessible(true);
-    initField.set(transport, true);
+    Field initFutureField = HttpMcpTransport.class.getDeclaredField("initFuture");
+    initFutureField.setAccessible(true);
+    initFutureField.set(transport, CompletableFuture.completedFuture(null));
 
     CompletableFuture<TransportManifest> future =
         transport.listTools("invalid path with spaces \\", java.util.Collections.emptyMap());
@@ -852,6 +853,7 @@ class McpToolboxClientImplTest {
 
     // Mock ObjectMapper to throw on notification
     ObjectMapper mockMapper = mock(ObjectMapper.class);
+    when(mockMapper.readTree(any(String.class))).thenReturn(new ObjectMapper().readTree("{}"));
     when(mockMapper.writeValueAsString(any(JsonRpc.Request.class))).thenReturn("{}");
     when(mockMapper.writeValueAsString(any(JsonRpc.Notification.class)))
         .thenThrow(new RuntimeException("Simulated notification serialization failure"));
