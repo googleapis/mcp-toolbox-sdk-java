@@ -41,29 +41,25 @@ public class McpToolboxClientImpl implements McpToolboxClient {
   private static final String HTTP_WARNING =
       "This connection is using HTTP. To prevent credential exposure, please ensure all"
           + " communication is sent over HTTPS.";
-  private final String baseUrl;
+  private final Transport transport;
   private final Map<String, String> headers;
   private final CredentialsProvider credentialsProvider;
-  private final HttpClient httpClient;
   private final ObjectMapper objectMapper;
-  private boolean initialized = false;
-  private final String protocolVersion = "2025-11-25";
 
   /**
    * Constructs a new McpToolboxClientImpl.
    *
-   * @param baseUrl The base URL of the MCP Toolbox Server.
+   * @param transport The underlying MCP transport layer.
    * @param credentialsProvider The provider for authentication headers (optional).
    */
   public McpToolboxClientImpl(
-      String baseUrl, Map<String, String> headers, CredentialsProvider credentialsProvider) {
-    this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+      Transport transport, Map<String, String> headers, CredentialsProvider credentialsProvider) {
+    this.transport = transport;
     this.headers =
         headers != null
             ? java.util.Collections.unmodifiableMap(new java.util.HashMap<>(headers))
             : java.util.Collections.emptyMap();
     this.credentialsProvider = credentialsProvider;
-    this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     this.objectMapper = new ObjectMapper();
   }
 
@@ -94,8 +90,47 @@ public class McpToolboxClientImpl implements McpToolboxClient {
    * @param apiKey The static API key.
    */
   @Deprecated
-  public McpToolboxClientImpl(String baseUrl, String apiKey) {
-    this(baseUrl, Collections.emptyMap(), apiKeyToProvider(apiKey));
+    this(new HttpMcpTransport(baseUrl), Collections.emptyMap(), apiKeyToProvider(apiKey));
+  }
+
+  /**
+   * Constructs a new McpToolboxClientImpl with generic headers.
+   *
+   * @param baseUrl The base URL of the MCP Toolbox Server.
+   * @param headers The HTTP headers to include in requests.
+   */
+  @Deprecated
+  public McpToolboxClientImpl(String baseUrl, Map<String, String> headers) {
+    this(new HttpMcpTransport(baseUrl), headers, null);
+  }
+
+  /**
+   * Constructs a new McpToolboxClientImpl.
+   *
+   * @param baseUrl The base URL of the MCP Toolbox Server.
+   * @param headers The HTTP headers to include in requests.
+   * @param credentialsProvider The provider for authentication headers (optional).
+   */
+  @Deprecated
+  public McpToolboxClientImpl(
+      String baseUrl, Map<String, String> headers, CredentialsProvider credentialsProvider) {
+    this(new HttpMcpTransport(baseUrl), headers, credentialsProvider);
+  }
+
+  /**
+   * Deprecated constructor. Use the constructor accepting {@link CredentialsProvider} instead.
+   */
+  @Deprecated
+  public McpToolboxClientImpl(String baseUrl, CredentialsProvider credentialsProvider) {
+    this(new HttpMcpTransport(baseUrl), Collections.emptyMap(), credentialsProvider);
+  }
+
+  /**
+   * Deprecated constructor. Use the constructor accepting {@link Transport} instead.
+   */
+  @Deprecated
+  public McpToolboxClientImpl(Transport transport, CredentialsProvider credentialsProvider) {
+    this(transport, Collections.emptyMap(), credentialsProvider);
   }
 
   private static CredentialsProvider apiKeyToProvider(String apiKey) {
@@ -106,66 +141,6 @@ public class McpToolboxClientImpl implements McpToolboxClient {
     return () -> CompletableFuture.completedFuture(bearerKey);
   }
 
-  private synchronized CompletableFuture<Void> ensureInitialized(String authHeader) {
-    if (initialized) return CompletableFuture.completedFuture(null);
-    try {
-      if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
-          && authHeader != null) {
-        logger.warning(HTTP_WARNING);
-      }
-      JsonRpc.Request initReq =
-          new JsonRpc.Request(
-              "initialize", new JsonRpc.InitializeParams(protocolVersion, "mcp-toolbox-sdk-java"));
-      String body = objectMapper.writeValueAsString(initReq);
-      HttpRequest.Builder req =
-          HttpRequest.newBuilder()
-              .uri(URI.create(baseUrl))
-              .header("Content-Type", "application/json")
-              .POST(HttpRequest.BodyPublishers.ofString(body));
-      this.headers.forEach(
-          (k, v) -> {
-            if (!"Authorization".equalsIgnoreCase(k)) req.setHeader(k, v);
-          });
-      if (authHeader != null) req.setHeader("Authorization", authHeader);
-
-      return httpClient
-          .sendAsync(req.build(), HttpResponse.BodyHandlers.ofString())
-          .thenCompose(
-              res -> {
-                if (res.statusCode() != 200) {
-                  return CompletableFuture.failedFuture(
-                      new RuntimeException("Init failed: " + res.statusCode() + " " + res.body()));
-                }
-                try {
-                  JsonRpc.Notification notif =
-                      new JsonRpc.Notification("notifications/initialized", Map.of());
-                  String notifBody = objectMapper.writeValueAsString(notif);
-                  HttpRequest.Builder nReq =
-                      HttpRequest.newBuilder()
-                          .uri(URI.create(baseUrl))
-                          .header("Content-Type", "application/json")
-                          .header("MCP-Protocol-Version", protocolVersion)
-                          .POST(HttpRequest.BodyPublishers.ofString(notifBody));
-                  this.headers.forEach(
-                      (k, val) -> {
-                        if (!"Authorization".equalsIgnoreCase(k)) nReq.setHeader(k, val);
-                      });
-                  if (authHeader != null) nReq.setHeader("Authorization", authHeader);
-
-                  return httpClient
-                      .sendAsync(nReq.build(), HttpResponse.BodyHandlers.ofString())
-                      .thenAccept(
-                          nRes -> {
-                            initialized = true;
-                          });
-                } catch (Exception e) {
-                  return CompletableFuture.failedFuture(e);
-                }
-              });
-    } catch (Exception e) {
-      return CompletableFuture.failedFuture(e);
-    }
-  }
 
   @Override
   public CompletableFuture<Map<String, ToolDefinition>> listTools() {
@@ -176,37 +151,15 @@ public class McpToolboxClientImpl implements McpToolboxClient {
   public CompletableFuture<Map<String, ToolDefinition>> loadToolset(String toolsetName) {
     return getAuthorizationHeader()
         .thenCompose(
-            authHeader ->
-                ensureInitialized(authHeader)
-                    .thenCompose(
-                        v -> {
-                          String path =
-                              toolsetName != null && !toolsetName.isEmpty()
-                                  ? "/" + toolsetName
-                                  : "";
-                          String url = baseUrl + path;
-                          try {
-                            JsonRpc.Request listReq = new JsonRpc.Request("tools/list", Map.of());
-                            String body = objectMapper.writeValueAsString(listReq);
-                            HttpRequest.Builder req =
-                                HttpRequest.newBuilder()
-                                    .uri(URI.create(url))
-                                    .header("Content-Type", "application/json")
-                                    .header("MCP-Protocol-Version", protocolVersion)
-                                    .POST(HttpRequest.BodyPublishers.ofString(body));
-                            this.headers.forEach(
-                                (k, val) -> {
-                                  if (!"Authorization".equalsIgnoreCase(k)) req.setHeader(k, val);
-                                });
-                            if (authHeader != null) req.setHeader("Authorization", authHeader);
-
-                            return httpClient
-                                .sendAsync(req.build(), HttpResponse.BodyHandlers.ofString())
-                                .thenApply(this::handleListToolsResponse);
-                          } catch (Exception e) {
-                            return CompletableFuture.failedFuture(e);
-                          }
-                        }));
+            authHeader -> {
+              Map<String, String> mergedHeaders = new HashMap<>(this.headers);
+              if (authHeader != null) {
+                mergedHeaders.put("Authorization", authHeader);
+              }
+              return transport
+                  .listTools(toolsetName, mergedHeaders)
+                  .thenApply(TransportManifest::getTools);
+            });
   }
 
   @Override
@@ -216,7 +169,7 @@ public class McpToolboxClientImpl implements McpToolboxClient {
       Map<String, Map<String, AuthTokenGetter>> authBinds,
       boolean strict) {
 
-    if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
+    if (this.transport.getBaseUrl().toLowerCase(java.util.Locale.ROOT).startsWith("http://")
         && authBinds != null
         && !authBinds.isEmpty()) {
       logger.warning(HTTP_WARNING);
@@ -261,7 +214,7 @@ public class McpToolboxClientImpl implements McpToolboxClient {
   @Override
   public CompletableFuture<Tool> loadTool(
       String toolName, Map<String, AuthTokenGetter> authTokenGetters) {
-    if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
+    if (this.transport.getBaseUrl().toLowerCase(java.util.Locale.ROOT).startsWith("http://")
         && authTokenGetters != null
         && !authTokenGetters.isEmpty()) {
       logger.warning(HTTP_WARNING);
@@ -288,7 +241,7 @@ public class McpToolboxClientImpl implements McpToolboxClient {
   @Override
   public CompletableFuture<ToolResult> invokeTool(
       String toolName, Map<String, Object> arguments, Map<String, String> extraHeaders) {
-    if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
+    if (this.transport.getBaseUrl().toLowerCase(java.util.Locale.ROOT).startsWith("http://")
         && extraHeaders != null
         && !extraHeaders.isEmpty()) {
       logger.warning(HTTP_WARNING);
@@ -312,46 +265,20 @@ public class McpToolboxClientImpl implements McpToolboxClient {
                   finalAuthHeader = adcHeader;
                 }
 
-                final String reqAuth = finalAuthHeader;
+                Map<String, String> mergedHeaders = new HashMap<>(this.headers);
+                extraHeaders.forEach(
+                    (k, val) -> {
+                      if (!"Authorization".equalsIgnoreCase(k)) {
+                        mergedHeaders.put(k, val);
+                      }
+                    });
+                if (finalAuthHeader != null) {
+                  mergedHeaders.put("Authorization", finalAuthHeader);
+                }
 
-                return ensureInitialized(reqAuth)
-                    .thenCompose(
-                        v -> {
-                          try {
-                            JsonRpc.Request invokeReq =
-                                new JsonRpc.Request(
-                                    "tools/call", new JsonRpc.CallToolParams(toolName, arguments));
-                            String requestBody = objectMapper.writeValueAsString(invokeReq);
-
-                            HttpRequest.Builder requestBuilder =
-                                HttpRequest.newBuilder()
-                                    .uri(URI.create(baseUrl))
-                                    .header("Content-Type", "application/json")
-                                    .header("MCP-Protocol-Version", protocolVersion)
-                                    .POST(HttpRequest.BodyPublishers.ofString(requestBody));
-
-                            this.headers.forEach(
-                                (k, val) -> {
-                                  if (!"Authorization".equalsIgnoreCase(k))
-                                    requestBuilder.setHeader(k, val);
-                                });
-                            extraHeaders.forEach(
-                                (k, val) -> {
-                                  if (!"Authorization".equalsIgnoreCase(k))
-                                    requestBuilder.setHeader(k, val);
-                                });
-                            if (reqAuth != null) {
-                              requestBuilder.setHeader("Authorization", reqAuth);
-                            }
-
-                            return httpClient
-                                .sendAsync(
-                                    requestBuilder.build(), HttpResponse.BodyHandlers.ofString())
-                                .thenApply(response -> handleInvokeResponse(response, toolName));
-                          } catch (Exception e) {
-                            return CompletableFuture.failedFuture(e);
-                          }
-                        });
+                return transport
+                    .invokeTool(toolName, arguments, mergedHeaders)
+                    .thenApply(response -> handleInvokeResponse(response, toolName));
 
               } catch (Exception e) {
                 return CompletableFuture.failedFuture(e);
@@ -371,96 +298,7 @@ public class McpToolboxClientImpl implements McpToolboxClient {
     return CompletableFuture.completedFuture(null);
   }
 
-  private Map<String, ToolDefinition> handleListToolsResponse(HttpResponse<String> response) {
-    if (response.statusCode() != 200)
-      throw new RuntimeException(
-          "Failed to list tools. Status: " + response.statusCode() + " " + response.body());
-    try {
-      JsonNode root = objectMapper.readTree(response.body());
-      if (root.has("error")) {
-        throw new RuntimeException("MCP Error: " + root.get("error").toString());
-      }
-      JsonNode result = root.get("result");
-      JsonNode toolsNode = result.get("tools");
-
-      Map<String, ToolDefinition> toolsMap = new HashMap<>();
-      if (toolsNode != null && toolsNode.isArray()) {
-        for (JsonNode toolNode : toolsNode) {
-          String name = toolNode.get("name").asText();
-          String description =
-              toolNode.has("description") ? toolNode.get("description").asText() : "";
-
-          List<String> authRequired = new ArrayList<>();
-          JsonNode metaNode = toolNode.get("_meta");
-          if (metaNode != null && metaNode.has("toolbox/authInvoke")) {
-            JsonNode invokeAuthNode = metaNode.get("toolbox/authInvoke");
-            if (invokeAuthNode != null && invokeAuthNode.isArray()) {
-              for (JsonNode src : invokeAuthNode) {
-                authRequired.add(src.asText());
-              }
-            }
-          }
-
-          List<ToolDefinition.Parameter> params = new ArrayList<>();
-          JsonNode inputSchema = toolNode.get("inputSchema");
-          JsonNode requiredNode = inputSchema != null ? inputSchema.get("required") : null;
-          Set<String> requiredSet = new HashSet<>();
-          if (requiredNode != null && requiredNode.isArray()) {
-            for (JsonNode req : requiredNode) {
-              requiredSet.add(req.asText());
-            }
-          }
-
-          JsonNode propertiesNode = inputSchema != null ? inputSchema.get("properties") : null;
-          if (propertiesNode != null && propertiesNode.isObject()) {
-            Iterator<Map.Entry<String, JsonNode>> fields = propertiesNode.fields();
-            while (fields.hasNext()) {
-              Map.Entry<String, JsonNode> entry = fields.next();
-              String paramName = entry.getKey();
-              JsonNode propNode = entry.getValue();
-
-              String paramType = propNode.has("type") ? propNode.get("type").asText() : "string";
-              String paramDesc =
-                  propNode.has("description") ? propNode.get("description").asText() : "";
-
-              List<String> authSources = new ArrayList<>();
-              // Extract from _meta if exists
-              if (metaNode != null && metaNode.has("toolbox/authParam")) {
-                JsonNode paramAuthNode = metaNode.get("toolbox/authParam").get(paramName);
-                if (paramAuthNode != null && paramAuthNode.isArray()) {
-                  for (JsonNode src : paramAuthNode) {
-                    authSources.add(src.asText());
-                  }
-                }
-              }
-
-              params.add(
-                  new ToolDefinition.Parameter(
-                      paramName,
-                      paramType,
-                      requiredSet.contains(paramName),
-                      paramDesc,
-                      authSources));
-            }
-          }
-
-          toolsMap.put(name, new ToolDefinition(description, params, authRequired));
-        }
-      }
-      return toolsMap;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private ToolResult handleInvokeResponse(HttpResponse<String> response, String toolName) {
-    String body = response.body();
-    if (response.statusCode() != 200) {
-      return new ToolResult(
-          java.util.List.of(
-              new ToolResult.Content("text", "Error " + response.statusCode() + ": " + body)),
-          true);
-    }
+  private ToolResult handleInvokeResponse(String body, String toolName) {
     try {
       JsonNode root = objectMapper.readTree(body);
       if (root.has("error")) {
