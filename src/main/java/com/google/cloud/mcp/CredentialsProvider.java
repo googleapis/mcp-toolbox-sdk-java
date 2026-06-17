@@ -22,7 +22,7 @@ import java.util.concurrent.CompletableFuture;
 @FunctionalInterface
 public interface CredentialsProvider {
   /**
-   * Retrieves the Authorization header value (e.g. "Bearer <token>").
+   * Retrieves the Authorization header value (e.g. "Bearer {@code <token>}").
    *
    * @return A CompletableFuture containing the full Authorization header value.
    */

@@ -89,7 +89,12 @@ public class McpToolboxClientImpl implements McpToolboxClient {
     this(baseUrl, Collections.emptyMap(), credentialsProvider);
   }
 
-  /** Deprecated constructor. */
+  /**
+   * Deprecated constructor. Use the constructor accepting {@link CredentialsProvider} instead.
+   *
+   * @param baseUrl The base URL.
+   * @param apiKey The static API key.
+   */
   @Deprecated
   public McpToolboxClientImpl(String baseUrl, String apiKey) {
     this(baseUrl, Collections.emptyMap(), apiKeyToProvider(apiKey));

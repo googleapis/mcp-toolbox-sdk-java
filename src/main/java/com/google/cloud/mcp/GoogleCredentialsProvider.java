@@ -25,6 +25,11 @@ import java.util.concurrent.CompletableFuture;
 public class GoogleCredentialsProvider implements CredentialsProvider {
   private final String audience;
 
+  /**
+   * Constructs a new GoogleCredentialsProvider with a specified audience.
+   *
+   * @param audience The OIDC token audience (typically the service URL).
+   */
   public GoogleCredentialsProvider(String audience) {
     if (audience == null || audience.isEmpty()) {
       throw new IllegalArgumentException("Audience must not be null or empty");
