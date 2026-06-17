@@ -290,7 +290,14 @@ public class McpToolboxClientImpl implements McpToolboxClient {
     return CompletableFuture.completedFuture(null);
   }
 
-  private ToolResult handleInvokeResponse(String body, String toolName) {
+  private ToolResult handleInvokeResponse(TransportResponse response, String toolName) {
+    String body = response.getBody();
+    if (response.getStatusCode() != 200) {
+      return new ToolResult(
+          java.util.List.of(
+              new ToolResult.Content("text", "Error " + response.getStatusCode() + ": " + body)),
+          true);
+    }
     try {
       JsonNode root = objectMapper.readTree(body);
       if (root.has("error")) {

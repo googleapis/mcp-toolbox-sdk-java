@@ -133,12 +133,13 @@ class HttpMcpTransportTest {
         .thenReturn(initializedFuture)
         .thenReturn(invokeFuture);
 
-    CompletableFuture<String> futureResult =
+    CompletableFuture<TransportResponse> futureResult =
         transport.invokeTool("test-tool", Map.of("param1", "value1"), Collections.emptyMap());
-    String body = futureResult.get();
+    TransportResponse response = futureResult.get();
 
-    assertNotNull(body);
-    assertTrue(body.contains("success"));
+    assertNotNull(response);
+    assertEquals(200, response.getStatusCode());
+    assertTrue(response.getBody().contains("success"));
   }
 
   @Test

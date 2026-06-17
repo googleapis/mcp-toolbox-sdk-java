@@ -155,7 +155,7 @@ public class HttpMcpTransport implements Transport {
   }
 
   @Override
-  public CompletableFuture<String> invokeTool(
+  public CompletableFuture<TransportResponse> invokeTool(
       String toolName, Map<String, Object> arguments, Map<String, String> headers) {
     String authHeader = headers.get("Authorization");
     if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
@@ -182,14 +182,7 @@ public class HttpMcpTransport implements Transport {
 
                 return httpClient
                     .sendAsync(requestBuilder.build(), HttpResponse.BodyHandlers.ofString())
-                    .thenApply(
-                        res -> {
-                          if (res.statusCode() != 200) {
-                            throw new RuntimeException(
-                                "Error " + res.statusCode() + ": " + res.body());
-                          }
-                          return res.body();
-                        });
+                    .thenApply(res -> new TransportResponse(res.statusCode(), res.body()));
               } catch (Exception e) {
                 return CompletableFuture.failedFuture(e);
               }

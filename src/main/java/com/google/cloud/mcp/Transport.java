@@ -46,9 +46,9 @@ public interface Transport {
    * @param toolName The name of the tool to invoke.
    * @param arguments The arguments to pass to the tool.
    * @param headers Extra HTTP headers to include in the request.
-   * @return A CompletableFuture containing the raw JSON string result of the tool execution.
+   * @return A CompletableFuture containing the raw TransportResponse result of the tool execution.
    */
-  CompletableFuture<String> invokeTool(
+  CompletableFuture<TransportResponse> invokeTool(
       String toolName, Map<String, Object> arguments, Map<String, String> headers);
 
   /** Closes any underlying network connections/resources. */
