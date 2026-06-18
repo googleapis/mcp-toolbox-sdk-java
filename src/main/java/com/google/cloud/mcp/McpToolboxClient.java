@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /** The core client for interacting with an MCP Toolbox Server. */
-public interface McpToolboxClient {
+public interface McpToolboxClient extends AutoCloseable {
 
   /**
    * Connects to the MCP Server and retrieves the list of all available tools.
@@ -197,5 +197,11 @@ public interface McpToolboxClient {
      * @return The new client instance.
      */
     McpToolboxClient build();
+  }
+
+  /** Closes the client and records session metrics. */
+  @Override
+  default void close() {
+    // No-op by default
   }
 }

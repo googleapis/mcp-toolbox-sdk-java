@@ -44,13 +44,40 @@ public class JsonRpc {
     }
   }
 
+  public static class RequestMetadata {
+    public String traceparent;
+    public String tracestate;
+
+    public RequestMetadata(String traceparent, String tracestate) {
+      this.traceparent = traceparent;
+      this.tracestate = tracestate;
+    }
+  }
+
+  /** Parameters for calling a tool. */
   public static class CallToolParams {
     public String name;
     public Map<String, Object> arguments;
+    public RequestMetadata _meta;
 
     public CallToolParams(final String name, final Map<String, Object> arguments) {
+      this(name, arguments, null);
+    }
+
+    public CallToolParams(String name, Map<String, Object> arguments, RequestMetadata meta) {
       this.name = name;
       this.arguments = arguments;
+      this._meta = meta;
+    }
+  }
+
+  public static class ListToolsParams {
+    public String cursor;
+    public RequestMetadata _meta;
+
+    public ListToolsParams(String cursor, RequestMetadata meta) {
+      this.cursor = cursor;
+      this._meta = meta;
     }
   }
 
@@ -58,11 +85,17 @@ public class JsonRpc {
     public String protocolVersion;
     public Map<String, Object> capabilities;
     public Map<String, String> clientInfo;
+    public RequestMetadata _meta;
 
     public InitializeParams(final String version, final String clientName) {
+      this(version, clientName, null);
+    }
+
+    public InitializeParams(String version, String clientName, RequestMetadata meta) {
       this.protocolVersion = version;
       this.capabilities = Map.of();
       this.clientInfo = Map.of("name", clientName, "version", "1.0.0");
+      this._meta = meta;
     }
   }
 }

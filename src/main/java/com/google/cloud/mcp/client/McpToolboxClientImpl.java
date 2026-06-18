@@ -376,10 +376,11 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
     try {
       JsonNode root = objectMapper.readTree(body);
       if (root.has("error")) {
+        JsonNode errNode = root.get("error");
+        int code = errNode.has("code") ? errNode.get("code").asInt() : -1;
+        String msg = errNode.has("message") ? errNode.get("message").asText() : errNode.toString();
         return new ToolResult(
-            java.util.List.of(
-                new ToolResult.Content("text", "MCP Error: " + root.get("error").toString())),
-            true);
+            java.util.List.of(new ToolResult.Content("text", "MCP Error: " + msg)), true);
       }
 
       boolean isError = root.has("isError") && root.get("isError").asBoolean();
@@ -398,6 +399,15 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
       return new ToolResult(java.util.List.of(new ToolResult.Content("text", body)), isError);
     } catch (Exception e) {
       return new ToolResult(java.util.List.of(new ToolResult.Content("text", body)), false);
+    }
+  }
+
+  @Override
+  public void close() {
+    try {
+      transport.close();
+    } catch (Exception e) {
+      throw new McpException("Failed to close transport", e);
     }
   }
 }
