@@ -37,9 +37,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
 /** Default implementation using Java 11 HttpClient. */
-public class HttpMcpToolboxClient implements McpToolboxClient {
+public class McpToolboxClientImpl implements McpToolboxClient {
 
-  private static final Logger logger = Logger.getLogger(HttpMcpToolboxClient.class.getName());
+  private static final Logger logger = Logger.getLogger(McpToolboxClientImpl.class.getName());
   private static final String HTTP_WARNING =
       "This connection is using HTTP. To prevent credential exposure, please ensure all"
           + " communication is sent over HTTPS.";
@@ -51,12 +51,12 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
   private final String protocolVersion = "2025-11-25";
 
   /**
-   * Constructs a new HttpMcpToolboxClient.
+   * Constructs a new McpToolboxClientImpl.
    *
    * @param baseUrl The base URL of the MCP Toolbox Server.
    * @param apiKey The API key for authentication (optional).
    */
-  public HttpMcpToolboxClient(String baseUrl, String apiKey) {
+  public McpToolboxClientImpl(String baseUrl, String apiKey) {
     this(
         baseUrl,
         apiKey != null && !apiKey.isEmpty()
@@ -65,12 +65,12 @@ public class HttpMcpToolboxClient implements McpToolboxClient {
   }
 
   /**
-   * Constructs a new HttpMcpToolboxClient with generic headers.
+   * Constructs a new McpToolboxClientImpl with generic headers.
    *
    * @param baseUrl The base URL of the MCP Toolbox Server.
    * @param headers The HTTP headers to include in requests.
    */
-  public HttpMcpToolboxClient(String baseUrl, Map<String, String> headers) {
+  public McpToolboxClientImpl(String baseUrl, Map<String, String> headers) {
     this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     this.headers =
         headers != null

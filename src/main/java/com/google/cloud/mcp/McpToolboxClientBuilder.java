@@ -66,6 +66,6 @@ public class McpToolboxClientBuilder implements McpToolboxClient.Builder {
       }
     }
 
-    return new HttpMcpToolboxClient(baseUrl, finalHeaders);
+    return new McpToolboxClientImpl(baseUrl, finalHeaders);
   }
 }

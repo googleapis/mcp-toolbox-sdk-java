@@ -34,6 +34,6 @@ class McpToolboxClientBuilderTest {
             .build();
 
     assertNotNull(client);
-    assertTrue(client instanceof HttpMcpToolboxClient);
+    assertTrue(client instanceof McpToolboxClientImpl);
   }
 }
