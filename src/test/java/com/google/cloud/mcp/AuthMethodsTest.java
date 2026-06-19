@@ -30,8 +30,6 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.IdToken;
 import com.google.auth.oauth2.IdTokenProvider;
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -41,7 +39,6 @@ class AuthMethodsTest {
 
   @BeforeEach
   void setUp() {
-    AuthMethods.resetCredentialsCache();
     loadCount = 0;
   }
 
@@ -51,42 +48,16 @@ class AuthMethodsTest {
     String audience = "https://test-mcp-service.com";
 
     // Setup Mock credentials implementing GoogleCredentials and IdTokenProvider
-    GoogleCredentials credentials = mock(GoogleCredentials.class, withSettings().extraInterfaces(IdTokenProvider.class));
+    GoogleCredentials credentials =
+        mock(GoogleCredentials.class, withSettings().extraInterfaces(IdTokenProvider.class));
     IdToken mockIdToken = mock(IdToken.class);
     when(mockIdToken.getTokenValue()).thenReturn(mockToken);
-    when(((IdTokenProvider) credentials).idTokenWithAudience(eq(audience), any())).thenReturn(mockIdToken);
+    when(((IdTokenProvider) credentials).idTokenWithAudience(eq(audience), any()))
+        .thenReturn(mockIdToken);
 
-    AuthMethods.credentialsLoader = () -> credentials;
-
-    CompletableFuture<String> futureToken = AuthMethods.getGoogleIdToken(audience);
-    String token = futureToken.get();
+    String token = AuthMethods.getGoogleIdToken(credentials, audience);
 
     assertEquals("Bearer " + mockToken, token);
-  }
-
-  @Test
-  void testGetGoogleIdToken_Caching() throws Exception {
-    String mockToken = "mock-id-token-caching";
-    String audience = "https://test-mcp-service.com";
-
-    GoogleCredentials credentials = mock(GoogleCredentials.class, withSettings().extraInterfaces(IdTokenProvider.class));
-    IdToken mockIdToken = mock(IdToken.class);
-    when(mockIdToken.getTokenValue()).thenReturn(mockToken);
-    when(((IdTokenProvider) credentials).idTokenWithAudience(eq(audience), any())).thenReturn(mockIdToken);
-
-    AuthMethods.credentialsLoader = () -> {
-      loadCount++;
-      return credentials;
-    };
-
-    // First call loads the credentials
-    String token1 = AuthMethods.getGoogleIdToken(audience).get();
-    // Second call should reuse the cached credentials
-    String token2 = AuthMethods.getGoogleIdToken(audience).get();
-
-    assertEquals("Bearer " + mockToken, token1);
-    assertEquals("Bearer " + mockToken, token2);
-    assertEquals(1, loadCount, "Credentials should be loaded exactly once due to caching");
   }
 
   @Test
@@ -95,11 +66,12 @@ class AuthMethodsTest {
 
     // Regular credentials that do not implement IdTokenProvider
     GoogleCredentials credentials = mock(GoogleCredentials.class);
-    AuthMethods.credentialsLoader = () -> credentials;
 
-    CompletableFuture<String> futureToken = AuthMethods.getGoogleIdToken(audience);
-    ExecutionException exception = assertThrows(ExecutionException.class, futureToken::get);
-    assertTrue(exception.getCause().getMessage().contains("not an instance of IdTokenProvider"));
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> AuthMethods.getGoogleIdToken(credentials, audience));
+    assertTrue(exception.getMessage().contains("not an instance of IdTokenProvider"));
   }
 
   @Test
@@ -107,17 +79,47 @@ class AuthMethodsTest {
     String mockToken = "mock-id-token-provider";
     String audience = "https://test-mcp-service.com";
 
-    GoogleCredentials credentials = mock(GoogleCredentials.class, withSettings().extraInterfaces(IdTokenProvider.class));
+    GoogleCredentials credentials =
+        mock(GoogleCredentials.class, withSettings().extraInterfaces(IdTokenProvider.class));
     IdToken mockIdToken = mock(IdToken.class);
     when(mockIdToken.getTokenValue()).thenReturn(mockToken);
-    when(((IdTokenProvider) credentials).idTokenWithAudience(eq(audience), any())).thenReturn(mockIdToken);
+    when(((IdTokenProvider) credentials).idTokenWithAudience(eq(audience), any()))
+        .thenReturn(mockIdToken);
 
-    AuthMethods.credentialsLoader = () -> credentials;
-
-    GoogleCredentialsProvider provider = new GoogleCredentialsProvider(audience);
+    GoogleCredentialsProvider provider = new GoogleCredentialsProvider(audience, () -> credentials);
     String header = provider.getAuthorizationHeader().get();
 
     assertEquals("Bearer " + mockToken, header);
+  }
+
+  @Test
+  void testGoogleCredentialsProvider_Caching() throws Exception {
+    String mockToken = "mock-id-token-caching";
+    String audience = "https://test-mcp-service.com";
+
+    GoogleCredentials credentials =
+        mock(GoogleCredentials.class, withSettings().extraInterfaces(IdTokenProvider.class));
+    IdToken mockIdToken = mock(IdToken.class);
+    when(mockIdToken.getTokenValue()).thenReturn(mockToken);
+    when(((IdTokenProvider) credentials).idTokenWithAudience(eq(audience), any()))
+        .thenReturn(mockIdToken);
+
+    GoogleCredentialsProvider.CredentialsLoader loader =
+        () -> {
+          loadCount++;
+          return credentials;
+        };
+
+    GoogleCredentialsProvider provider = new GoogleCredentialsProvider(audience, loader);
+
+    // First call loads the credentials
+    String token1 = provider.getAuthorizationHeader().get();
+    // Second call should reuse the cached credentials
+    String token2 = provider.getAuthorizationHeader().get();
+
+    assertEquals("Bearer " + mockToken, token1);
+    assertEquals("Bearer " + mockToken, token2);
+    assertEquals(1, loadCount, "Credentials should be loaded exactly once due to caching");
   }
 
   @Test
@@ -125,11 +127,12 @@ class AuthMethodsTest {
     String audience = "https://test-mcp-service.com";
 
     // Fail loading credentials
-    AuthMethods.credentialsLoader = () -> {
-      throw new IOException("Cannot load credentials");
-    };
+    GoogleCredentialsProvider.CredentialsLoader loader =
+        () -> {
+          throw new IOException("Cannot load credentials");
+        };
 
-    GoogleCredentialsProvider provider = new GoogleCredentialsProvider(audience);
+    GoogleCredentialsProvider provider = new GoogleCredentialsProvider(audience, loader);
     String header = provider.getAuthorizationHeader().get();
 
     // Verification that it gracefully returns null (proceed without auth)

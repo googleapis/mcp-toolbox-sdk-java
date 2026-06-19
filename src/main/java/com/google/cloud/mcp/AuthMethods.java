@@ -20,53 +20,32 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.IdTokenProvider;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.concurrent.CompletableFuture;
 
-/** Utility methods for fetching and caching OIDC credentials. */
-public class AuthMethods {
-  private static GoogleCredentials credentials;
-
-  // Modifiable loader to enable unit testing without actual Google credential files
-  static CredentialsLoader credentialsLoader = GoogleCredentials::getApplicationDefault;
-
-  @FunctionalInterface
-  interface CredentialsLoader {
-    GoogleCredentials load() throws IOException;
-  }
-
-  static synchronized GoogleCredentials getCachedCredentials() throws IOException {
-    if (credentials == null) {
-      credentials = credentialsLoader.load();
-    }
-    return credentials;
-  }
-
-  /** Resets the cached credentials. Primarily used for unit testing. */
-  public static synchronized void resetCredentialsCache() {
-    credentials = null;
-  }
+/** Utility methods for fetching OIDC credentials. */
+public final class AuthMethods {
+  private AuthMethods() {}
 
   /**
-   * Fetches a Google ID token for the given audience using Application Default Credentials.
+   * Fetches a Google ID token for the given audience using the provided credentials.
    *
+   * @param credentials The Google credentials.
    * @param audience The audience for the ID token.
-   * @return A CompletableFuture containing the token prefixed with "Bearer ".
+   * @return The token prefixed with "Bearer ".
+   * @throws IOException If credentials refresh fails.
    */
-  public static CompletableFuture<String> getGoogleIdToken(String audience) {
-    return CompletableFuture.supplyAsync(() -> {
-      try {
-        GoogleCredentials creds = getCachedCredentials();
-        creds.refreshIfExpired();
-        if (creds instanceof IdTokenProvider) {
-          String token = ((IdTokenProvider) creds)
+  public static String getGoogleIdToken(GoogleCredentials credentials, String audience)
+      throws IOException {
+    if (credentials == null) {
+      throw new IllegalArgumentException("Credentials must not be null");
+    }
+    credentials.refreshIfExpired();
+    if (credentials instanceof IdTokenProvider) {
+      String token =
+          ((IdTokenProvider) credentials)
               .idTokenWithAudience(audience, Collections.emptyList())
               .getTokenValue();
-          return token.startsWith("Bearer ") ? token : "Bearer " + token;
-        }
-        throw new RuntimeException("Credentials are not an instance of IdTokenProvider");
-      } catch (IOException e) {
-        throw new RuntimeException("Failed to fetch Google ID token", e);
-      }
-    });
+      return token.startsWith("Bearer ") ? token : "Bearer " + token;
+    }
+    throw new IllegalArgumentException("Credentials are not an instance of IdTokenProvider");
   }
 }

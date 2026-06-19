@@ -16,14 +16,23 @@
 
 package com.google.cloud.mcp;
 
+import com.google.auth.oauth2.GoogleCredentials;
+import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * An implementation of CredentialsProvider that uses Google Application Default Credentials
- * to fetch OIDC ID tokens.
+ * An implementation of CredentialsProvider that uses Google Application Default Credentials to
+ * fetch OIDC ID tokens.
  */
 public class GoogleCredentialsProvider implements CredentialsProvider {
   private final String audience;
+  private final CredentialsLoader credentialsLoader;
+  private volatile GoogleCredentials credentials;
+
+  @FunctionalInterface
+  interface CredentialsLoader {
+    GoogleCredentials load() throws IOException;
+  }
 
   /**
    * Constructs a new GoogleCredentialsProvider with a specified audience.
@@ -31,21 +40,45 @@ public class GoogleCredentialsProvider implements CredentialsProvider {
    * @param audience The OIDC token audience (typically the service URL).
    */
   public GoogleCredentialsProvider(String audience) {
+    this(audience, GoogleCredentials::getApplicationDefault);
+  }
+
+  // Package-private constructor for unit testing
+  GoogleCredentialsProvider(String audience, CredentialsLoader credentialsLoader) {
     if (audience == null || audience.isEmpty()) {
       throw new IllegalArgumentException("Audience must not be null or empty");
     }
     this.audience = audience;
+    this.credentialsLoader = credentialsLoader;
+  }
+
+  private GoogleCredentials getCredentials() throws IOException {
+    GoogleCredentials localRef = credentials;
+    if (localRef == null) {
+      synchronized (this) {
+        localRef = credentials;
+        if (localRef == null) {
+          credentials = localRef = credentialsLoader.load();
+        }
+      }
+    }
+    return localRef;
   }
 
   @Override
   public CompletableFuture<String> getAuthorizationHeader() {
-    return AuthMethods.getGoogleIdToken(audience)
-        .handle((token, ex) -> {
-          if (ex != null) {
+    return CompletableFuture.supplyAsync(
+        () -> {
+          try {
+            GoogleCredentials creds = getCredentials();
+            if (creds == null) {
+              return null;
+            }
+            return AuthMethods.getGoogleIdToken(creds, audience);
+          } catch (Exception e) {
             // ADC not available or not OIDC-compatible. Proceed without global auth.
             return null;
           }
-          return token;
         });
   }
 }
