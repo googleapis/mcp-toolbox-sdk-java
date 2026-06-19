@@ -16,7 +16,9 @@
 
 package com.google.cloud.mcp;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -150,7 +152,7 @@ public class Tool {
       Object value = args.get(param.name());
 
       if (value == null && param.defaultValue() != null) {
-        value = param.defaultValue();
+        value = deepCopy(param.defaultValue());
         args.put(param.name(), value);
       }
 
@@ -171,6 +173,25 @@ public class Tool {
         }
       }
     }
+  }
+
+  private Object deepCopy(Object value) {
+    if (value instanceof Map) {
+      Map<?, ?> map = (Map<?, ?>) value;
+      Map<Object, Object> copy = new HashMap<>();
+      for (Map.Entry<?, ?> entry : map.entrySet()) {
+        copy.put(deepCopy(entry.getKey()), deepCopy(entry.getValue()));
+      }
+      return copy;
+    } else if (value instanceof List) {
+      List<?> list = (List<?>) value;
+      List<Object> copy = new ArrayList<>();
+      for (Object item : list) {
+        copy.add(deepCopy(item));
+      }
+      return copy;
+    }
+    return value;
   }
 
   private boolean isTypeMatch(Object value, String type) {

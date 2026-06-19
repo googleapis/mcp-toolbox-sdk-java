@@ -28,7 +28,17 @@ import java.util.List;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ToolDefinition(
-    String description, List<Parameter> parameters, List<String> authRequired) {
+    String description,
+    List<Parameter> parameters,
+    List<String> authRequired,
+    Boolean readOnlyHint,
+    Boolean destructiveHint) {
+
+  /** Backward-compatible constructor. */
+  public ToolDefinition(String description, List<Parameter> parameters, List<String> authRequired) {
+    this(description, parameters, authRequired, null, null);
+  }
+
   /**
    * Represents a parameter of a tool.
    *
@@ -48,7 +58,7 @@ public record ToolDefinition(
       List<String> authSources, // Maps services to parameters
       @JsonProperty("default") Object defaultValue) {
 
-    /** Secondary constructor for backward compatibility. */
+    /** Backward-compatible constructor. */
     public Parameter(
         String name, String type, boolean required, String description, List<String> authSources) {
       this(name, type, required, description, authSources, null);

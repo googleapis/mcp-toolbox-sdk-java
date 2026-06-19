@@ -487,4 +487,61 @@ class ToolTest {
         capturedArgs.get("param1"),
         "Provided value should not be overwritten by default value");
   }
+
+  @Test
+  void testDefaultValueDeepCloning() throws Exception {
+    McpToolboxClient mockClient = mock(McpToolboxClient.class);
+
+    Map<String, Object> complexDefault = new HashMap<>();
+    complexDefault.put("key", "value");
+
+    ToolDefinition.Parameter paramWithDefault =
+        new ToolDefinition.Parameter(
+            "param1", "object", false, "A parameter", null, complexDefault);
+
+    ToolDefinition def = new ToolDefinition("A test tool", List.of(paramWithDefault), null);
+
+    Tool tool = new Tool("testTool", def, mockClient);
+
+    when(mockClient.invokeTool(eq("testTool"), any(), any()))
+        .thenReturn(
+            CompletableFuture.completedFuture(new ToolResult(Collections.emptyList(), false)));
+
+    Map<String, Object> args = new HashMap<>();
+    CompletableFuture<ToolResult> future = tool.execute(args);
+    future.join();
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Map<String, Object>> argsCaptor = ArgumentCaptor.forClass(Map.class);
+    verify(mockClient).invokeTool(eq("testTool"), argsCaptor.capture(), any());
+
+    Map<String, Object> capturedArgs = argsCaptor.getValue();
+    @SuppressWarnings("unchecked")
+    Map<String, Object> injectedDefault = (Map<String, Object>) capturedArgs.get("param1");
+
+    // Mutate the injected map
+    injectedDefault.put("key", "mutated_value");
+
+    // Ensure the original defaultValue stored in the definition remains untouched
+    @SuppressWarnings("unchecked")
+    Map<String, Object> defValueInDefinition =
+        (Map<String, Object>) def.parameters().get(0).defaultValue();
+    assertEquals(
+        "value",
+        defValueInDefinition.get("key"),
+        "The default value in definition must remain unmutated");
+  }
+
+  @Test
+  void testToolDefinitionHints() {
+    ToolDefinition defWithHints =
+        new ToolDefinition("A test tool", List.of(), List.of(), true, false);
+
+    assertEquals(true, defWithHints.readOnlyHint());
+    assertEquals(false, defWithHints.destructiveHint());
+
+    ToolDefinition defWithoutHints = new ToolDefinition("A test tool", List.of(), List.of());
+    assertEquals(null, defWithoutHints.readOnlyHint());
+    assertEquals(null, defWithoutHints.destructiveHint());
+  }
 }
