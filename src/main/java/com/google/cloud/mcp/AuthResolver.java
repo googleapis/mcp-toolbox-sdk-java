@@ -44,7 +44,10 @@ public final class AuthResolver {
             v -> {
               Map<String, String> resolved = new HashMap<>();
               for (int i = 0; i < entries.size(); i++) {
-                resolved.put(entries.get(i).getKey(), futures.get(i).join());
+                String token = futures.get(i).join();
+                if (token != null) {
+                  resolved.put(entries.get(i).getKey(), token);
+                }
               }
               return new ResolvedAuth(resolved);
             });

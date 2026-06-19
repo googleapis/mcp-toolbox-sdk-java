@@ -121,7 +121,8 @@ class ToolTest {
     Map<String, String> tokens =
         Map.of(
             "svc-raw", "rawToken123",
-            "svc-prefixed", "Bearer alreadyPrefixed456");
+            "svc-prefixed", "Bearer alreadyPrefixed456",
+            "svc-lowercase-prefixed", "bearer alreadyPrefixed789");
 
     ResolvedAuth resolvedAuth = new ResolvedAuth(tokens);
     Map<String, Object> finalArgs = new HashMap<>();
@@ -132,11 +133,34 @@ class ToolTest {
     // Verify token values map to sdk custom headers
     assertEquals("rawToken123", extraHeaders.get("svc-raw_token"));
     assertEquals("Bearer alreadyPrefixed456", extraHeaders.get("svc-prefixed_token"));
+    assertEquals("bearer alreadyPrefixed789", extraHeaders.get("svc-lowercase-prefixed_token"));
 
     // Verify standard OIDC authorization header matches and doesn't double prefix
-    // (Note: since map is hashmap, it will end with one of them depending on iteration order)
     String authHeader = extraHeaders.get("Authorization");
     assertTrue(
-        authHeader.equals("Bearer rawToken123") || authHeader.equals("Bearer alreadyPrefixed456"));
+        authHeader.equals("Bearer rawToken123")
+            || authHeader.equals("Bearer alreadyPrefixed456")
+            || authHeader.equals("bearer alreadyPrefixed789"));
+  }
+
+  @Test
+  void resolvedAuth_withNullAndEmptyTokens_ignoresThemSafely() {
+    ToolDefinition def = new ToolDefinition("test-tool", List.of(), List.of());
+    Map<String, String> tokens = new HashMap<>();
+    tokens.put("svc-null", null);
+    tokens.put("svc-empty", "");
+    tokens.put("svc-valid", "validToken");
+
+    ResolvedAuth resolvedAuth = new ResolvedAuth(tokens);
+    Map<String, Object> finalArgs = new HashMap<>();
+    Map<String, String> extraHeaders = new HashMap<>();
+
+    resolvedAuth.applyTo(finalArgs, extraHeaders, def);
+
+    // Only the valid token should be mapped
+    assertEquals("Bearer validToken", extraHeaders.get("Authorization"));
+    assertEquals("validToken", extraHeaders.get("svc-valid_token"));
+    assertTrue(!extraHeaders.containsKey("svc-null_token"));
+    assertTrue(!extraHeaders.containsKey("svc-empty_token"));
   }
 }

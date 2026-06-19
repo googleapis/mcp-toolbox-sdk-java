@@ -23,7 +23,15 @@ public final class ResolvedAuth {
   private final Map<String, String> tokens;
 
   public ResolvedAuth(Map<String, String> tokens) {
-    this.tokens = Map.copyOf(tokens);
+    Map<String, String> copy = new java.util.HashMap<>();
+    if (tokens != null) {
+      for (Map.Entry<String, String> entry : tokens.entrySet()) {
+        if (entry.getKey() != null && entry.getValue() != null) {
+          copy.put(entry.getKey(), entry.getValue());
+        }
+      }
+    }
+    this.tokens = Map.copyOf(copy);
   }
 
   /**
@@ -51,7 +59,8 @@ public final class ResolvedAuth {
 
       // B. Header mapping
       // Normalize to prevent double-prefixing if the provider already prefixed the token
-      String authorizationHeaderValue = token.startsWith("Bearer ") ? token : "Bearer " + token;
+      String authorizationHeaderValue =
+          token.regionMatches(true, 0, "Bearer ", 0, 7) ? token : "Bearer " + token;
       extraHeaders.put("Authorization", authorizationHeaderValue);
       extraHeaders.put(serviceName + "_token", token);
     }
