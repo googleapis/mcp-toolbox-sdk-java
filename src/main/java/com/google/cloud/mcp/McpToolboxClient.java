@@ -136,7 +136,6 @@ public interface McpToolboxClient {
     Builder headers(Map<String, String> headers);
 
     /**
-    /**
      * Sets the credentials provider for dynamic authorization header resolution.
      *
      * @param credentialsProvider The credentials provider.

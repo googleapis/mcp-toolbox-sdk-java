@@ -145,8 +145,10 @@ public class Tool {
     CompletableFuture<ToolResult> resultFuture =
         argsFuture.thenCompose(
             processedArgs -> {
-              Map<String, Object> finalArgs = new HashMap<>(processedArgs);
-              Map<String, String> extraHeaders = new HashMap<>();
+              Map<String, Object> finalArgs =
+                  java.util.Collections.synchronizedMap(new HashMap<>(processedArgs));
+              Map<String, String> extraHeaders =
+                  java.util.Collections.synchronizedMap(new HashMap<>());
 
               // 1. Apply Bound Parameters
               for (Map.Entry<String, Object> entry : boundParameters.entrySet()) {
@@ -158,16 +160,7 @@ public class Tool {
                 }
               }
 
-              // 2. Inject default values for missing parameters
-              if (definition.parameters() != null) {
-                for (ToolDefinition.Parameter param : definition.parameters()) {
-                  if (param.defaultValue() != null && !finalArgs.containsKey(param.name())) {
-                    finalArgs.put(param.name(), deepCopy(param.defaultValue()));
-                  }
-                }
-              }
-
-              // 3. Resolve Auth & Execute
+              // 2. Resolve Auth & Execute
               return AuthResolver.resolve(authGetters)
                   .thenCompose(
                       resolvedAuth -> {
