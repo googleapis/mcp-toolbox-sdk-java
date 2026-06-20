@@ -109,17 +109,13 @@ public class McpToolboxClientImpl implements McpToolboxClient {
     this(new HttpMcpTransport(baseUrl), headers, credentialsProvider);
   }
 
-  /**
-   * Deprecated constructor. Use the constructor accepting {@link CredentialsProvider} instead.
-   */
+  /** Deprecated constructor. Use the constructor accepting {@link CredentialsProvider} instead. */
   @Deprecated
   public McpToolboxClientImpl(String baseUrl, CredentialsProvider credentialsProvider) {
     this(new HttpMcpTransport(baseUrl), Collections.emptyMap(), credentialsProvider);
   }
 
-  /**
-   * Deprecated constructor. Use the constructor accepting {@link Transport} instead.
-   */
+  /** Deprecated constructor. Use the constructor accepting {@link Transport} instead. */
   @Deprecated
   public McpToolboxClientImpl(Transport transport, CredentialsProvider credentialsProvider) {
     this(transport, Collections.emptyMap(), credentialsProvider);
@@ -132,7 +128,6 @@ public class McpToolboxClientImpl implements McpToolboxClient {
     String bearerKey = apiKey.startsWith("Bearer ") ? apiKey : "Bearer " + apiKey;
     return () -> CompletableFuture.completedFuture(bearerKey);
   }
-
 
   @Override
   public CompletableFuture<Map<String, ToolDefinition>> listTools() {
