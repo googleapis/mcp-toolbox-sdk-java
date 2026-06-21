@@ -18,12 +18,14 @@ package com.google.cloud.mcp;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /** Implementation of the {@link McpToolboxClient.Builder} interface. */
 public class McpToolboxClientBuilder implements McpToolboxClient.Builder {
   private String baseUrl;
   private String apiKey;
   private Map<String, String> headers = new HashMap<>();
+  private CredentialsProvider credentialsProvider;
 
   /** Constructs a new McpToolboxClientBuilder. */
   public McpToolboxClientBuilder() {}
@@ -49,6 +51,12 @@ public class McpToolboxClientBuilder implements McpToolboxClient.Builder {
   }
 
   @Override
+  public McpToolboxClient.Builder credentialsProvider(CredentialsProvider credentialsProvider) {
+    this.credentialsProvider = credentialsProvider;
+    return this;
+  }
+
+  @Override
   public McpToolboxClient build() {
     if (baseUrl == null || baseUrl.isEmpty()) {
       throw new IllegalArgumentException("Base URL must be provided");
@@ -58,14 +66,12 @@ public class McpToolboxClientBuilder implements McpToolboxClient.Builder {
       baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
     }
 
-    Map<String, String> finalHeaders = new HashMap<>(this.headers);
-    if (apiKey != null && !apiKey.isEmpty()) {
-      String authValue = apiKey.startsWith("Bearer ") ? apiKey : "Bearer " + apiKey;
-      if (finalHeaders.keySet().stream().noneMatch(k -> "Authorization".equalsIgnoreCase(k))) {
-        finalHeaders.put("Authorization", authValue);
-      }
+    CredentialsProvider resolvedProvider = this.credentialsProvider;
+    if (resolvedProvider == null && this.apiKey != null && !this.apiKey.isEmpty()) {
+      String bearerKey = this.apiKey.startsWith("Bearer ") ? this.apiKey : "Bearer " + this.apiKey;
+      resolvedProvider = () -> CompletableFuture.completedFuture(bearerKey);
     }
 
-    return new McpToolboxClientImpl(baseUrl, finalHeaders);
+    return new McpToolboxClientImpl(baseUrl, this.headers, resolvedProvider);
   }
 }
