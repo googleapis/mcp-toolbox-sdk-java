@@ -489,4 +489,131 @@ class McpToolboxClientImplJsonRpcTest {
     ToolDefinition toolDef = tools.get("test-tool");
     assertTrue(toolDef.parameters().isEmpty());
   }
+
+  @Test
+  void testJsonRpcInstantiation() {
+    // Instantiate package-private JsonRpc namespace to cover its default constructor
+    JsonRpc rpc = new JsonRpc();
+    assertNotNull(rpc);
+  }
+
+  @Test
+  void testListTools_withMetaNodeEdgeCases() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    // Case A: _meta has no toolbox/authInvoke key
+    // Case B: toolbox/authInvoke is not an array (string instead)
+    String listBody =
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[{\"name\":\"test-tool\",\"description\":\"A"
+            + " test tool\",\"inputSchema\":{\"type\":\"object\","
+            + "\"properties\":{\"param1\":{\"type\":\"string\"}}},"
+            + "\"_meta\":{\"toolbox/authInvoke\":\"not-an-array\",\"toolbox/authParam\":\"not-an-object\"}}]}}";
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body()).thenReturn(listBody);
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    Map<String, ToolDefinition> tools = client.listTools().join();
+    assertNotNull(tools);
+    ToolDefinition toolDef = tools.get("test-tool");
+    assertTrue(toolDef.authRequired().isEmpty()); // should skip invalid authInvoke formats
+  }
+
+  @Test
+  void testListTools_withRequiredNodeNotArray() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    // inputSchema.required is a string instead of array
+    String listBody =
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[{\"name\":\"test-tool\",\"description\":\"A"
+            + " test tool\",\"inputSchema\":{\"type\":\"object\","
+            + "\"properties\":{\"param1\":{\"type\":\"string\"}},\"required\":\"not-an-array\"}}]}}";
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body()).thenReturn(listBody);
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    Map<String, ToolDefinition> tools = client.listTools().join();
+    assertNotNull(tools);
+    ToolDefinition toolDef = tools.get("test-tool");
+    assertFalse(toolDef.parameters().get(0).required()); // should default to false
+  }
+
+  @Test
+  void testListTools_withAuthParamNotArray() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    // toolbox/authParam.param1 is a string instead of an array
+    String listBody =
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[{\"name\":\"test-tool\","
+            + "\"description\":\"A test tool\",\"inputSchema\":{\"type\":\"object\","
+            + "\"properties\":{\"param1\":{\"type\":\"string\"}}},"
+            + "\"_meta\":{\"toolbox/authParam\":{\"param1\":\"not-an-array\"}}}]}}";
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body()).thenReturn(listBody);
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    Map<String, ToolDefinition> tools = client.listTools().join();
+    assertNotNull(tools);
+    ToolDefinition toolDef = tools.get("test-tool");
+    assertTrue(toolDef.parameters().get(0).authSources().isEmpty());
+  }
+
+  @Test
+  void testInvokeTool_isErrorTrueWithoutResultNode() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    // Response has isError = true but NO result or content node
+    String callBody = "{\"jsonrpc\":\"2.0\",\"id\":1,\"isError\":true}";
+    HttpResponse<String> callResponse = mock(HttpResponse.class);
+    when(callResponse.statusCode()).thenReturn(200);
+    when(callResponse.body()).thenReturn(callBody);
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(callResponse));
+
+    ToolResult result = client.invokeTool("test-tool", Map.of()).join();
+    assertNotNull(result);
+    assertTrue(result.isError());
+    assertEquals(callBody, result.content().get(0).text());
+  }
 }

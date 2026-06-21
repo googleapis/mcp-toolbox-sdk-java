@@ -396,4 +396,164 @@ class McpToolboxClientImplTest {
     Tool tool = tools.get("test-tool");
     assertEquals("test-tool", tool.name());
   }
+
+  @Test
+  void testEnsureInitialized_withHttpsBaseUrl() throws Exception {
+    McpToolboxClientImpl httpsClient =
+        new McpToolboxClientImpl("https://localhost:8443", "test-api-key");
+    Field httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
+    httpClientField.setAccessible(true);
+    httpClientField.set(httpsClient, mockHttpClient);
+
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body())
+        .thenReturn("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[]}}");
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    httpsClient.listTools().join(); // should succeed and NOT print any HTTP_WARNING
+  }
+
+  @Test
+  void testEnsureInitialized_withoutApiKeyFallbackToAdcException() throws Exception {
+    McpToolboxClientImpl noAuthClient =
+        new McpToolboxClientImpl("http://localhost:8080", (String) null);
+    Field httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
+    httpClientField.setAccessible(true);
+    httpClientField.set(noAuthClient, mockHttpClient);
+
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body())
+        .thenReturn("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[]}}");
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    // This triggers getAuthorizationHeader() -> OIDC / ADC resolution -> Exception -> fallback to
+    // null
+    noAuthClient.listTools().join();
+
+    ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
+    verify(mockHttpClient, times(3)).sendAsync(requestCaptor.capture(), any());
+
+    HttpRequest initReq = requestCaptor.getAllValues().get(0);
+    if (initReq.headers().map().containsKey("Authorization")) {
+      String auth = initReq.headers().firstValue("Authorization").get();
+      assertTrue(auth.startsWith("Bearer "));
+    }
+  }
+
+  @Test
+  void testLoadToolset_withNullToolsetName() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body())
+        .thenReturn("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[]}}");
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    Map<String, ToolDefinition> tools = client.loadToolset(null).join();
+    assertNotNull(tools);
+    assertTrue(tools.isEmpty());
+  }
+
+  @Test
+  void testLoadToolset_withInvalidUriThrowsException() {
+    McpToolboxClientImpl badClient = new McpToolboxClientImpl("http://invalid uri", (String) null);
+    Field httpClientField = null;
+    try {
+      httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
+      httpClientField.setAccessible(true);
+      httpClientField.set(badClient, mockHttpClient);
+    } catch (Exception e) {
+      org.junit.jupiter.api.Assertions.fail(e);
+    }
+
+    Exception exception =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            Exception.class, () -> badClient.listTools().join());
+    assertNotNull(exception.getCause());
+    assertTrue(exception.getCause() instanceof IllegalArgumentException);
+  }
+
+  @Test
+  void testInvokeTool_withInvalidUriThrowsException() throws Exception {
+    McpToolboxClientImpl badClient = new McpToolboxClientImpl("http://invalid uri", (String) null);
+    Field httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
+    httpClientField.setAccessible(true);
+    httpClientField.set(badClient, mockHttpClient);
+
+    Field initField = McpToolboxClientImpl.class.getDeclaredField("initialized");
+    initField.setAccessible(true);
+    initField.set(badClient, true); // bypass initialization
+
+    Exception exception =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            Exception.class, () -> badClient.invokeTool("test-tool", Map.of()).join());
+    assertNotNull(exception.getCause());
+    assertTrue(exception.getCause() instanceof IllegalArgumentException);
+  }
+
+  @Test
+  void testListTools_withInvalidJsonResponseThrowsException() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body()).thenReturn("invalid-json-body");
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    Exception exception =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            Exception.class, () -> client.listTools().join());
+    assertNotNull(exception.getCause());
+    assertTrue(exception.getCause() instanceof RuntimeException);
+    assertTrue(
+        exception.getCause().getCause()
+            instanceof com.fasterxml.jackson.core.JsonProcessingException);
+  }
 }

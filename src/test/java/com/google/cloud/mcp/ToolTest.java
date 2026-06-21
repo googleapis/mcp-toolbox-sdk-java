@@ -379,4 +379,18 @@ class ToolTest {
     assertTrue(!extraHeaders.containsKey("svc2_token"));
     assertTrue(!extraHeaders.containsKey("null_token"));
   }
+
+  @Test
+  void testValidateAndSanitizeArgs_customTypeMatch() throws Exception {
+    List<ToolDefinition.Parameter> params =
+        List.of(
+            new ToolDefinition.Parameter("p-custom", "custom-type-name", false, "desc", List.of()));
+    ToolDefinition def = new ToolDefinition("test-tool", params, List.of());
+    McpToolboxClient client = mock(McpToolboxClient.class);
+    when(client.invokeTool(anyString(), anyMap(), anyMap()))
+        .thenReturn(CompletableFuture.completedFuture(new ToolResult(List.of(), false)));
+
+    Tool tool = new Tool("test-tool", def, client);
+    tool.execute(Map.of("p-custom", "any-value")).join(); // should succeed
+  }
 }
