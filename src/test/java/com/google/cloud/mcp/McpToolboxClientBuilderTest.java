@@ -111,4 +111,21 @@ class McpToolboxClientBuilderTest {
         McpToolboxClient.builder().baseUrl("http://localhost:8080").headers(null).build();
     assertNotNull(client);
   }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testCredentialsProviderConfiguration() throws Exception {
+    CredentialsProvider provider = () -> CompletableFuture.completedFuture("Bearer test-token");
+    McpToolboxClient client =
+        McpToolboxClient.builder()
+            .baseUrl("http://localhost:8080")
+            .credentialsProvider(provider)
+            .build();
+    assertNotNull(client);
+
+    Method getAuthHeaderMethod = McpToolboxClientImpl.class.getDeclaredMethod("getAuthorizationHeader");
+    getAuthHeaderMethod.setAccessible(true);
+    CompletableFuture<String> future = (CompletableFuture<String>) getAuthHeaderMethod.invoke(client);
+    assertEquals("Bearer test-token", future.join());
+  }
 }

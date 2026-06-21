@@ -712,4 +712,48 @@ class McpToolboxClientImplTest {
     Tool tool = tools.get("test-tool");
     assertEquals("test-tool", tool.name());
   }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testConstructor_withCredentialsProvider() throws Exception {
+    CredentialsProvider provider = () -> CompletableFuture.completedFuture("Bearer provider-token");
+    McpToolboxClientImpl client = new McpToolboxClientImpl("http://localhost:8080", provider);
+    assertNotNull(client);
+
+    Method getAuthHeaderMethod = McpToolboxClientImpl.class.getDeclaredMethod("getAuthorizationHeader");
+    getAuthHeaderMethod.setAccessible(true);
+    CompletableFuture<String> future = (CompletableFuture<String>) getAuthHeaderMethod.invoke(client);
+    assertEquals("Bearer provider-token", future.join());
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testDefaultLoadToolset() throws Exception {
+    McpToolboxClientImpl client = new McpToolboxClientImpl("http://localhost:8080", (String) null);
+    Field httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
+    httpClientField.setAccessible(true);
+    httpClientField.set(client, mockHttpClient);
+
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    String listBody = "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[]}}";
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body()).thenReturn(listBody);
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    Map<String, ToolDefinition> tools = ((McpToolboxClient) client).loadToolset().join();
+    assertNotNull(tools);
+    assertTrue(tools.isEmpty());
+  }
 }

@@ -188,4 +188,28 @@ class AuthMethodsTest {
 
     assertThrows(IOException.class, () -> AuthMethods.getGoogleIdToken(creds, "audience"));
   }
+
+  @Test
+  void testGoogleCredentialsProvider_NullCredentialsLoaded() throws Exception {
+    String audience = "https://test-mcp-service.com";
+    GoogleCredentialsProvider provider = new GoogleCredentialsProvider(audience, () -> null);
+    String header = provider.getAuthorizationHeader().get();
+    assertNull(header, "Null credentials from loader should return null auth header");
+  }
+
+  @Test
+  void testAuthMethods_BearerTokenAlreadyPrefixed() throws Exception {
+    String mockToken = "Bearer custom-already-prefixed-token";
+    String audience = "https://test-mcp-service.com";
+
+    GoogleCredentials credentials =
+        mock(GoogleCredentials.class, withSettings().extraInterfaces(IdTokenProvider.class));
+    IdToken mockIdToken = mock(IdToken.class);
+    when(mockIdToken.getTokenValue()).thenReturn(mockToken);
+    when(((IdTokenProvider) credentials).idTokenWithAudience(eq(audience), any()))
+        .thenReturn(mockIdToken);
+
+    String resolvedToken = AuthMethods.getGoogleIdToken(credentials, audience);
+    assertEquals(mockToken, resolvedToken, "Should not double-prefix Bearer tokens");
+  }
 }
