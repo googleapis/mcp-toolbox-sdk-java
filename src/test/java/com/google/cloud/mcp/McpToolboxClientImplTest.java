@@ -241,4 +241,159 @@ class McpToolboxClientImplTest {
     }
     return "";
   }
+
+  @Test
+  void testConstructor_withNullAndEmptyAndRawApiKeys() throws Exception {
+    McpToolboxClientImpl clientNull =
+        new McpToolboxClientImpl("http://localhost:8080", (String) null);
+    Field headersField = McpToolboxClientImpl.class.getDeclaredField("headers");
+    headersField.setAccessible(true);
+    Map<String, String> headersNull = (Map<String, String>) headersField.get(clientNull);
+    assertTrue(headersNull.isEmpty());
+
+    McpToolboxClientImpl clientEmpty = new McpToolboxClientImpl("http://localhost:8080", "");
+    Map<String, String> headersEmpty = (Map<String, String>) headersField.get(clientEmpty);
+    assertTrue(headersEmpty.isEmpty());
+
+    McpToolboxClientImpl clientRaw = new McpToolboxClientImpl("http://localhost:8080", "my-key");
+    Map<String, String> headersRaw = (Map<String, String>) headersField.get(clientRaw);
+    assertEquals("Bearer my-key", headersRaw.get("Authorization"));
+
+    McpToolboxClientImpl clientBearer =
+        new McpToolboxClientImpl("http://localhost:8080", "Bearer already-bearer");
+    Map<String, String> headersBearer = (Map<String, String>) headersField.get(clientBearer);
+    assertEquals("Bearer already-bearer", headersBearer.get("Authorization"));
+  }
+
+  @Test
+  void testLoadToolset_strictMode_unknownToolsThrowsException() throws Exception {
+    // Setup mock responses to return empty tools
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body())
+        .thenReturn("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[]}}");
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    // Try strict loading with binding for unknown tool
+    Exception exception =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            Exception.class,
+            () ->
+                client.loadToolset("my-set", Map.of("unknown-tool", Map.of()), null, true).join());
+    Throwable cause = exception.getCause();
+    assertNotNull(cause);
+    assertTrue(cause instanceof IllegalArgumentException);
+    assertTrue(
+        cause
+            .getMessage()
+            .contains("Strict mode error: Bindings provided for unknown tools: [unknown-tool]"));
+  }
+
+  @Test
+  void testLoadTool_notFoundThrowsException() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body())
+        .thenReturn("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[]}}");
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    Exception exception =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            Exception.class, () -> client.loadTool("non-existent-tool").join());
+    Throwable cause = exception.getCause();
+    assertNotNull(cause);
+    assertTrue(cause instanceof RuntimeException);
+    assertTrue(cause.getMessage().contains("Tool not found: non-existent-tool"));
+  }
+
+  @Test
+  void testLoadTool_successWithAuthTokenGetters() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    String listBody =
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[{\"name\":\"test-tool\","
+            + "\"description\":\"A test tool\",\"inputSchema\":{\"type\":\"object\","
+            + "\"properties\":{\"param1\":{\"type\":\"string\"}},"
+            + "\"required\":[\"param1\"]}}]}}";
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body()).thenReturn(listBody);
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    Tool tool =
+        client
+            .loadTool("test-tool", Map.of("my-svc", () -> CompletableFuture.completedFuture("tok")))
+            .join();
+
+    assertNotNull(tool);
+    assertEquals("test-tool", tool.name());
+  }
+
+  @Test
+  void testLoadToolset_successWithAuthBinds() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    String listBody =
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[{\"name\":\"test-tool\","
+            + "\"description\":\"A test tool\",\"inputSchema\":{\"type\":\"object\","
+            + "\"properties\":{\"param1\":{\"type\":\"string\"}},"
+            + "\"required\":[\"param1\"]}}]}}";
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body()).thenReturn(listBody);
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    Map<String, Map<String, AuthTokenGetter>> authBinds =
+        Map.of("test-tool", Map.of("my-svc", () -> CompletableFuture.completedFuture("tok")));
+
+    Map<String, Tool> tools = client.loadToolset("my-set", null, authBinds, false).join();
+    assertNotNull(tools);
+    assertTrue(tools.containsKey("test-tool"));
+    Tool tool = tools.get("test-tool");
+    assertEquals("test-tool", tool.name());
+  }
 }

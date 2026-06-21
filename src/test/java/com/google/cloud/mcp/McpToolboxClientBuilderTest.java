@@ -16,9 +16,12 @@
 
 package com.google.cloud.mcp;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.Field;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -35,5 +38,68 @@ class McpToolboxClientBuilderTest {
 
     assertNotNull(client);
     assertTrue(client instanceof McpToolboxClientImpl);
+  }
+
+  @Test
+  void testBaseUrlValidation() {
+    assertThrows(
+        IllegalArgumentException.class, () -> McpToolboxClient.builder().baseUrl(null).build());
+
+    assertThrows(
+        IllegalArgumentException.class, () -> McpToolboxClient.builder().baseUrl("").build());
+  }
+
+  @Test
+  void testBaseUrlTrailingSlashNormalization() throws Exception {
+    McpToolboxClient client = McpToolboxClient.builder().baseUrl("http://localhost:8080/").build();
+
+    Field baseUrlField = McpToolboxClientImpl.class.getDeclaredField("baseUrl");
+    baseUrlField.setAccessible(true);
+    String baseUrl = (String) baseUrlField.get(client);
+    assertEquals("http://localhost:8080", baseUrl);
+  }
+
+  @Test
+  void testApiKeyPreprocessing() throws Exception {
+    // 1. ApiKey is null or empty
+    McpToolboxClient clientNullKey =
+        McpToolboxClient.builder().baseUrl("http://localhost:8080").apiKey(null).build();
+    Field headersField = McpToolboxClientImpl.class.getDeclaredField("headers");
+    headersField.setAccessible(true);
+    Map<String, String> headersNullKey = (Map<String, String>) headersField.get(clientNullKey);
+    assertTrue(headersNullKey.isEmpty());
+
+    // 2. ApiKey is raw (not prefixed with Bearer)
+    McpToolboxClient clientRawKey =
+        McpToolboxClient.builder().baseUrl("http://localhost:8080").apiKey("raw-key-123").build();
+    Map<String, String> headersRawKey = (Map<String, String>) headersField.get(clientRawKey);
+    assertEquals("Bearer raw-key-123", headersRawKey.get("Authorization"));
+
+    // 3. ApiKey already contains Bearer prefix
+    McpToolboxClient clientBearerKey =
+        McpToolboxClient.builder()
+            .baseUrl("http://localhost:8080")
+            .apiKey("Bearer token-456")
+            .build();
+    Map<String, String> headersBearerKey = (Map<String, String>) headersField.get(clientBearerKey);
+    assertEquals("Bearer token-456", headersBearerKey.get("Authorization"));
+
+    // 4. ApiKey does not override existing Authorization header
+    McpToolboxClient clientOverrideKey =
+        McpToolboxClient.builder()
+            .baseUrl("http://localhost:8080")
+            .headers(Map.of("Authorization", "Bearer existing-token"))
+            .apiKey("new-key-should-be-ignored")
+            .build();
+    Map<String, String> headersOverrideKey =
+        (Map<String, String>) headersField.get(clientOverrideKey);
+    assertEquals("Bearer existing-token", headersOverrideKey.get("Authorization"));
+  }
+
+  @Test
+  void testHeadersNullHandledSafely() {
+    McpToolboxClient client =
+        McpToolboxClient.builder().baseUrl("http://localhost:8080").headers(null).build();
+    assertNotNull(client);
   }
 }

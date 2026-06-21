@@ -310,4 +310,183 @@ class McpToolboxClientImplJsonRpcTest {
     }
     return "";
   }
+
+  @Test
+  void testListTools_withParamsMissingTypeAndDescription() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    // parameter "param1" does not have type or description
+    String listBody =
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[{\"name\":\"test-tool\","
+            + "\"description\":\"A test tool\",\"inputSchema\":{\"type\":\"object\","
+            + "\"properties\":{\"param1\":{}},"
+            + "\"required\":[]}}]}}";
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body()).thenReturn(listBody);
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    Map<String, ToolDefinition> tools = client.listTools().join();
+    assertNotNull(tools);
+    ToolDefinition toolDef = tools.get("test-tool");
+    assertEquals(1, toolDef.parameters().size());
+    ToolDefinition.Parameter param = toolDef.parameters().get(0);
+    assertEquals("param1", param.name());
+    assertEquals("string", param.type()); // defaulted to string
+    assertEquals("", param.description()); // defaulted to empty string
+  }
+
+  @Test
+  void testListTools_withAuthParamMetadata() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    // parameter "param1" has authParam metadata in toolbox/authParam
+    String listBody =
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[{\"name\":\"test-tool\",\"description\":\"A"
+            + " test tool\",\"inputSchema\":{\"type\":\"object\","
+            + "\"properties\":{\"param1\":{\"type\":\"string\"}},"
+            + "\"required\":[]},\"_meta\":{\"toolbox/authParam\":{\"param1\":[\"my-auth-source\"]}}}]}}";
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body()).thenReturn(listBody);
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    Map<String, ToolDefinition> tools = client.listTools().join();
+    assertNotNull(tools);
+    ToolDefinition toolDef = tools.get("test-tool");
+    ToolDefinition.Parameter param = toolDef.parameters().get(0);
+    assertEquals(1, param.authSources().size());
+    assertEquals("my-auth-source", param.authSources().get(0));
+  }
+
+  @Test
+  void testInvokeTool_withIsErrorFlag() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    String callBody =
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"failed"
+            + " to run tool\"}],\"isError\":true}}";
+    HttpResponse<String> callResponse = mock(HttpResponse.class);
+    when(callResponse.statusCode()).thenReturn(200);
+    when(callResponse.body()).thenReturn(callBody);
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(callResponse));
+
+    ToolResult result = client.invokeTool("test-tool", Map.of()).join();
+    assertNotNull(result);
+    assertTrue(result.isError());
+    assertEquals("failed to run tool", result.content().get(0).text());
+  }
+
+  @Test
+  void testInvokeTool_non200WithResponseBody() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> callResponse = mock(HttpResponse.class);
+    when(callResponse.statusCode()).thenReturn(500);
+    when(callResponse.body()).thenReturn("Internal Failure");
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(callResponse));
+
+    ToolResult result = client.invokeTool("test-tool", Map.of()).join();
+    assertNotNull(result);
+    assertTrue(result.isError());
+    assertTrue(result.content().get(0).text().contains("Error 500:"));
+    assertTrue(result.content().get(0).text().contains("Internal Failure"));
+  }
+
+  @Test
+  void testInvokeTool_resultWithoutContentField() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    // result is a JSON object but has no content field
+    String callBody = "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}";
+    HttpResponse<String> callResponse = mock(HttpResponse.class);
+    when(callResponse.statusCode()).thenReturn(200);
+    when(callResponse.body()).thenReturn(callBody);
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(callResponse));
+
+    ToolResult result = client.invokeTool("test-tool", Map.of()).join();
+    assertNotNull(result);
+    assertFalse(result.isError());
+    assertEquals(1, result.content().size());
+    assertEquals("", result.content().get(0).text());
+  }
+
+  @Test
+  void testListTools_withMissingInputSchemaOrProperties() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    // tool definition with no inputSchema at all
+    String listBody =
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[{\"name\":\"test-tool\"}]}}";
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body()).thenReturn(listBody);
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    Map<String, ToolDefinition> tools = client.listTools().join();
+    assertNotNull(tools);
+    assertTrue(tools.containsKey("test-tool"));
+    ToolDefinition toolDef = tools.get("test-tool");
+    assertTrue(toolDef.parameters().isEmpty());
+  }
 }
