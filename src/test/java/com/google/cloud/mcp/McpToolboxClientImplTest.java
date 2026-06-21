@@ -19,6 +19,7 @@ package com.google.cloud.mcp;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -248,26 +249,33 @@ class McpToolboxClientImplTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   void testConstructor_withNullAndEmptyAndRawApiKeys() throws Exception {
+    Method getAuthHeaderMethod =
+        McpToolboxClientImpl.class.getDeclaredMethod("getAuthorizationHeader");
+    getAuthHeaderMethod.setAccessible(true);
+
     McpToolboxClientImpl clientNull =
         new McpToolboxClientImpl("http://localhost:8080", (String) null);
-    Field headersField = McpToolboxClientImpl.class.getDeclaredField("headers");
-    headersField.setAccessible(true);
-    Map<String, String> headersNull = (Map<String, String>) headersField.get(clientNull);
-    assertTrue(headersNull.isEmpty());
+    CompletableFuture<String> futureNull =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(clientNull);
+    assertNull(futureNull.join());
 
     McpToolboxClientImpl clientEmpty = new McpToolboxClientImpl("http://localhost:8080", "");
-    Map<String, String> headersEmpty = (Map<String, String>) headersField.get(clientEmpty);
-    assertTrue(headersEmpty.isEmpty());
+    CompletableFuture<String> futureEmpty =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(clientEmpty);
+    assertNull(futureEmpty.join());
 
     McpToolboxClientImpl clientRaw = new McpToolboxClientImpl("http://localhost:8080", "my-key");
-    Map<String, String> headersRaw = (Map<String, String>) headersField.get(clientRaw);
-    assertEquals("Bearer my-key", headersRaw.get("Authorization"));
+    CompletableFuture<String> futureRaw =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(clientRaw);
+    assertEquals("Bearer my-key", futureRaw.join());
 
     McpToolboxClientImpl clientBearer =
         new McpToolboxClientImpl("http://localhost:8080", "Bearer already-bearer");
-    Map<String, String> headersBearer = (Map<String, String>) headersField.get(clientBearer);
-    assertEquals("Bearer already-bearer", headersBearer.get("Authorization"));
+    CompletableFuture<String> futureBearer =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(clientBearer);
+    assertEquals("Bearer already-bearer", futureBearer.join());
   }
 
   @Test
@@ -563,6 +571,7 @@ class McpToolboxClientImplTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   void testGetAuthorizationHeader_withAdcException() throws Exception {
     McpToolboxClientImpl noAuthClient =
         new McpToolboxClientImpl("http://localhost:8080", (String) null);
@@ -574,7 +583,8 @@ class McpToolboxClientImplTest {
           .when(GoogleCredentials::getApplicationDefault)
           .thenThrow(new IOException("Simulated ADC exception"));
 
-      String header = (String) method.invoke(noAuthClient);
+      CompletableFuture<String> future = (CompletableFuture<String>) method.invoke(noAuthClient);
+      String header = future.join();
       org.junit.jupiter.api.Assertions.assertNull(header);
     }
   }

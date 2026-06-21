@@ -18,11 +18,14 @@ package com.google.cloud.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
 
 class McpToolboxClientBuilderTest {
@@ -60,20 +63,25 @@ class McpToolboxClientBuilderTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   void testApiKeyPreprocessing() throws Exception {
+    Method getAuthHeaderMethod =
+        McpToolboxClientImpl.class.getDeclaredMethod("getAuthorizationHeader");
+    getAuthHeaderMethod.setAccessible(true);
+
     // 1. ApiKey is null or empty
     McpToolboxClient clientNullKey =
         McpToolboxClient.builder().baseUrl("http://localhost:8080").apiKey(null).build();
-    Field headersField = McpToolboxClientImpl.class.getDeclaredField("headers");
-    headersField.setAccessible(true);
-    Map<String, String> headersNullKey = (Map<String, String>) headersField.get(clientNullKey);
-    assertTrue(headersNullKey.isEmpty());
+    CompletableFuture<String> futureNull =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(clientNullKey);
+    assertNull(futureNull.join());
 
     // 2. ApiKey is raw (not prefixed with Bearer)
     McpToolboxClient clientRawKey =
         McpToolboxClient.builder().baseUrl("http://localhost:8080").apiKey("raw-key-123").build();
-    Map<String, String> headersRawKey = (Map<String, String>) headersField.get(clientRawKey);
-    assertEquals("Bearer raw-key-123", headersRawKey.get("Authorization"));
+    CompletableFuture<String> futureRaw =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(clientRawKey);
+    assertEquals("Bearer raw-key-123", futureRaw.join());
 
     // 3. ApiKey already contains Bearer prefix
     McpToolboxClient clientBearerKey =
@@ -81,8 +89,9 @@ class McpToolboxClientBuilderTest {
             .baseUrl("http://localhost:8080")
             .apiKey("Bearer token-456")
             .build();
-    Map<String, String> headersBearerKey = (Map<String, String>) headersField.get(clientBearerKey);
-    assertEquals("Bearer token-456", headersBearerKey.get("Authorization"));
+    CompletableFuture<String> futureBearer =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(clientBearerKey);
+    assertEquals("Bearer token-456", futureBearer.join());
 
     // 4. ApiKey does not override existing Authorization header
     McpToolboxClient clientOverrideKey =
@@ -91,9 +100,9 @@ class McpToolboxClientBuilderTest {
             .headers(Map.of("Authorization", "Bearer existing-token"))
             .apiKey("new-key-should-be-ignored")
             .build();
-    Map<String, String> headersOverrideKey =
-        (Map<String, String>) headersField.get(clientOverrideKey);
-    assertEquals("Bearer existing-token", headersOverrideKey.get("Authorization"));
+    CompletableFuture<String> futureOverride =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(clientOverrideKey);
+    assertEquals("Bearer existing-token", futureOverride.join());
   }
 
   @Test
