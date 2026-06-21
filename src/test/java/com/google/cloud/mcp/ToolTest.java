@@ -243,7 +243,8 @@ class ToolTest {
         org.junit.jupiter.api.Assertions.assertThrows(
             CompletionException.class, () -> tool.execute(Map.of()).join());
     assertTrue(exception.getCause() instanceof IllegalArgumentException);
-    assertTrue(exception.getCause().getMessage().contains("Missing required parameter 'p-required'"));
+    assertTrue(
+        exception.getCause().getMessage().contains("Missing required parameter 'p-required'"));
   }
 
   @Test
@@ -261,33 +262,42 @@ class ToolTest {
     Tool tool = new Tool("test-tool", def, client);
 
     // Expected string, got integer
-    CompletionException ex1 = org.junit.jupiter.api.Assertions.assertThrows(
-        CompletionException.class, () -> tool.execute(Map.of("p-string", 123)).join());
+    CompletionException ex1 =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            CompletionException.class, () -> tool.execute(Map.of("p-string", 123)).join());
     assertTrue(ex1.getCause() instanceof IllegalArgumentException);
 
     // Expected integer, got string
-    CompletionException ex2 = org.junit.jupiter.api.Assertions.assertThrows(
-        CompletionException.class, () -> tool.execute(Map.of("p-int", "not-an-int")).join());
+    CompletionException ex2 =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            CompletionException.class, () -> tool.execute(Map.of("p-int", "not-an-int")).join());
     assertTrue(ex2.getCause() instanceof IllegalArgumentException);
 
     // Expected number, got string
-    CompletionException ex3 = org.junit.jupiter.api.Assertions.assertThrows(
-        CompletionException.class, () -> tool.execute(Map.of("p-number", "not-a-number")).join());
+    CompletionException ex3 =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            CompletionException.class,
+            () -> tool.execute(Map.of("p-number", "not-a-number")).join());
     assertTrue(ex3.getCause() instanceof IllegalArgumentException);
 
     // Expected boolean, got string
-    CompletionException ex4 = org.junit.jupiter.api.Assertions.assertThrows(
-        CompletionException.class, () -> tool.execute(Map.of("p-bool", "not-a-boolean")).join());
+    CompletionException ex4 =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            CompletionException.class,
+            () -> tool.execute(Map.of("p-bool", "not-a-boolean")).join());
     assertTrue(ex4.getCause() instanceof IllegalArgumentException);
 
     // Expected array, got string
-    CompletionException ex5 = org.junit.jupiter.api.Assertions.assertThrows(
-        CompletionException.class, () -> tool.execute(Map.of("p-array", "not-an-array")).join());
+    CompletionException ex5 =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            CompletionException.class,
+            () -> tool.execute(Map.of("p-array", "not-an-array")).join());
     assertTrue(ex5.getCause() instanceof IllegalArgumentException);
 
     // Expected object, got string
-    CompletionException ex6 = org.junit.jupiter.api.Assertions.assertThrows(
-        CompletionException.class, () -> tool.execute(Map.of("p-obj", "not-an-object")).join());
+    CompletionException ex6 =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            CompletionException.class, () -> tool.execute(Map.of("p-obj", "not-an-object")).join());
     assertTrue(ex6.getCause() instanceof IllegalArgumentException);
   }
 
@@ -322,5 +332,51 @@ class ToolTest {
                 "p-obj",
                 Map.of("key", "val")))
         .join(); // should succeed without exceptions
+  }
+
+  @Test
+  void testResolvedAuth_withNullParametersListInDefinition() {
+    ToolDefinition def = new ToolDefinition("test-tool", null, List.of());
+    ResolvedAuth resolvedAuth = new ResolvedAuth(Map.of("svc", "token"));
+    Map<String, Object> finalArgs = new HashMap<>();
+    Map<String, String> extraHeaders = new HashMap<>();
+
+    resolvedAuth.applyTo(finalArgs, extraHeaders, def);
+
+    assertEquals("Bearer token", extraHeaders.get("Authorization"));
+    assertTrue(finalArgs.isEmpty());
+  }
+
+  @Test
+  void testResolvedAuth_withNullTokensMap() {
+    ToolDefinition def = new ToolDefinition("test-tool", List.of(), List.of());
+    ResolvedAuth resolvedAuth = new ResolvedAuth(null);
+    Map<String, Object> finalArgs = new HashMap<>();
+    Map<String, String> extraHeaders = new HashMap<>();
+
+    resolvedAuth.applyTo(finalArgs, extraHeaders, def);
+
+    assertTrue(finalArgs.isEmpty());
+    assertTrue(extraHeaders.isEmpty());
+  }
+
+  @Test
+  void testResolvedAuth_withNullKeysAndValuesInTokensMap() {
+    ToolDefinition def = new ToolDefinition("test-tool", List.of(), List.of());
+    Map<String, String> tokens = new HashMap<>();
+    tokens.put(null, "val1");
+    tokens.put("svc2", null);
+    tokens.put("svc3", "val3");
+
+    ResolvedAuth resolvedAuth = new ResolvedAuth(tokens);
+    Map<String, Object> finalArgs = new HashMap<>();
+    Map<String, String> extraHeaders = new HashMap<>();
+
+    resolvedAuth.applyTo(finalArgs, extraHeaders, def);
+
+    assertEquals("Bearer val3", extraHeaders.get("Authorization"));
+    assertEquals("val3", extraHeaders.get("svc3_token"));
+    assertTrue(!extraHeaders.containsKey("svc2_token"));
+    assertTrue(!extraHeaders.containsKey("null_token"));
   }
 }
