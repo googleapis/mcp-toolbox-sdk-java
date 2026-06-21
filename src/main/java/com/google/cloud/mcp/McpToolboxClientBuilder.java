@@ -74,7 +74,10 @@ public class McpToolboxClientBuilder implements McpToolboxClient.Builder {
         break;
       }
     }
-    if (resolvedProvider == null && !hasStaticAuth && this.apiKey != null && !this.apiKey.isEmpty()) {
+    if (resolvedProvider == null
+        && !hasStaticAuth
+        && this.apiKey != null
+        && !this.apiKey.isEmpty()) {
       String bearerKey = this.apiKey.startsWith("Bearer ") ? this.apiKey : "Bearer " + this.apiKey;
       resolvedProvider = () -> CompletableFuture.completedFuture(bearerKey);
     }

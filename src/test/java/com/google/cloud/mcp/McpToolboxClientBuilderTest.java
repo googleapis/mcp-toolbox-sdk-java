@@ -123,9 +123,11 @@ class McpToolboxClientBuilderTest {
             .build();
     assertNotNull(client);
 
-    Method getAuthHeaderMethod = McpToolboxClientImpl.class.getDeclaredMethod("getAuthorizationHeader");
+    Method getAuthHeaderMethod =
+        McpToolboxClientImpl.class.getDeclaredMethod("getAuthorizationHeader");
     getAuthHeaderMethod.setAccessible(true);
-    CompletableFuture<String> future = (CompletableFuture<String>) getAuthHeaderMethod.invoke(client);
+    CompletableFuture<String> future =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(client);
     assertEquals("Bearer test-token", future.join());
   }
 }

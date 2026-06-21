@@ -720,9 +720,11 @@ class McpToolboxClientImplTest {
     McpToolboxClientImpl client = new McpToolboxClientImpl("http://localhost:8080", provider);
     assertNotNull(client);
 
-    Method getAuthHeaderMethod = McpToolboxClientImpl.class.getDeclaredMethod("getAuthorizationHeader");
+    Method getAuthHeaderMethod =
+        McpToolboxClientImpl.class.getDeclaredMethod("getAuthorizationHeader");
     getAuthHeaderMethod.setAccessible(true);
-    CompletableFuture<String> future = (CompletableFuture<String>) getAuthHeaderMethod.invoke(client);
+    CompletableFuture<String> future =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(client);
     assertEquals("Bearer provider-token", future.join());
   }
 
