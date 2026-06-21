@@ -22,13 +22,17 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.auth.oauth2.GoogleCredentials;
+import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -38,6 +42,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 
 @Timeout(value = 5, unit = java.util.concurrent.TimeUnit.SECONDS)
 class McpToolboxClientImplTest {
@@ -555,5 +560,146 @@ class McpToolboxClientImplTest {
     assertTrue(
         exception.getCause().getCause()
             instanceof com.fasterxml.jackson.core.JsonProcessingException);
+  }
+
+  @Test
+  void testGetAuthorizationHeader_withAdcException() throws Exception {
+    McpToolboxClientImpl noAuthClient =
+        new McpToolboxClientImpl("http://localhost:8080", (String) null);
+    Method method = McpToolboxClientImpl.class.getDeclaredMethod("getAuthorizationHeader");
+    method.setAccessible(true);
+
+    try (MockedStatic<GoogleCredentials> mockedCredentials = mockStatic(GoogleCredentials.class)) {
+      mockedCredentials
+          .when(GoogleCredentials::getApplicationDefault)
+          .thenThrow(new IOException("Simulated ADC exception"));
+
+      String header = (String) method.invoke(noAuthClient);
+      org.junit.jupiter.api.Assertions.assertNull(header);
+    }
+  }
+
+  @Test
+  void testEnsureInitialized_withNullAuthHeader() throws Exception {
+    McpToolboxClientImpl noAuthClient =
+        new McpToolboxClientImpl("http://localhost:8080", (String) null);
+    Field httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
+    httpClientField.setAccessible(true);
+    httpClientField.set(noAuthClient, mockHttpClient);
+
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse));
+
+    Method initMethod =
+        McpToolboxClientImpl.class.getDeclaredMethod("ensureInitialized", String.class);
+    initMethod.setAccessible(true);
+
+    CompletableFuture<Void> future =
+        (CompletableFuture<Void>) initMethod.invoke(noAuthClient, (String) null);
+    future.join(); // should complete and NOT set Authorization header
+
+    ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
+    verify(mockHttpClient, times(2)).sendAsync(requestCaptor.capture(), any());
+
+    HttpRequest initReq = requestCaptor.getAllValues().get(0);
+    assertFalse(initReq.headers().map().containsKey("Authorization"));
+  }
+
+  @Test
+  void testConstructor_withTrailingSlashAndNullHeaders() throws Exception {
+    McpToolboxClientImpl clientWithSlash =
+        new McpToolboxClientImpl("http://localhost:8080/", (Map<String, String>) null);
+
+    Field baseUrlField = McpToolboxClientImpl.class.getDeclaredField("baseUrl");
+    baseUrlField.setAccessible(true);
+    assertEquals("http://localhost:8080", baseUrlField.get(clientWithSlash));
+
+    Field headersField = McpToolboxClientImpl.class.getDeclaredField("headers");
+    headersField.setAccessible(true);
+    Map<?, ?> headersMap = (Map<?, ?>) headersField.get(clientWithSlash);
+    assertNotNull(headersMap);
+    assertTrue(headersMap.isEmpty());
+  }
+
+  @Test
+  void testEnsureInitialized_withCustomHeaders() throws Exception {
+    Map<String, String> customHeaders =
+        Map.of("X-Custom-Header", "custom-val", "Authorization", "some-apiKey");
+    McpToolboxClientImpl customClient =
+        new McpToolboxClientImpl("http://localhost:8080", customHeaders);
+    Field httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
+    httpClientField.setAccessible(true);
+    httpClientField.set(customClient, mockHttpClient);
+
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body())
+        .thenReturn("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[]}}");
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    customClient.listTools().join();
+
+    ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
+    verify(mockHttpClient, times(3)).sendAsync(requestCaptor.capture(), any());
+
+    HttpRequest initReq = requestCaptor.getAllValues().get(0);
+    assertEquals("custom-val", initReq.headers().firstValue("X-Custom-Header").orElse(null));
+    assertEquals("some-apiKey", initReq.headers().firstValue("Authorization").orElse(null));
+  }
+
+  @Test
+  void testLoadToolset_withVariousBinds() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    String listBody =
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[{\"name\":\"test-tool\","
+            + "\"description\":\"A test tool\",\"inputSchema\":{\"type\":\"object\","
+            + "\"properties\":{\"param1\":{\"type\":\"string\"}},"
+            + "\"required\":[\"param1\"]}}]}}";
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body()).thenReturn(listBody);
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    Map<String, Map<String, Object>> paramBinds = Map.of("test-tool", Map.of("param1", "value1"));
+    Map<String, Map<String, AuthTokenGetter>> authBinds =
+        Map.of("test-tool", Map.of("my-svc", () -> CompletableFuture.completedFuture("tok")));
+
+    Map<String, Tool> tools = client.loadToolset("my-set", paramBinds, authBinds, true).join();
+    assertNotNull(tools);
+    assertTrue(tools.containsKey("test-tool"));
+    Tool tool = tools.get("test-tool");
+    assertEquals("test-tool", tool.name());
   }
 }

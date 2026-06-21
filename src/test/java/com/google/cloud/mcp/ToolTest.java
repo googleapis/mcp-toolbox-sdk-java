@@ -393,4 +393,15 @@ class ToolTest {
     Tool tool = new Tool("test-tool", def, client);
     tool.execute(Map.of("p-custom", "any-value")).join(); // should succeed
   }
+
+  @Test
+  void testValidateAndSanitizeArgs_withNullParameters() throws Exception {
+    ToolDefinition def = new ToolDefinition("test-tool", null, List.of());
+    McpToolboxClient client = mock(McpToolboxClient.class);
+    when(client.invokeTool(anyString(), anyMap(), anyMap()))
+        .thenReturn(CompletableFuture.completedFuture(new ToolResult(List.of(), false)));
+
+    Tool tool = new Tool("test-tool", def, client);
+    tool.execute(Map.of("any-param", "any-value")).join(); // should bypass validation loop safely
+  }
 }
