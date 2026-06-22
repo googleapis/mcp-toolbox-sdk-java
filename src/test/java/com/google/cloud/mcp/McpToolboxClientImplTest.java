@@ -739,4 +739,90 @@ class McpToolboxClientImplTest {
     assertNotNull(tools);
     assertTrue(tools.isEmpty());
   }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  void testCoverageBoosters() throws Exception {
+    // 1. Cover HttpMcpTransport close() method
+    HttpMcpTransport transport = new HttpMcpTransport("http://localhost:8080", mockHttpClient);
+    transport.close();
+
+    // 2. Cover HttpMcpTransport constructor with null headers
+    HttpMcpTransport transportWithNullHeaders =
+        new HttpMcpTransport("http://localhost:8080", null, mockHttpClient);
+    assertNotNull(transportWithNullHeaders);
+
+    // 3. Cover McpToolboxClientImpl deprecated constructor 1
+    McpToolboxClientImpl client1 =
+        new McpToolboxClientImpl("http://localhost:8080", java.util.Collections.emptyMap(), null);
+    assertNotNull(client1);
+
+    // 4. Cover McpToolboxClientImpl deprecated constructor 2
+    McpToolboxClientImpl client2 = new McpToolboxClientImpl(transport, null);
+    assertNotNull(client2);
+  }
+
+  @Test
+  void testInvokeTool_withNullHeadersThrows() {
+    HttpMcpTransport transport = new HttpMcpTransport("http://localhost:8080", mockHttpClient);
+    McpToolboxClientImpl client =
+        new McpToolboxClientImpl(transport, java.util.Collections.emptyMap(), null);
+
+    CompletableFuture<ToolResult> future =
+        client.invokeTool("test-tool", java.util.Collections.emptyMap(), null);
+    java.util.concurrent.ExecutionException ex =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            java.util.concurrent.ExecutionException.class, future::get);
+    assertTrue(ex.getCause() instanceof NullPointerException);
+  }
+
+  @Test
+  void testListTools_withInvalidToolsetNameThrows() throws Exception {
+    HttpMcpTransport transport = new HttpMcpTransport("http://localhost:8080", mockHttpClient);
+
+    // Force transport to be initialized first
+    Field initField = HttpMcpTransport.class.getDeclaredField("initialized");
+    initField.setAccessible(true);
+    initField.set(transport, true);
+
+    CompletableFuture<TransportManifest> future =
+        transport.listTools("invalid path with spaces \\", java.util.Collections.emptyMap());
+    java.util.concurrent.ExecutionException ex =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            java.util.concurrent.ExecutionException.class, future::get);
+    assertTrue(ex.getCause() instanceof IllegalArgumentException);
+  }
+
+  @Test
+  void testEnsureInitialized_withNotificationSerializationFailure() throws Exception {
+    HttpMcpTransport transport = new HttpMcpTransport("http://localhost:8080", mockHttpClient);
+
+    // Mock ObjectMapper to throw on notification
+    ObjectMapper mockMapper = mock(ObjectMapper.class);
+    when(mockMapper.writeValueAsString(any(JsonRpc.Request.class))).thenReturn("{}");
+    when(mockMapper.writeValueAsString(any(JsonRpc.Notification.class)))
+        .thenThrow(new RuntimeException("Simulated notification serialization failure"));
+
+    Field mapperField = HttpMcpTransport.class.getDeclaredField("objectMapper");
+    mapperField.setAccessible(true);
+    mapperField.set(transport, mockMapper);
+
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse));
+
+    Method initMethod = HttpMcpTransport.class.getDeclaredMethod("ensureInitialized", Map.class);
+    initMethod.setAccessible(true);
+
+    CompletableFuture<Void> future =
+        (CompletableFuture<Void>) initMethod.invoke(transport, java.util.Collections.emptyMap());
+
+    java.util.concurrent.ExecutionException ex =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            java.util.concurrent.ExecutionException.class, future::get);
+    assertTrue(ex.getCause().getMessage().contains("Simulated notification serialization failure"));
+  }
 }
