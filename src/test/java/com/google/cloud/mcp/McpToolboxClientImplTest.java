@@ -593,9 +593,7 @@ class McpToolboxClientImplTest {
         .thenReturn(CompletableFuture.completedFuture(initResponse))
         .thenReturn(CompletableFuture.completedFuture(notifResponse));
 
-
-    Method initMethod =
-        HttpMcpTransport.class.getDeclaredMethod("ensureInitialized", Map.class);
+    Method initMethod = HttpMcpTransport.class.getDeclaredMethod("ensureInitialized", Map.class);
     initMethod.setAccessible(true);
 
     CompletableFuture<Void> future =
@@ -630,9 +628,9 @@ class McpToolboxClientImplTest {
   void testEnsureInitialized_withCustomHeaders() throws Exception {
     Map<String, String> customHeaders =
         Map.of("X-Custom-Header", "custom-val", "Authorization", "some-apiKey");
-    HttpMcpTransport transport = new HttpMcpTransport("http://localhost:8080", customHeaders, mockHttpClient);
-    McpToolboxClientImpl customClient =
-        new McpToolboxClientImpl(transport, customHeaders, null);
+    HttpMcpTransport transport =
+        new HttpMcpTransport("http://localhost:8080", customHeaders, mockHttpClient);
+    McpToolboxClientImpl customClient = new McpToolboxClientImpl(transport, customHeaders, null);
 
     HttpResponse<String> initResponse = mock(HttpResponse.class);
     when(initResponse.statusCode()).thenReturn(200);

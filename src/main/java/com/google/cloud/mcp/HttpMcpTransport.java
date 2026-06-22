@@ -64,7 +64,10 @@ public class HttpMcpTransport implements Transport {
    * @param clientHeaders The client-level headers.
    */
   public HttpMcpTransport(String baseUrl, Map<String, String> clientHeaders) {
-    this(baseUrl, clientHeaders, HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build());
+    this(
+        baseUrl,
+        clientHeaders,
+        HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build());
   }
 
   /** Package-private constructor for unit testing. */

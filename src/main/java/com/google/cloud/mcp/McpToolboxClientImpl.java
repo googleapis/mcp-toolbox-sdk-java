@@ -55,7 +55,6 @@ public class McpToolboxClientImpl implements McpToolboxClient {
     this.objectMapper = new ObjectMapper();
   }
 
-
   /**
    * Deprecated constructor. Use the constructor accepting {@link CredentialsProvider} instead.
    *
