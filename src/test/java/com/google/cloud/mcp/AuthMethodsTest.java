@@ -17,6 +17,7 @@
 package com.google.cloud.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -30,6 +31,7 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.IdToken;
 import com.google.auth.oauth2.IdTokenProvider;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -137,5 +139,77 @@ class AuthMethodsTest {
 
     // Verification that it gracefully returns null (proceed without auth)
     assertNull(header);
+  }
+
+  @Test
+  void testGoogleCredentialsProvider_OidcFailure() throws Exception {
+    String audience = "https://test-mcp-service.com";
+    GoogleCredentials creds = mock(GoogleCredentials.class); // Does NOT implement IdTokenProvider
+    GoogleCredentialsProvider provider = new GoogleCredentialsProvider(audience, () -> creds);
+    String header = provider.getAuthorizationHeader().get();
+    assertNull(header, "OIDC incompatible credentials should return null auth header");
+  }
+
+  @Test
+  void testGoogleCredentialsProvider_InvalidAudience() {
+    assertThrows(
+        IllegalArgumentException.class, () -> new GoogleCredentialsProvider(null, () -> null));
+    assertThrows(
+        IllegalArgumentException.class, () -> new GoogleCredentialsProvider("", () -> null));
+  }
+
+  @Test
+  void testGoogleCredentialsProvider_PublicConstructor() throws Exception {
+    GoogleCredentialsProvider provider = new GoogleCredentialsProvider("https://test.com");
+    // Should run gracefully, even if ADC fails locally it returns null
+    String header = provider.getAuthorizationHeader().get();
+    // No assertion on value, just verify it runs without crashing to cover constructor instructions
+  }
+
+  @Test
+  void testAuthMethods_PrivateConstructor() throws Exception {
+    Constructor<AuthMethods> constructor = AuthMethods.class.getDeclaredConstructor();
+    constructor.setAccessible(true);
+    AuthMethods instance = constructor.newInstance();
+    assertNotNull(instance);
+  }
+
+  @Test
+  void testAuthMethods_NullCredentials() {
+    assertThrows(
+        IllegalArgumentException.class, () -> AuthMethods.getGoogleIdToken(null, "audience"));
+  }
+
+  @Test
+  void testAuthMethods_RefreshException() throws Exception {
+    GoogleCredentials creds = mock(GoogleCredentials.class);
+    IOException simulatedException = new IOException("Refresh failed");
+    org.mockito.Mockito.doThrow(simulatedException).when(creds).refreshIfExpired();
+
+    assertThrows(IOException.class, () -> AuthMethods.getGoogleIdToken(creds, "audience"));
+  }
+
+  @Test
+  void testGoogleCredentialsProvider_NullCredentialsLoaded() throws Exception {
+    String audience = "https://test-mcp-service.com";
+    GoogleCredentialsProvider provider = new GoogleCredentialsProvider(audience, () -> null);
+    String header = provider.getAuthorizationHeader().get();
+    assertNull(header, "Null credentials from loader should return null auth header");
+  }
+
+  @Test
+  void testAuthMethods_BearerTokenAlreadyPrefixed() throws Exception {
+    String mockToken = "Bearer custom-already-prefixed-token";
+    String audience = "https://test-mcp-service.com";
+
+    GoogleCredentials credentials =
+        mock(GoogleCredentials.class, withSettings().extraInterfaces(IdTokenProvider.class));
+    IdToken mockIdToken = mock(IdToken.class);
+    when(mockIdToken.getTokenValue()).thenReturn(mockToken);
+    when(((IdTokenProvider) credentials).idTokenWithAudience(eq(audience), any()))
+        .thenReturn(mockIdToken);
+
+    String resolvedToken = AuthMethods.getGoogleIdToken(credentials, audience);
+    assertEquals(mockToken, resolvedToken, "Should not double-prefix Bearer tokens");
   }
 }

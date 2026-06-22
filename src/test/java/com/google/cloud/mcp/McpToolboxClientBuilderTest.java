@@ -16,10 +16,16 @@
 
 package com.google.cloud.mcp;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
 
 class McpToolboxClientBuilderTest {
@@ -35,5 +41,93 @@ class McpToolboxClientBuilderTest {
 
     assertNotNull(client);
     assertTrue(client instanceof McpToolboxClientImpl);
+  }
+
+  @Test
+  void testBaseUrlValidation() {
+    assertThrows(
+        IllegalArgumentException.class, () -> McpToolboxClient.builder().baseUrl(null).build());
+
+    assertThrows(
+        IllegalArgumentException.class, () -> McpToolboxClient.builder().baseUrl("").build());
+  }
+
+  @Test
+  void testBaseUrlTrailingSlashNormalization() throws Exception {
+    McpToolboxClient client = McpToolboxClient.builder().baseUrl("http://localhost:8080/").build();
+
+    Field baseUrlField = McpToolboxClientImpl.class.getDeclaredField("baseUrl");
+    baseUrlField.setAccessible(true);
+    String baseUrl = (String) baseUrlField.get(client);
+    assertEquals("http://localhost:8080", baseUrl);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testApiKeyPreprocessing() throws Exception {
+    Method getAuthHeaderMethod =
+        McpToolboxClientImpl.class.getDeclaredMethod("getAuthorizationHeader");
+    getAuthHeaderMethod.setAccessible(true);
+
+    // 1. ApiKey is null or empty
+    McpToolboxClient clientNullKey =
+        McpToolboxClient.builder().baseUrl("http://localhost:8080").apiKey(null).build();
+    CompletableFuture<String> futureNull =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(clientNullKey);
+    assertNull(futureNull.join());
+
+    // 2. ApiKey is raw (not prefixed with Bearer)
+    McpToolboxClient clientRawKey =
+        McpToolboxClient.builder().baseUrl("http://localhost:8080").apiKey("raw-key-123").build();
+    CompletableFuture<String> futureRaw =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(clientRawKey);
+    assertEquals("Bearer raw-key-123", futureRaw.join());
+
+    // 3. ApiKey already contains Bearer prefix
+    McpToolboxClient clientBearerKey =
+        McpToolboxClient.builder()
+            .baseUrl("http://localhost:8080")
+            .apiKey("Bearer token-456")
+            .build();
+    CompletableFuture<String> futureBearer =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(clientBearerKey);
+    assertEquals("Bearer token-456", futureBearer.join());
+
+    // 4. ApiKey does not override existing Authorization header
+    McpToolboxClient clientOverrideKey =
+        McpToolboxClient.builder()
+            .baseUrl("http://localhost:8080")
+            .headers(Map.of("Authorization", "Bearer existing-token"))
+            .apiKey("new-key-should-be-ignored")
+            .build();
+    CompletableFuture<String> futureOverride =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(clientOverrideKey);
+    assertEquals("Bearer existing-token", futureOverride.join());
+  }
+
+  @Test
+  void testHeadersNullHandledSafely() {
+    McpToolboxClient client =
+        McpToolboxClient.builder().baseUrl("http://localhost:8080").headers(null).build();
+    assertNotNull(client);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testCredentialsProviderConfiguration() throws Exception {
+    CredentialsProvider provider = () -> CompletableFuture.completedFuture("Bearer test-token");
+    McpToolboxClient client =
+        McpToolboxClient.builder()
+            .baseUrl("http://localhost:8080")
+            .credentialsProvider(provider)
+            .build();
+    assertNotNull(client);
+
+    Method getAuthHeaderMethod =
+        McpToolboxClientImpl.class.getDeclaredMethod("getAuthorizationHeader");
+    getAuthHeaderMethod.setAccessible(true);
+    CompletableFuture<String> future =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(client);
+    assertEquals("Bearer test-token", future.join());
   }
 }

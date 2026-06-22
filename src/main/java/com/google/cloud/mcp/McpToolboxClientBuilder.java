@@ -67,7 +67,17 @@ public class McpToolboxClientBuilder implements McpToolboxClient.Builder {
     }
 
     CredentialsProvider resolvedProvider = this.credentialsProvider;
-    if (resolvedProvider == null && this.apiKey != null && !this.apiKey.isEmpty()) {
+    boolean hasStaticAuth = false;
+    for (String key : this.headers.keySet()) {
+      if ("Authorization".equalsIgnoreCase(key)) {
+        hasStaticAuth = true;
+        break;
+      }
+    }
+    if (resolvedProvider == null
+        && !hasStaticAuth
+        && this.apiKey != null
+        && !this.apiKey.isEmpty()) {
       String bearerKey = this.apiKey.startsWith("Bearer ") ? this.apiKey : "Bearer " + this.apiKey;
       resolvedProvider = () -> CompletableFuture.completedFuture(bearerKey);
     }
