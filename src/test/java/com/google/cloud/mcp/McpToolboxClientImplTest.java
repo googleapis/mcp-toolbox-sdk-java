@@ -499,6 +499,59 @@ class McpToolboxClientImplTest {
   }
 
   @Test
+  void testLoadToolset_withDefaultValuesAndHints() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body())
+        .thenReturn(
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[{"
+                + "\"name\":\"test-tool\","
+                + "\"description\":\"A test tool description\","
+                + "\"readOnlyHint\":true,"
+                + "\"destructiveHint\":false,"
+                + "\"inputSchema\":{"
+                + "  \"type\":\"object\","
+                + "  \"properties\":{"
+                + "    \"param1\":{"
+                + "      \"type\":\"string\","
+                + "      \"description\":\"parameter 1\","
+                + "      \"default\":\"default-val\""
+                + "    }"
+                + "  }"
+                + "}"
+                + "}]}}");
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    Map<String, ToolDefinition> tools = client.loadToolset(null).join();
+    assertNotNull(tools);
+    assertEquals(1, tools.size());
+
+    ToolDefinition def = tools.get("test-tool");
+    assertNotNull(def);
+    assertEquals("A test tool description", def.description());
+    assertEquals(true, def.readOnlyHint());
+    assertEquals(false, def.destructiveHint());
+
+    assertEquals(1, def.parameters().size());
+    ToolDefinition.Parameter param = def.parameters().get(0);
+    assertEquals("param1", param.name());
+    assertEquals("string", param.type());
+    assertEquals("default-val", param.defaultValue());
+  }
+
+  @Test
   void testLoadToolset_withInvalidUriThrowsException() {
     HttpMcpTransport transport = new HttpMcpTransport("http://invalid uri", mockHttpClient);
     McpToolboxClientImpl badClient =
