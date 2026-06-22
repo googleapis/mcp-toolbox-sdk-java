@@ -56,10 +56,10 @@ class McpToolboxClientBuilderTest {
   void testBaseUrlTrailingSlashNormalization() throws Exception {
     McpToolboxClient client = McpToolboxClient.builder().baseUrl("http://localhost:8080/").build();
 
-    Field baseUrlField = McpToolboxClientImpl.class.getDeclaredField("baseUrl");
-    baseUrlField.setAccessible(true);
-    String baseUrl = (String) baseUrlField.get(client);
-    assertEquals("http://localhost:8080", baseUrl);
+    Field transportField = McpToolboxClientImpl.class.getDeclaredField("transport");
+    transportField.setAccessible(true);
+    Transport transport = (Transport) transportField.get(client);
+    assertEquals("http://localhost:8080", transport.getBaseUrl());
   }
 
   @Test

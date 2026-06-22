@@ -82,7 +82,7 @@ public class McpToolboxClientBuilder implements McpToolboxClient.Builder {
       resolvedProvider = () -> CompletableFuture.completedFuture(bearerKey);
     }
 
-    Transport transport = new HttpMcpTransport(baseUrl);
+    Transport transport = new HttpMcpTransport(baseUrl, this.headers);
     return new McpToolboxClientImpl(transport, this.headers, resolvedProvider);
   }
 }

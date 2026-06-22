@@ -55,13 +55,10 @@ class McpToolboxClientImplTest {
   @BeforeEach
   @SuppressWarnings("unchecked")
   void setUp() throws Exception {
-    client = new McpToolboxClientImpl("http://localhost:8080", "test-api-key");
     mockHttpClient = mock(HttpClient.class);
-
-    // Inject mock HttpClient using reflection
-    Field httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
-    httpClientField.setAccessible(true);
-    httpClientField.set(client, mockHttpClient);
+    HttpMcpTransport transport = new HttpMcpTransport("http://localhost:8080", mockHttpClient);
+    CredentialsProvider provider = () -> CompletableFuture.completedFuture("Bearer test-api-key");
+    client = new McpToolboxClientImpl(transport, java.util.Collections.emptyMap(), provider);
   }
 
   @Test
@@ -412,11 +409,10 @@ class McpToolboxClientImplTest {
 
   @Test
   void testEnsureInitialized_withHttpsBaseUrl() throws Exception {
+    HttpMcpTransport transport = new HttpMcpTransport("https://localhost:8443", mockHttpClient);
+    CredentialsProvider provider = () -> CompletableFuture.completedFuture("Bearer test-api-key");
     McpToolboxClientImpl httpsClient =
-        new McpToolboxClientImpl("https://localhost:8443", "test-api-key");
-    Field httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
-    httpClientField.setAccessible(true);
-    httpClientField.set(httpsClient, mockHttpClient);
+        new McpToolboxClientImpl(transport, java.util.Collections.emptyMap(), provider);
 
     HttpResponse<String> initResponse = mock(HttpResponse.class);
     when(initResponse.statusCode()).thenReturn(200);
@@ -441,11 +437,9 @@ class McpToolboxClientImplTest {
 
   @Test
   void testEnsureInitialized_withoutApiKeyFallbackToAdcException() throws Exception {
+    HttpMcpTransport transport = new HttpMcpTransport("http://localhost:8080", mockHttpClient);
     McpToolboxClientImpl noAuthClient =
-        new McpToolboxClientImpl("http://localhost:8080", (String) null);
-    Field httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
-    httpClientField.setAccessible(true);
-    httpClientField.set(noAuthClient, mockHttpClient);
+        new McpToolboxClientImpl(transport, java.util.Collections.emptyMap(), null);
 
     HttpResponse<String> initResponse = mock(HttpResponse.class);
     when(initResponse.statusCode()).thenReturn(200);
@@ -506,15 +500,9 @@ class McpToolboxClientImplTest {
 
   @Test
   void testLoadToolset_withInvalidUriThrowsException() {
-    McpToolboxClientImpl badClient = new McpToolboxClientImpl("http://invalid uri", (String) null);
-    Field httpClientField = null;
-    try {
-      httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
-      httpClientField.setAccessible(true);
-      httpClientField.set(badClient, mockHttpClient);
-    } catch (Exception e) {
-      org.junit.jupiter.api.Assertions.fail(e);
-    }
+    HttpMcpTransport transport = new HttpMcpTransport("http://invalid uri", mockHttpClient);
+    McpToolboxClientImpl badClient =
+        new McpToolboxClientImpl(transport, java.util.Collections.emptyMap(), null);
 
     Exception exception =
         org.junit.jupiter.api.Assertions.assertThrows(
@@ -525,14 +513,12 @@ class McpToolboxClientImplTest {
 
   @Test
   void testInvokeTool_withInvalidUriThrowsException() throws Exception {
-    McpToolboxClientImpl badClient = new McpToolboxClientImpl("http://invalid uri", (String) null);
-    Field httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
-    httpClientField.setAccessible(true);
-    httpClientField.set(badClient, mockHttpClient);
-
-    Field initField = McpToolboxClientImpl.class.getDeclaredField("initialized");
+    HttpMcpTransport transport = new HttpMcpTransport("http://invalid uri", mockHttpClient);
+    Field initField = HttpMcpTransport.class.getDeclaredField("initialized");
     initField.setAccessible(true);
-    initField.set(badClient, true); // bypass initialization
+    initField.set(transport, true); // bypass initialization
+    McpToolboxClientImpl badClient =
+        new McpToolboxClientImpl(transport, java.util.Collections.emptyMap(), null);
 
     Exception exception =
         org.junit.jupiter.api.Assertions.assertThrows(
@@ -591,11 +577,9 @@ class McpToolboxClientImplTest {
 
   @Test
   void testEnsureInitialized_withNullAuthHeader() throws Exception {
+    HttpMcpTransport transport = new HttpMcpTransport("http://localhost:8080", mockHttpClient);
     McpToolboxClientImpl noAuthClient =
-        new McpToolboxClientImpl("http://localhost:8080", (String) null);
-    Field httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
-    httpClientField.setAccessible(true);
-    httpClientField.set(noAuthClient, mockHttpClient);
+        new McpToolboxClientImpl(transport, java.util.Collections.emptyMap(), null);
 
     HttpResponse<String> initResponse = mock(HttpResponse.class);
     when(initResponse.statusCode()).thenReturn(200);
@@ -609,12 +593,13 @@ class McpToolboxClientImplTest {
         .thenReturn(CompletableFuture.completedFuture(initResponse))
         .thenReturn(CompletableFuture.completedFuture(notifResponse));
 
+
     Method initMethod =
-        McpToolboxClientImpl.class.getDeclaredMethod("ensureInitialized", String.class);
+        HttpMcpTransport.class.getDeclaredMethod("ensureInitialized", Map.class);
     initMethod.setAccessible(true);
 
     CompletableFuture<Void> future =
-        (CompletableFuture<Void>) initMethod.invoke(noAuthClient, (String) null);
+        (CompletableFuture<Void>) initMethod.invoke(transport, java.util.Collections.emptyMap());
     future.join(); // should complete and NOT set Authorization header
 
     ArgumentCaptor<HttpRequest> requestCaptor = ArgumentCaptor.forClass(HttpRequest.class);
@@ -629,9 +614,10 @@ class McpToolboxClientImplTest {
     McpToolboxClientImpl clientWithSlash =
         new McpToolboxClientImpl("http://localhost:8080/", (Map<String, String>) null);
 
-    Field baseUrlField = McpToolboxClientImpl.class.getDeclaredField("baseUrl");
-    baseUrlField.setAccessible(true);
-    assertEquals("http://localhost:8080", baseUrlField.get(clientWithSlash));
+    Field transportField = McpToolboxClientImpl.class.getDeclaredField("transport");
+    transportField.setAccessible(true);
+    Transport transport = (Transport) transportField.get(clientWithSlash);
+    assertEquals("http://localhost:8080", transport.getBaseUrl());
 
     Field headersField = McpToolboxClientImpl.class.getDeclaredField("headers");
     headersField.setAccessible(true);
@@ -644,11 +630,9 @@ class McpToolboxClientImplTest {
   void testEnsureInitialized_withCustomHeaders() throws Exception {
     Map<String, String> customHeaders =
         Map.of("X-Custom-Header", "custom-val", "Authorization", "some-apiKey");
+    HttpMcpTransport transport = new HttpMcpTransport("http://localhost:8080", customHeaders, mockHttpClient);
     McpToolboxClientImpl customClient =
-        new McpToolboxClientImpl("http://localhost:8080", customHeaders);
-    Field httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
-    httpClientField.setAccessible(true);
-    httpClientField.set(customClient, mockHttpClient);
+        new McpToolboxClientImpl(transport, customHeaders, null);
 
     HttpResponse<String> initResponse = mock(HttpResponse.class);
     when(initResponse.statusCode()).thenReturn(200);
@@ -731,10 +715,9 @@ class McpToolboxClientImplTest {
   @Test
   @SuppressWarnings("unchecked")
   void testDefaultLoadToolset() throws Exception {
-    McpToolboxClientImpl client = new McpToolboxClientImpl("http://localhost:8080", (String) null);
-    Field httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
-    httpClientField.setAccessible(true);
-    httpClientField.set(client, mockHttpClient);
+    HttpMcpTransport transport = new HttpMcpTransport("http://localhost:8080", mockHttpClient);
+    McpToolboxClientImpl client =
+        new McpToolboxClientImpl(transport, java.util.Collections.emptyMap(), null);
 
     HttpResponse<String> initResponse = mock(HttpResponse.class);
     when(initResponse.statusCode()).thenReturn(200);

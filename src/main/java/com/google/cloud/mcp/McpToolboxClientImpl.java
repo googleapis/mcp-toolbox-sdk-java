@@ -55,25 +55,6 @@ public class McpToolboxClientImpl implements McpToolboxClient {
     this.objectMapper = new ObjectMapper();
   }
 
-  /**
-   * Constructs a new McpToolboxClientImpl with generic headers.
-   *
-   * @param baseUrl The base URL of the MCP Toolbox Server.
-   * @param headers The HTTP headers to include in requests.
-   */
-  public McpToolboxClientImpl(String baseUrl, Map<String, String> headers) {
-    this(baseUrl, headers, null);
-  }
-
-  /**
-   * Constructs a new McpToolboxClientImpl with a credentials provider.
-   *
-   * @param baseUrl The base URL of the MCP Toolbox Server.
-   * @param credentialsProvider The provider for authentication headers.
-   */
-  public McpToolboxClientImpl(String baseUrl, CredentialsProvider credentialsProvider) {
-    this(baseUrl, Collections.emptyMap(), credentialsProvider);
-  }
 
   /**
    * Deprecated constructor. Use the constructor accepting {@link CredentialsProvider} instead.
@@ -82,6 +63,7 @@ public class McpToolboxClientImpl implements McpToolboxClient {
    * @param apiKey The static API key.
    */
   @Deprecated
+  public McpToolboxClientImpl(String baseUrl, String apiKey) {
     this(new HttpMcpTransport(baseUrl), Collections.emptyMap(), apiKeyToProvider(apiKey));
   }
 

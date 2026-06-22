@@ -47,13 +47,10 @@ class McpToolboxClientImplHeadersTest {
   @BeforeEach
   @SuppressWarnings("unchecked")
   void setUp() throws Exception {
-    client = new McpToolboxClientImpl("http://localhost:8080", "test-api-key");
     mockHttpClient = mock(HttpClient.class);
-
-    // Inject mock HttpClient using reflection
-    Field httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
-    httpClientField.setAccessible(true);
-    httpClientField.set(client, mockHttpClient);
+    HttpMcpTransport transport = new HttpMcpTransport("http://localhost:8080", mockHttpClient);
+    CredentialsProvider provider = () -> CompletableFuture.completedFuture("Bearer test-api-key");
+    client = new McpToolboxClientImpl(transport, java.util.Collections.emptyMap(), provider);
   }
 
   @Test
@@ -66,9 +63,12 @@ class McpToolboxClientImplHeadersTest {
             .build();
 
     HttpClient mockHttpClient = mock(HttpClient.class);
-    Field httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
+    Field transportField = McpToolboxClientImpl.class.getDeclaredField("transport");
+    transportField.setAccessible(true);
+    HttpMcpTransport transport = (HttpMcpTransport) transportField.get(client);
+    Field httpClientField = HttpMcpTransport.class.getDeclaredField("httpClient");
     httpClientField.setAccessible(true);
-    httpClientField.set(client, mockHttpClient);
+    httpClientField.set(transport, mockHttpClient);
 
     HttpResponse<String> initResponse = mock(HttpResponse.class);
     when(initResponse.statusCode()).thenReturn(200);
@@ -147,9 +147,12 @@ class McpToolboxClientImplHeadersTest {
             .build();
 
     HttpClient mockHttpClient = mock(HttpClient.class);
-    Field httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
+    Field transportField = McpToolboxClientImpl.class.getDeclaredField("transport");
+    transportField.setAccessible(true);
+    HttpMcpTransport transport = (HttpMcpTransport) transportField.get(client);
+    Field httpClientField = HttpMcpTransport.class.getDeclaredField("httpClient");
     httpClientField.setAccessible(true);
-    httpClientField.set(client, mockHttpClient);
+    httpClientField.set(transport, mockHttpClient);
 
     HttpResponse<String> initResponse = mock(HttpResponse.class);
     when(initResponse.statusCode()).thenReturn(200);
@@ -217,9 +220,12 @@ class McpToolboxClientImplHeadersTest {
             .build();
 
     HttpClient mockHttpClient = mock(HttpClient.class);
-    Field httpClientField = McpToolboxClientImpl.class.getDeclaredField("httpClient");
+    Field transportField = McpToolboxClientImpl.class.getDeclaredField("transport");
+    transportField.setAccessible(true);
+    HttpMcpTransport transport = (HttpMcpTransport) transportField.get(client);
+    Field httpClientField = HttpMcpTransport.class.getDeclaredField("httpClient");
     httpClientField.setAccessible(true);
-    httpClientField.set(client, mockHttpClient);
+    httpClientField.set(transport, mockHttpClient);
 
     HttpResponse<String> initResponse = mock(HttpResponse.class);
     when(initResponse.statusCode()).thenReturn(200);
