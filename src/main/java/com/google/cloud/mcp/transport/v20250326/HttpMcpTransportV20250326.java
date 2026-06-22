@@ -51,17 +51,22 @@ public final class HttpMcpTransportV20250326 extends BaseMcpTransport {
 
   @Override
   protected CompletableFuture<Void> performInitialization(
-      final String authHeader, final Map<String, String> handshakeHeaders) {
+      final String authHeader,
+      final Map<String, String> handshakeHeaders,
+      final Map<String, String> traceHeaders) {
     try {
       if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
           && authHeader != null) {
         logger.warning(HTTP_WARNING);
       }
+      JsonRpc.RequestMetadata metadata =
+          new JsonRpc.RequestMetadata(
+              traceHeaders.get("traceparent"), traceHeaders.get("tracestate"));
       JsonRpc.Request initReq =
           new JsonRpc.Request(
               "initialize",
               new JsonRpc.InitializeParams(
-                  ProtocolVersion.VERSION_2025_03_26.getValue(), "mcp-toolbox-sdk-java"));
+                  ProtocolVersion.VERSION_2025_03_26.getValue(), "mcp-toolbox-sdk-java", metadata));
       String body = objectMapper.writeValueAsString(initReq);
       HttpRequest.Builder req =
           HttpRequest.newBuilder()
@@ -111,6 +116,8 @@ public final class HttpMcpTransportV20250326 extends BaseMcpTransport {
                                 + " initialization."));
                   }
                   this.sessionId = sessionIdOpt.get();
+
+                  this.negotiatedProtocolVersion = ProtocolVersion.VERSION_2025_03_26;
 
                   JsonRpc.Notification notif =
                       new JsonRpc.Notification("notifications/initialized", Map.of());

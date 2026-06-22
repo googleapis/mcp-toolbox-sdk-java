@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.mcp.JsonRpc;
 import com.google.cloud.mcp.ProtocolVersion;
+import com.google.cloud.mcp.TelemetryHelper;
 import com.google.cloud.mcp.auth.CredentialsProvider;
 import com.google.cloud.mcp.tool.ToolDefinition;
 import java.net.URI;
@@ -53,6 +54,20 @@ public abstract class BaseMcpTransport implements Transport {
   protected final Object initLock = new Object();
   protected CompletableFuture<Void> initFuture;
 
+  protected Long sessionStartTime;
+  protected Throwable sessionError;
+  protected ProtocolVersion negotiatedProtocolVersion;
+
+  /**
+   * Constructs a new BaseMcpTransport.
+   *
+   * @param baseUrl The base URL.
+   * @param clientHeaders The client headers.
+   * @param credentialsProvider The credentials provider.
+   * @param preferredProtocolVersion The preferred protocol version.
+   * @param httpClient The HTTP client.
+   * @param executor The executor.
+   */
   protected BaseMcpTransport(
       final String baseUrl,
       final Map<String, String> clientHeaders,
@@ -164,6 +179,13 @@ public abstract class BaseMcpTransport implements Transport {
   final CompletableFuture<Void> ensureInitialized(final Map<String, String> extraMetadata) {
     synchronized (initLock) {
       if (initFuture == null) {
+        if (sessionStartTime == null) {
+          sessionStartTime = System.nanoTime();
+        }
+        TelemetryHelper.OperationSpan initSpan =
+            new TelemetryHelper.OperationSpan(
+                "initialize", preferredProtocolVersion.getValue(), baseUrl, null);
+
         Map<String, String> handshakeMetadata = new HashMap<>();
         if (extraMetadata != null) {
           String authKey =
@@ -175,20 +197,37 @@ public abstract class BaseMcpTransport implements Transport {
             handshakeMetadata.put("Authorization", extraMetadata.get(authKey));
           }
         }
-        initFuture =
+        CompletableFuture<Void> future =
             mergeHeaders(handshakeMetadata)
                 .thenCompose(
                     handshakeHeaders -> {
                       String authHeader = handshakeHeaders.get("Authorization");
-                      return performInitialization(authHeader, handshakeHeaders);
+                      Map<String, String> traceHeaders = initSpan.getTraceContextHeaders();
+                      return performInitialization(authHeader, handshakeHeaders, traceHeaders);
                     });
+
+        future.whenComplete(
+            (v, err) -> {
+              if (err != null) {
+                initSpan.recordError(err);
+                sessionError = err;
+                synchronized (initLock) {
+                  initFuture = null;
+                }
+              }
+              initSpan.close();
+            });
+        initFuture = future;
+        return future;
       }
       return initFuture;
     }
   }
 
   protected abstract CompletableFuture<Void> performInitialization(
-      final String authHeader, final Map<String, String> handshakeHeaders);
+      final String authHeader,
+      final Map<String, String> handshakeHeaders,
+      final Map<String, String> traceHeaders);
 
   protected abstract void applyProtocolHeaders(final HttpRequest.Builder builder);
 
@@ -205,8 +244,25 @@ public abstract class BaseMcpTransport implements Transport {
             mergedHeaders -> {
               String path = toolsetName != null && !toolsetName.isEmpty() ? "/" + toolsetName : "";
               String url = baseUrl + path;
+
+              TelemetryHelper.OperationSpan listSpan =
+                  new TelemetryHelper.OperationSpan(
+                      "tools/list",
+                      negotiatedProtocolVersion != null
+                          ? negotiatedProtocolVersion.getValue()
+                          : preferredProtocolVersion.getValue(),
+                      url,
+                      null);
+
               try {
-                JsonRpc.Request listReq = new JsonRpc.Request("tools/list", Map.of());
+                Map<String, String> traceHeaders = listSpan.getTraceContextHeaders();
+                JsonRpc.RequestMetadata reqMetadata =
+                    new JsonRpc.RequestMetadata(
+                        traceHeaders.get("traceparent"), traceHeaders.get("tracestate"));
+
+                JsonRpc.Request listReq =
+                    new JsonRpc.Request(
+                        "tools/list", new JsonRpc.ListToolsParams(null, reqMetadata));
                 String body = objectMapper.writeValueAsString(listReq);
                 HttpRequest.Builder req =
                     HttpRequest.newBuilder()
@@ -217,8 +273,17 @@ public abstract class BaseMcpTransport implements Transport {
 
                 return httpClient
                     .sendAsync(req.build(), HttpResponse.BodyHandlers.ofString())
-                    .thenApply(this::handleListToolsResponse);
+                    .thenApply(res -> handleListToolsResponse(res, listSpan))
+                    .whenComplete(
+                        (res, err) -> {
+                          if (err != null) {
+                            listSpan.recordError(err);
+                          }
+                          listSpan.close();
+                        });
               } catch (Exception e) {
+                listSpan.recordError(e);
+                listSpan.close();
                 return CompletableFuture.failedFuture(e);
               }
             });
@@ -237,10 +302,24 @@ public abstract class BaseMcpTransport implements Transport {
         .thenCompose(v -> mergeHeaders(metadata))
         .thenCompose(
             mergedHeaders -> {
+              TelemetryHelper.OperationSpan callSpan =
+                  new TelemetryHelper.OperationSpan(
+                      "tools/call",
+                      negotiatedProtocolVersion != null
+                          ? negotiatedProtocolVersion.getValue()
+                          : preferredProtocolVersion.getValue(),
+                      baseUrl,
+                      toolName);
+
               try {
+                Map<String, String> traceHeaders = callSpan.getTraceContextHeaders();
+                JsonRpc.RequestMetadata reqMetadata =
+                    new JsonRpc.RequestMetadata(
+                        traceHeaders.get("traceparent"), traceHeaders.get("tracestate"));
+
                 JsonRpc.Request invokeReq =
                     new JsonRpc.Request(
-                        "tools/call", new JsonRpc.CallToolParams(toolName, arguments));
+                        "tools/call", new JsonRpc.CallToolParams(toolName, arguments, reqMetadata));
                 String requestBody = objectMapper.writeValueAsString(invokeReq);
 
                 HttpRequest.Builder requestBuilder =
@@ -253,8 +332,39 @@ public abstract class BaseMcpTransport implements Transport {
 
                 return httpClient
                     .sendAsync(requestBuilder.build(), HttpResponse.BodyHandlers.ofString())
-                    .thenApply(res -> new TransportResponse(res.statusCode(), res.body()));
+                    .thenApply(
+                        res -> {
+                          if (res.statusCode() < 200 || res.statusCode() >= 300) {
+                            callSpan.recordError(
+                                res.statusCode(), "Error " + res.statusCode() + ": " + res.body());
+                          } else {
+                            try {
+                              JsonNode root = objectMapper.readTree(res.body());
+                              if (root.has("error")) {
+                                JsonNode errNode = root.get("error");
+                                int code = errNode.has("code") ? errNode.get("code").asInt() : -1;
+                                String msg =
+                                    errNode.has("message")
+                                        ? errNode.get("message").asText()
+                                        : errNode.toString();
+                                callSpan.recordError(code, msg);
+                              }
+                            } catch (Exception ignored) {
+                              // Ignore parsing exceptions here
+                            }
+                          }
+                          return new TransportResponse(res.statusCode(), res.body());
+                        })
+                    .whenComplete(
+                        (res, err) -> {
+                          if (err != null) {
+                            callSpan.recordError(err);
+                          }
+                          callSpan.close();
+                        });
               } catch (Exception e) {
+                callSpan.recordError(e);
+                callSpan.close();
                 return CompletableFuture.failedFuture(e);
               }
             });
@@ -262,18 +372,39 @@ public abstract class BaseMcpTransport implements Transport {
 
   @Override
   public void close() {
-    // No-op for HttpClient in Java 11
+    if (sessionStartTime != null) {
+      double durationSeconds = (System.nanoTime() - sessionStartTime) / 1e9;
+      TelemetryHelper.recordSessionDuration(
+          durationSeconds,
+          negotiatedProtocolVersion != null
+              ? negotiatedProtocolVersion.getValue()
+              : preferredProtocolVersion.getValue(),
+          baseUrl,
+          sessionError);
+    }
   }
 
-  private TransportManifest handleListToolsResponse(final HttpResponse<String> response) {
+  private TransportManifest handleListToolsResponse(
+      final HttpResponse<String> response, TelemetryHelper.OperationSpan span) {
     if (response.statusCode() != 200) {
+      if (span != null) {
+        span.recordError(
+            response.statusCode(),
+            "Failed to list tools. Status: " + response.statusCode() + " " + response.body());
+      }
       throw new RuntimeException(
           "Failed to list tools. Status: " + response.statusCode() + " " + response.body());
     }
     try {
       JsonNode root = objectMapper.readTree(response.body());
       if (root.has("error")) {
-        throw new RuntimeException("MCP Error: " + root.get("error").toString());
+        JsonNode errNode = root.get("error");
+        int code = errNode.has("code") ? errNode.get("code").asInt() : -1;
+        String msg = errNode.has("message") ? errNode.get("message").asText() : errNode.toString();
+        if (span != null) {
+          span.recordError(code, msg);
+        }
+        throw new RuntimeException("MCP Error: " + msg);
       }
       JsonNode result = root.get("result");
       JsonNode toolsNode = result.get("tools");

@@ -25,7 +25,6 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
-import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.context.propagation.TextMapPropagator;
@@ -35,7 +34,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /** Helper class for OpenTelemetry metrics and tracing instrumentation. */
-final class TelemetryHelper {
+public final class TelemetryHelper {
   /** Bucket boundary 0.01. */
   private static final double B_0_01 = 0.01;
 
@@ -84,40 +83,58 @@ final class TelemetryHelper {
   /** Name of the instrumentation library. */
   private static final String INSTRUMENTATION_NAME = "toolbox.mcp.sdk";
 
-  /** Tracer instance for creating spans. */
-  private static final Tracer TRACER = GlobalOpenTelemetry.getTracer(INSTRUMENTATION_NAME);
+  // Dynamic / lazy OpenTelemetry binding cache
+  private static io.opentelemetry.api.OpenTelemetry lastOtel = null;
+  private static DoubleHistogram cachedOperationDuration = null;
+  private static DoubleHistogram cachedSessionDuration = null;
 
-  /** Meter instance for creating metrics. */
-  private static final Meter METER = GlobalOpenTelemetry.getMeter(INSTRUMENTATION_NAME);
+  private static synchronized void checkRebind() {
+    io.opentelemetry.api.OpenTelemetry currentOtel = GlobalOpenTelemetry.get();
+    if (currentOtel != lastOtel) {
+      lastOtel = currentOtel;
+      Meter meter = currentOtel.getMeter(INSTRUMENTATION_NAME);
+      cachedOperationDuration =
+          meter
+              .histogramBuilder("mcp.client.operation.duration")
+              .setUnit("s")
+              .setDescription(
+                  "Duration of MCP client operations (requests/notifications) from the time it was"
+                      + " sent until the response or ack is received.")
+              .setExplicitBucketBoundariesAdvice(
+                  Arrays.asList(
+                      B_0_01, B_0_02, B_0_05, B_0_1, B_0_2, B_0_5, B_1, B_2, B_5, B_10, B_30, B_60,
+                      B_120, B_300))
+              .build();
+      cachedSessionDuration =
+          meter
+              .histogramBuilder("mcp.client.session.duration")
+              .setUnit("s")
+              .setDescription("Total duration of MCP client sessions")
+              .setExplicitBucketBoundariesAdvice(
+                  Arrays.asList(
+                      B_0_01, B_0_02, B_0_05, B_0_1, B_0_2, B_0_5, B_1, B_2, B_5, B_10, B_30, B_60,
+                      B_120, B_300))
+              .build();
+    }
+  }
 
-  /** Propagator instance for trace context injection/extraction. */
-  private static final TextMapPropagator PROPAGATOR = W3CTraceContextPropagator.getInstance();
+  private static DoubleHistogram operationDuration() {
+    checkRebind();
+    return cachedOperationDuration;
+  }
 
-  /** Histogram for operation duration metrics. */
-  private static final DoubleHistogram OPERATION_DURATION =
-      METER
-          .histogramBuilder("mcp.client.operation.duration")
-          .setUnit("s")
-          .setDescription(
-              "Duration of MCP client operations (requests/notifications) from the time it was"
-                  + " sent until the response or ack is received.")
-          .setExplicitBucketBoundariesAdvice(
-              Arrays.asList(
-                  B_0_01, B_0_02, B_0_05, B_0_1, B_0_2, B_0_5, B_1, B_2, B_5, B_10, B_30, B_60,
-                  B_120, B_300))
-          .build();
+  private static DoubleHistogram sessionDuration() {
+    checkRebind();
+    return cachedSessionDuration;
+  }
 
-  /** Histogram for session duration metrics. */
-  private static final DoubleHistogram SESSION_DURATION =
-      METER
-          .histogramBuilder("mcp.client.session.duration")
-          .setUnit("s")
-          .setDescription("Total duration of MCP client sessions")
-          .setExplicitBucketBoundariesAdvice(
-              Arrays.asList(
-                  B_0_01, B_0_02, B_0_05, B_0_1, B_0_2, B_0_5, B_1, B_2, B_5, B_10, B_30, B_60,
-                  B_120, B_300))
-          .build();
+  private static Tracer tracer() {
+    return GlobalOpenTelemetry.getTracer(INSTRUMENTATION_NAME);
+  }
+
+  private static TextMapPropagator propagator() {
+    return GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
+  }
 
   private TelemetryHelper() {}
 
@@ -152,7 +169,7 @@ final class TelemetryHelper {
   }
 
   /** Wrapper for recording client operation metrics and tracing spans. */
-  static class OperationSpan implements AutoCloseable {
+  public static class OperationSpan implements AutoCloseable {
     /** The OpenTelemetry span. */
     private final Span span;
 
@@ -177,7 +194,8 @@ final class TelemetryHelper {
     /** Class name of the error if an error occurred. */
     private String errorType = null;
 
-    OperationSpan(final String method, final String version, final String url, final String tool) {
+    public OperationSpan(
+        final String method, final String version, final String url, final String tool) {
       this.methodName = method;
       this.protocolVersion = version;
       this.serverUrl = url;
@@ -185,7 +203,7 @@ final class TelemetryHelper {
       this.startTimeNanos = System.nanoTime();
 
       String spanName = tool != null ? method + " " + tool : method;
-      this.span = TRACER.spanBuilder(spanName).setSpanKind(SpanKind.CLIENT).startSpan();
+      this.span = tracer().spanBuilder(spanName).setSpanKind(SpanKind.CLIENT).startSpan();
       this.scope = span.makeCurrent();
 
       // Set standard span attributes
@@ -213,7 +231,7 @@ final class TelemetryHelper {
      */
     public Map<String, String> getTraceContextHeaders() {
       Map<String, String> carrier = new HashMap<>();
-      PROPAGATOR.inject(Context.current(), carrier, Map::put);
+      propagator().inject(Context.current(), carrier, Map::put);
       return carrier;
     }
 
@@ -269,11 +287,11 @@ final class TelemetryHelper {
         attrs.put("error.type", errorType);
       }
 
-      OPERATION_DURATION.record(durationSeconds, attrs.build());
+      operationDuration().record(durationSeconds, attrs.build());
     }
   }
 
-  static void recordSessionDuration(
+  public static void recordSessionDuration(
       final double durationSeconds,
       final String protocolVersion,
       final String serverUrl,
@@ -289,6 +307,6 @@ final class TelemetryHelper {
     if (error != null) {
       attrs.put("error.type", error.getClass().getName());
     }
-    SESSION_DURATION.record(durationSeconds, attrs.build());
+    sessionDuration().record(durationSeconds, attrs.build());
   }
 }

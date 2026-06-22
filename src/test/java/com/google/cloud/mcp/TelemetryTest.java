@@ -18,11 +18,15 @@ package com.google.cloud.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.cloud.mcp.tool.ToolDefinition;
+import com.google.cloud.mcp.tool.ToolResult;
 import com.sun.net.httpserver.HttpServer;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.sdk.testing.junit5.OpenTelemetryExtension;
@@ -192,5 +196,40 @@ public class TelemetryTest {
     String callTraceParent = callReq.get("params").get("_meta").get("traceparent").asText();
     assertNotNull(callTraceParent);
     assertTrue(callTraceParent.contains(callSpan.getTraceId()));
+  }
+
+  @Test
+  public void testTelemetryHelperEdgeCases() {
+    // 1. Test ServerInfo record methods (equals, hashCode, toString, and accessors)
+    TelemetryHelper.ServerInfo info1 = new TelemetryHelper.ServerInfo("localhost", 8080, "http");
+    TelemetryHelper.ServerInfo info2 = new TelemetryHelper.ServerInfo("localhost", 8080, "http");
+    TelemetryHelper.ServerInfo info3 = new TelemetryHelper.ServerInfo("example.com", 9090, "https");
+
+    assertEquals(info1, info2);
+    assertNotEquals(info1, info3);
+    assertEquals(info1.hashCode(), info2.hashCode());
+    assertNotNull(info1.toString());
+    assertEquals("localhost", info1.address());
+    assertEquals(8080, info1.port());
+    assertEquals("http", info1.protocol());
+
+    // 2. Test extractServerInfo with various edge-case URLs
+    TelemetryHelper.ServerInfo invalid = TelemetryHelper.extractServerInfo(":::");
+    assertEquals("", invalid.address());
+    assertNull(invalid.port());
+    assertEquals("http", invalid.protocol());
+
+    TelemetryHelper.ServerInfo noHost = TelemetryHelper.extractServerInfo("http:///mcp");
+    assertEquals("", noHost.address());
+    assertNull(noHost.port());
+
+    TelemetryHelper.ServerInfo noProtocol = TelemetryHelper.extractServerInfo("//localhost:8080");
+    assertEquals("localhost", noProtocol.address());
+    assertEquals(8080, noProtocol.port());
+    assertEquals("http", noProtocol.protocol());
+
+    // 3. Test recordSessionDuration with error
+    TelemetryHelper.recordSessionDuration(
+        5.5, "2025-11-25", "http://localhost:8080", new RuntimeException("session error"));
   }
 }

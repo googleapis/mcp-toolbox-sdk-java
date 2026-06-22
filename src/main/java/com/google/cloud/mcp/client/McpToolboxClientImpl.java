@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.mcp.McpToolboxClient;
 import com.google.cloud.mcp.auth.AuthTokenGetter;
 import com.google.cloud.mcp.auth.CredentialsProvider;
+import com.google.cloud.mcp.exception.McpException;
 import com.google.cloud.mcp.tool.Tool;
 import com.google.cloud.mcp.tool.ToolDefinition;
 import com.google.cloud.mcp.tool.ToolPostProcessor;
