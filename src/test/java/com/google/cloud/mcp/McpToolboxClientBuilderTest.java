@@ -144,4 +144,35 @@ class McpToolboxClientBuilderTest {
         (CompletableFuture<String>) getAuthHeaderMethod.invoke(client);
     assertNull(future.join());
   }
+
+  @Test
+  void testCustomHttpClientAndExecutor() {
+    java.net.http.HttpClient customClient = java.net.http.HttpClient.newHttpClient();
+    java.util.concurrent.Executor customExecutor = java.util.concurrent.ForkJoinPool.commonPool();
+
+    McpToolboxClient client =
+        McpToolboxClient.builder()
+            .baseUrl("http://localhost:8080")
+            .httpClient(customClient)
+            .executor(customExecutor)
+            .protocolVersion(ProtocolVersion.VERSION_2025_11_25)
+            .build();
+
+    assertNotNull(client);
+  }
+
+  @Test
+  void testPreAndPostProcessorsBuilder() {
+    ToolPreProcessor pre = (name, args) -> CompletableFuture.completedFuture(args);
+    ToolPostProcessor post = (name, res) -> CompletableFuture.completedFuture(res);
+
+    McpToolboxClient client =
+        McpToolboxClient.builder()
+            .baseUrl("http://localhost:8080")
+            .preProcessor(pre)
+            .postProcessor(post)
+            .build();
+
+    assertNotNull(client);
+  }
 }

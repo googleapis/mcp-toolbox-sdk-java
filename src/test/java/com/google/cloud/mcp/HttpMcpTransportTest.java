@@ -214,6 +214,26 @@ class HttpMcpTransportTest {
   }
 
   @Test
+  void testOtherOverloadedConstructors() {
+    java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
+    java.util.concurrent.Executor executor = java.util.concurrent.ForkJoinPool.commonPool();
+    CredentialsProvider provider = () -> CompletableFuture.completedFuture("Bearer test");
+
+    HttpMcpTransport transport1 =
+        new HttpMcpTransport(
+            "https://test-mcp.com",
+            Map.of("X-Header", "value"),
+            ProtocolVersion.VERSION_2025_11_25,
+            client,
+            executor);
+    assertNotNull(transport1);
+
+    HttpMcpTransport transport2 =
+        new HttpMcpTransport("https://test-mcp.com", Map.of("X-Header", "value"), provider, client);
+    assertNotNull(transport2);
+  }
+
+  @Test
   @SuppressWarnings("unchecked")
   void testInitialize_ServerReturnsErrorJsonRpcResponse() throws Exception {
     HttpResponse<String> mockInitResponse = mock(HttpResponse.class);

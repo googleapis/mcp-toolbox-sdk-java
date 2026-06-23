@@ -213,12 +213,13 @@ public final class HttpMcpTransport implements Transport {
             handshakeMetadata.put("Authorization", extraMetadata.get(authKey));
           }
         }
-        initFuture = mergeHeaders(handshakeMetadata)
-            .thenCompose(
-                handshakeHeaders -> {
-                  String authHeader = handshakeHeaders.get("Authorization");
-                  return performInitialization(authHeader, handshakeHeaders);
-                });
+        initFuture =
+            mergeHeaders(handshakeMetadata)
+                .thenCompose(
+                    handshakeHeaders -> {
+                      String authHeader = handshakeHeaders.get("Authorization");
+                      return performInitialization(authHeader, handshakeHeaders);
+                    });
       }
       return initFuture;
     }
@@ -310,93 +311,11 @@ public final class HttpMcpTransport implements Transport {
                       .thenAccept(nRes -> {});
                 } catch (Exception e) {
                   return CompletableFuture.failedFuture(e);
-            extraMetadata.forEach(
-                (k, v) -> {
-                  if (!"Authorization".equalsIgnoreCase(k)) {
-                    merged.put(k, v);
-                  }
-                });
-          }
-
-          // 4. Put the final Authorization header if found
-          if (finalAuthHeader != null) {
-            merged.put("Authorization", finalAuthHeader);
-          }
-
-          return merged;
-        });
-  }
-
-  private synchronized CompletableFuture<Void> ensureInitialized(
-      Map<String, String> extraMetadata) {
-    if (initialized) return CompletableFuture.completedFuture(null);
-    Map<String, String> handshakeMetadata = new HashMap<>();
-    if (extraMetadata != null) {
-      String authKey =
-          extraMetadata.keySet().stream()
-              .filter(k -> "Authorization".equalsIgnoreCase(k))
-              .findFirst()
-              .orElse(null);
-      if (authKey != null) {
-        handshakeMetadata.put("Authorization", extraMetadata.get(authKey));
-      }
-    }
-    return mergeHeaders(handshakeMetadata)
-        .thenCompose(
-            handshakeHeaders -> {
-              try {
-                String authHeader = handshakeHeaders.get("Authorization");
-                if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
-                    && authHeader != null) {
-                  logger.warning(HTTP_WARNING);
                 }
-                JsonRpc.Request initReq =
-                    new JsonRpc.Request(
-                        "initialize",
-                        new JsonRpc.InitializeParams(protocolVersion, "mcp-toolbox-sdk-java"));
-                String body = objectMapper.writeValueAsString(initReq);
-                HttpRequest.Builder req =
-                    HttpRequest.newBuilder()
-                        .uri(URI.create(baseUrl))
-                        .header("Content-Type", "application/json")
-                        .POST(HttpRequest.BodyPublishers.ofString(body));
-                handshakeHeaders.forEach(req::setHeader);
-
-                return httpClient
-                    .sendAsync(req.build(), HttpResponse.BodyHandlers.ofString())
-                    .thenCompose(
-                        res -> {
-                          if (res.statusCode() != 200) {
-                            return CompletableFuture.failedFuture(
-                                new RuntimeException(
-                                    "Init failed: " + res.statusCode() + " " + res.body()));
-                          }
-                          try {
-                            JsonRpc.Notification notif =
-                                new JsonRpc.Notification("notifications/initialized", Map.of());
-                            String notifBody = objectMapper.writeValueAsString(notif);
-                            HttpRequest.Builder nReq =
-                                HttpRequest.newBuilder()
-                                    .uri(URI.create(baseUrl))
-                                    .header("Content-Type", "application/json")
-                                    .header("MCP-Protocol-Version", protocolVersion)
-                                    .POST(HttpRequest.BodyPublishers.ofString(notifBody));
-                            handshakeHeaders.forEach(nReq::setHeader);
-
-                            return httpClient
-                                .sendAsync(nReq.build(), HttpResponse.BodyHandlers.ofString())
-                                .thenAccept(
-                                    nRes -> {
-                                      initialized = true;
-                                    });
-                          } catch (Exception e) {
-                            return CompletableFuture.failedFuture(e);
-                          }
-                        });
-              } catch (Exception e) {
-                return CompletableFuture.failedFuture(e);
-              }
-            });
+              });
+    } catch (Exception e) {
+      return CompletableFuture.failedFuture(e);
+    }
   }
 
   private void applyProtocolHeaders(HttpRequest.Builder builder) {
