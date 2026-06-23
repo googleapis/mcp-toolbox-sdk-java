@@ -20,8 +20,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Defines the contract for an MCP transport layer that manages protocol-level formatting and
- * network communication.
+ * Defines the contract for an MCP transport layer that manages protocol-level
+ * formatting and network communication.
  */
 public interface Transport {
   /**
@@ -35,21 +35,23 @@ public interface Transport {
    * Asynchronously fetches available tools from the server.
    *
    * @param toolsetName The name of the toolset to load (optional).
-   * @param headers Extra HTTP headers to include in the request.
+   * @param metadata Request metadata or extra options to include.
    * @return A CompletableFuture containing the raw DTO manifest.
    */
-  CompletableFuture<TransportManifest> listTools(String toolsetName, Map<String, String> headers);
+  CompletableFuture<TransportManifest> listTools(
+      String toolsetName, Map<String, String> metadata);
 
   /**
    * Asynchronously invokes a tool on the server.
    *
    * @param toolName The name of the tool to invoke.
    * @param arguments The arguments to pass to the tool.
-   * @param headers Extra HTTP headers to include in the request.
-   * @return A CompletableFuture containing the raw TransportResponse result of the tool execution.
+   * @param metadata Request metadata or extra options to include.
+   * @return A CompletableFuture containing the raw TransportResponse result of
+   *     the tool execution.
    */
   CompletableFuture<TransportResponse> invokeTool(
-      String toolName, Map<String, Object> arguments, Map<String, String> headers);
+      String toolName, Map<String, Object> arguments, Map<String, String> metadata);
 
   /** Closes any underlying network connections/resources. */
   void close();
