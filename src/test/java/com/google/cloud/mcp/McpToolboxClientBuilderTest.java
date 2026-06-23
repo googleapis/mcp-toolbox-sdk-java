@@ -130,4 +130,18 @@ class McpToolboxClientBuilderTest {
         (CompletableFuture<String>) getAuthHeaderMethod.invoke(client);
     assertEquals("Bearer test-token", future.join());
   }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testEmptyApiKey_TreatedAsNoKey() throws Exception {
+    McpToolboxClient client =
+        McpToolboxClient.builder().baseUrl("http://localhost:8080").apiKey("").build();
+
+    Method getAuthHeaderMethod =
+        McpToolboxClientImpl.class.getDeclaredMethod("getAuthorizationHeader");
+    getAuthHeaderMethod.setAccessible(true);
+    CompletableFuture<String> future =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(client);
+    assertNull(future.join());
+  }
 }

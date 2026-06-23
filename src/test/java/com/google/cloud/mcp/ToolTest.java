@@ -307,9 +307,11 @@ class ToolTest {
         List.of(
             new ToolDefinition.Parameter("p-string", "string", false, "desc", List.of()),
             new ToolDefinition.Parameter("p-int", "integer", false, "desc", List.of()),
+            new ToolDefinition.Parameter("p-int-val", "integer", false, "desc", List.of()),
             new ToolDefinition.Parameter("p-number", "number", false, "desc", List.of()),
             new ToolDefinition.Parameter("p-bool", "boolean", false, "desc", List.of()),
             new ToolDefinition.Parameter("p-array", "array", false, "desc", List.of()),
+            new ToolDefinition.Parameter("p-array-arr", "array", false, "desc", List.of()),
             new ToolDefinition.Parameter("p-obj", "object", false, "desc", List.of()));
     ToolDefinition def = new ToolDefinition("test-tool", params, List.of());
     McpToolboxClient client = mock(McpToolboxClient.class);
@@ -323,12 +325,16 @@ class ToolTest {
                 "valid-string",
                 "p-int",
                 123L,
+                "p-int-val",
+                123,
                 "p-number",
                 4.56,
                 "p-bool",
                 true,
                 "p-array",
                 List.of("item"),
+                "p-array-arr",
+                new String[] {"item"},
                 "p-obj",
                 Map.of("key", "val")))
         .join(); // should succeed without exceptions

@@ -825,4 +825,126 @@ class McpToolboxClientImplTest {
             java.util.concurrent.ExecutionException.class, future::get);
     assertTrue(ex.getCause().getMessage().contains("Simulated notification serialization failure"));
   }
+
+  @Test
+  void testInvokeTool_MalformedJsonResponse_GracefullyFallsBack() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> invokeResponse = mock(HttpResponse.class);
+    when(invokeResponse.statusCode()).thenReturn(200);
+    when(invokeResponse.body()).thenReturn("{invalid-json"); // Trigger JSON parse exception
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(invokeResponse));
+
+    ToolResult res = client.invokeTool("test-tool", Map.of()).join();
+    assertNotNull(res);
+    assertFalse(res.isError());
+    assertEquals("{invalid-json", res.content().get(0).text());
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testGetAuthorizationHeader_WithNoAuthInHeaders() throws Exception {
+    McpToolboxClientImpl clientNoAuth =
+        new McpToolboxClientImpl(mock(Transport.class), Map.of("X-Other", "SomeValue"), null);
+
+    Method getAuthHeaderMethod =
+        McpToolboxClientImpl.class.getDeclaredMethod("getAuthorizationHeader");
+    getAuthHeaderMethod.setAccessible(true);
+    CompletableFuture<String> future =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(clientNoAuth);
+    assertNull(future.join());
+  }
+
+  @Test
+  void testConstructor_WithOnlyTransport() {
+    Transport mockTransport = mock(Transport.class);
+    McpToolboxClientImpl simpleClient = new McpToolboxClientImpl(mockTransport);
+    assertNotNull(simpleClient);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testGetMergedMetadata_WithMockGenericTransport_AllBranches() throws Exception {
+    Transport mockTransport = mock(Transport.class);
+    when(mockTransport.getBaseUrl()).thenReturn("https://test-mcp-service.com");
+    when(mockTransport.invokeTool(any(), any(), any()))
+        .thenReturn(
+            CompletableFuture.completedFuture(new TransportResponse(200, "{\"result\":{}}")));
+
+    CredentialsProvider provider = () -> CompletableFuture.completedFuture("Bearer test-api-key");
+    McpToolboxClientImpl genericClient =
+        new McpToolboxClientImpl(mockTransport, Map.of("Custom-Header", "Value"), provider);
+
+    // Call invokeTool with extra metadata to trigger merge
+    genericClient
+        .invokeTool(
+            "test-tool",
+            Map.of(),
+            Map.of("Extra-Header", "ExtraValue", "Authorization", "Bearer overridden"))
+        .join();
+
+    ArgumentCaptor<Map<String, String>> metadataCaptor = ArgumentCaptor.forClass(Map.class);
+    verify(mockTransport).invokeTool(any(), any(), metadataCaptor.capture());
+
+    Map<String, String> mergedMetadata = metadataCaptor.getValue();
+    assertEquals("Value", mergedMetadata.get("Custom-Header"));
+    assertEquals("ExtraValue", mergedMetadata.get("Extra-Header"));
+    assertEquals("Bearer overridden", mergedMetadata.get("Authorization"));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testGetMergedMetadata_WithMockGenericTransport_NullExtraMetadata() throws Exception {
+    Transport mockTransport = mock(Transport.class);
+    when(mockTransport.getBaseUrl()).thenReturn("https://test-mcp-service.com");
+    when(mockTransport.invokeTool(any(), any(), any()))
+        .thenReturn(
+            CompletableFuture.completedFuture(new TransportResponse(200, "{\"result\":{}}")));
+
+    CredentialsProvider provider = () -> CompletableFuture.completedFuture("Bearer test-api-key");
+    McpToolboxClientImpl genericClient =
+        new McpToolboxClientImpl(mockTransport, Map.of("Custom-Header", "Value"), provider);
+
+    // Call invokeTool with null extra metadata to trigger branch
+    genericClient.invokeTool("test-tool", Map.of(), (Map<String, String>) null).join();
+
+    ArgumentCaptor<Map<String, String>> metadataCaptor = ArgumentCaptor.forClass(Map.class);
+    verify(mockTransport).invokeTool(any(), any(), metadataCaptor.capture());
+
+    Map<String, String> mergedMetadata = metadataCaptor.getValue();
+    assertEquals("Value", mergedMetadata.get("Custom-Header"));
+    assertEquals("Bearer test-api-key", mergedMetadata.get("Authorization"));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testGetMergedMetadata_WithMockGenericTransport_NullProviderAndEmptyHeaders()
+      throws Exception {
+    Transport mockTransport = mock(Transport.class);
+    when(mockTransport.getBaseUrl()).thenReturn("https://test-mcp-service.com");
+    when(mockTransport.invokeTool(any(), any(), any()))
+        .thenReturn(
+            CompletableFuture.completedFuture(new TransportResponse(200, "{\"result\":{}}")));
+
+    McpToolboxClientImpl genericClient = new McpToolboxClientImpl(mockTransport, Map.of(), null);
+
+    genericClient.invokeTool("test-tool", Map.of(), Map.of("Extra-Header", "ExtraValue")).join();
+
+    ArgumentCaptor<Map<String, String>> metadataCaptor = ArgumentCaptor.forClass(Map.class);
+    verify(mockTransport).invokeTool(any(), any(), metadataCaptor.capture());
+
+    Map<String, String> mergedMetadata = metadataCaptor.getValue();
+    assertEquals("ExtraValue", mergedMetadata.get("Extra-Header"));
+    assertFalse(mergedMetadata.containsKey("Authorization"));
+  }
 }
