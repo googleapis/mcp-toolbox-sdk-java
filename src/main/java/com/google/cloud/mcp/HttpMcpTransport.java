@@ -34,7 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
 /** Default HTTP transport implementation using Java 11 HttpClient. */
-public class HttpMcpTransport implements Transport {
+public final class HttpMcpTransport implements Transport {
 
   private static final Logger logger = Logger.getLogger(HttpMcpTransport.class.getName());
   private static final String HTTP_WARNING =
@@ -43,6 +43,7 @@ public class HttpMcpTransport implements Transport {
 
   private final String baseUrl;
   private final Map<String, String> clientHeaders;
+  private final CredentialsProvider credentialsProvider;
   private final HttpClient httpClient;
   private final ObjectMapper objectMapper;
   private final String protocolVersion = "2025-11-25";
@@ -54,7 +55,7 @@ public class HttpMcpTransport implements Transport {
    * @param baseUrl The base URL of the remote service.
    */
   public HttpMcpTransport(String baseUrl) {
-    this(baseUrl, Map.of());
+    this(baseUrl, Map.of(), (CredentialsProvider) null);
   }
 
   /**
@@ -64,24 +65,48 @@ public class HttpMcpTransport implements Transport {
    * @param clientHeaders The client-level headers.
    */
   public HttpMcpTransport(String baseUrl, Map<String, String> clientHeaders) {
+    this(baseUrl, clientHeaders, (CredentialsProvider) null);
+  }
+
+  /**
+   * Constructs a new HttpMcpTransport with a base URL, client-level headers, and credentials
+   * provider.
+   *
+   * @param baseUrl The base URL of the remote service.
+   * @param clientHeaders The client-level headers.
+   * @param credentialsProvider The credentials provider.
+   */
+  public HttpMcpTransport(
+      String baseUrl, Map<String, String> clientHeaders, CredentialsProvider credentialsProvider) {
     this(
         baseUrl,
         clientHeaders,
+        credentialsProvider,
         HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build());
   }
 
   /** Package-private constructor for unit testing. */
   HttpMcpTransport(String baseUrl, HttpClient httpClient) {
-    this(baseUrl, Map.of(), httpClient);
+    this(baseUrl, Map.of(), (CredentialsProvider) null, httpClient);
   }
 
   /** Package-private constructor for unit testing. */
   HttpMcpTransport(String baseUrl, Map<String, String> clientHeaders, HttpClient httpClient) {
+    this(baseUrl, clientHeaders, (CredentialsProvider) null, httpClient);
+  }
+
+  /** Package-private constructor for unit testing. */
+  HttpMcpTransport(
+      String baseUrl,
+      Map<String, String> clientHeaders,
+      CredentialsProvider credentialsProvider,
+      HttpClient httpClient) {
     this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     this.clientHeaders =
         clientHeaders != null
             ? java.util.Collections.unmodifiableMap(new java.util.HashMap<>(clientHeaders))
             : java.util.Collections.emptyMap();
+    this.credentialsProvider = credentialsProvider;
     this.httpClient = httpClient;
     this.objectMapper = new ObjectMapper();
   }
@@ -91,74 +116,156 @@ public class HttpMcpTransport implements Transport {
     return this.baseUrl;
   }
 
-  private synchronized CompletableFuture<Void> ensureInitialized(Map<String, String> headers) {
-    if (initialized) return CompletableFuture.completedFuture(null);
-    try {
-      Map<String, String> handshakeHeaders = new HashMap<>(this.clientHeaders);
-      String authHeader = headers.get("Authorization");
-      if (authHeader != null) {
-        handshakeHeaders.put("Authorization", authHeader);
-      }
-      if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
-          && authHeader != null) {
-        logger.warning(HTTP_WARNING);
-      }
-      JsonRpc.Request initReq =
-          new JsonRpc.Request(
-              "initialize", new JsonRpc.InitializeParams(protocolVersion, "mcp-toolbox-sdk-java"));
-      String body = objectMapper.writeValueAsString(initReq);
-      HttpRequest.Builder req =
-          HttpRequest.newBuilder()
-              .uri(URI.create(baseUrl))
-              .header("Content-Type", "application/json")
-              .POST(HttpRequest.BodyPublishers.ofString(body));
-      handshakeHeaders.forEach(req::setHeader);
+  private CompletableFuture<Map<String, String>> mergeHeaders(Map<String, String> extraMetadata) {
+    CompletableFuture<String> authFuture =
+        this.credentialsProvider != null
+            ? this.credentialsProvider.getAuthorizationHeader()
+            : CompletableFuture.completedFuture(null);
 
-      return httpClient
-          .sendAsync(req.build(), HttpResponse.BodyHandlers.ofString())
-          .thenCompose(
-              res -> {
-                if (res.statusCode() != 200) {
-                  return CompletableFuture.failedFuture(
-                      new RuntimeException("Init failed: " + res.statusCode() + " " + res.body()));
-                }
-                try {
-                  JsonRpc.Notification notif =
-                      new JsonRpc.Notification("notifications/initialized", Map.of());
-                  String notifBody = objectMapper.writeValueAsString(notif);
-                  HttpRequest.Builder nReq =
-                      HttpRequest.newBuilder()
-                          .uri(URI.create(baseUrl))
-                          .header("Content-Type", "application/json")
-                          .header("MCP-Protocol-Version", protocolVersion)
-                          .POST(HttpRequest.BodyPublishers.ofString(notifBody));
-                  handshakeHeaders.forEach(nReq::setHeader);
+    return authFuture.thenApply(
+        providerAuth -> {
+          Map<String, String> merged = new HashMap<>();
 
-                  return httpClient
-                      .sendAsync(nReq.build(), HttpResponse.BodyHandlers.ofString())
-                      .thenAccept(
-                          nRes -> {
-                            initialized = true;
-                          });
-                } catch (Exception e) {
-                  return CompletableFuture.failedFuture(e);
+          // 1. Find dynamic or static Authorization header
+          String finalAuthHeader = null;
+
+          // A. Check extraMetadata first
+          if (extraMetadata != null) {
+            String authKeyInExtra =
+                extraMetadata.keySet().stream()
+                    .filter(k -> "Authorization".equalsIgnoreCase(k))
+                    .findFirst()
+                    .orElse(null);
+            if (authKeyInExtra != null) {
+              finalAuthHeader = extraMetadata.get(authKeyInExtra);
+            }
+          }
+
+          // B. If not in extraMetadata, check credentialsProvider
+          if (finalAuthHeader == null) {
+            finalAuthHeader = providerAuth;
+          }
+
+          // C. If still null, check clientHeaders
+          if (finalAuthHeader == null) {
+            for (Map.Entry<String, String> entry : this.clientHeaders.entrySet()) {
+              if ("Authorization".equalsIgnoreCase(entry.getKey())) {
+                finalAuthHeader = entry.getValue();
+                break;
+              }
+            }
+          }
+
+          // 2. Put all client-level headers except Authorization
+          this.clientHeaders.forEach(
+              (k, v) -> {
+                if (!"Authorization".equalsIgnoreCase(k)) {
+                  merged.put(k, v);
                 }
               });
-    } catch (Exception e) {
-      return CompletableFuture.failedFuture(e);
+
+          // 3. Put all extra/call-level metadata except Authorization
+          if (extraMetadata != null) {
+            extraMetadata.forEach(
+                (k, v) -> {
+                  if (!"Authorization".equalsIgnoreCase(k)) {
+                    merged.put(k, v);
+                  }
+                });
+          }
+
+          // 4. Put the final Authorization header if found
+          if (finalAuthHeader != null) {
+            merged.put("Authorization", finalAuthHeader);
+          }
+
+          return merged;
+        });
+  }
+
+  private synchronized CompletableFuture<Void> ensureInitialized(
+      Map<String, String> extraMetadata) {
+    if (initialized) return CompletableFuture.completedFuture(null);
+    Map<String, String> handshakeMetadata = new HashMap<>();
+    if (extraMetadata != null) {
+      String authKey =
+          extraMetadata.keySet().stream()
+              .filter(k -> "Authorization".equalsIgnoreCase(k))
+              .findFirst()
+              .orElse(null);
+      if (authKey != null) {
+        handshakeMetadata.put("Authorization", extraMetadata.get(authKey));
+      }
     }
+    return mergeHeaders(handshakeMetadata)
+        .thenCompose(
+            handshakeHeaders -> {
+              try {
+                String authHeader = handshakeHeaders.get("Authorization");
+                if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
+                    && authHeader != null) {
+                  logger.warning(HTTP_WARNING);
+                }
+                JsonRpc.Request initReq =
+                    new JsonRpc.Request(
+                        "initialize",
+                        new JsonRpc.InitializeParams(protocolVersion, "mcp-toolbox-sdk-java"));
+                String body = objectMapper.writeValueAsString(initReq);
+                HttpRequest.Builder req =
+                    HttpRequest.newBuilder()
+                        .uri(URI.create(baseUrl))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(body));
+                handshakeHeaders.forEach(req::setHeader);
+
+                return httpClient
+                    .sendAsync(req.build(), HttpResponse.BodyHandlers.ofString())
+                    .thenCompose(
+                        res -> {
+                          if (res.statusCode() != 200) {
+                            return CompletableFuture.failedFuture(
+                                new RuntimeException(
+                                    "Init failed: " + res.statusCode() + " " + res.body()));
+                          }
+                          try {
+                            JsonRpc.Notification notif =
+                                new JsonRpc.Notification("notifications/initialized", Map.of());
+                            String notifBody = objectMapper.writeValueAsString(notif);
+                            HttpRequest.Builder nReq =
+                                HttpRequest.newBuilder()
+                                    .uri(URI.create(baseUrl))
+                                    .header("Content-Type", "application/json")
+                                    .header("MCP-Protocol-Version", protocolVersion)
+                                    .POST(HttpRequest.BodyPublishers.ofString(notifBody));
+                            handshakeHeaders.forEach(nReq::setHeader);
+
+                            return httpClient
+                                .sendAsync(nReq.build(), HttpResponse.BodyHandlers.ofString())
+                                .thenAccept(
+                                    nRes -> {
+                                      initialized = true;
+                                    });
+                          } catch (Exception e) {
+                            return CompletableFuture.failedFuture(e);
+                          }
+                        });
+              } catch (Exception e) {
+                return CompletableFuture.failedFuture(e);
+              }
+            });
   }
 
   @Override
   public CompletableFuture<TransportManifest> listTools(
-      String toolsetName, Map<String, String> headers) {
+      String toolsetName, Map<String, String> metadata) {
     if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
-        && !headers.isEmpty()) {
+        && !metadata.isEmpty()) {
       logger.warning(HTTP_WARNING);
     }
-    return ensureInitialized(headers)
+    return ensureInitialized(metadata)
+        .thenCompose(v -> mergeHeaders(metadata))
         .thenCompose(
-            v -> {
+            mergedHeaders -> {
               String path = toolsetName != null && !toolsetName.isEmpty() ? "/" + toolsetName : "";
               String url = baseUrl + path;
               try {
@@ -170,7 +277,7 @@ public class HttpMcpTransport implements Transport {
                         .header("Content-Type", "application/json")
                         .header("MCP-Protocol-Version", protocolVersion)
                         .POST(HttpRequest.BodyPublishers.ofString(body));
-                headers.forEach(req::setHeader);
+                mergedHeaders.forEach(req::setHeader);
 
                 return httpClient
                     .sendAsync(req.build(), HttpResponse.BodyHandlers.ofString())
@@ -183,14 +290,15 @@ public class HttpMcpTransport implements Transport {
 
   @Override
   public CompletableFuture<TransportResponse> invokeTool(
-      String toolName, Map<String, Object> arguments, Map<String, String> headers) {
+      String toolName, Map<String, Object> arguments, Map<String, String> metadata) {
     if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
-        && !headers.isEmpty()) {
+        && !metadata.isEmpty()) {
       logger.warning(HTTP_WARNING);
     }
-    return ensureInitialized(headers)
+    return ensureInitialized(metadata)
+        .thenCompose(v -> mergeHeaders(metadata))
         .thenCompose(
-            v -> {
+            mergedHeaders -> {
               try {
                 JsonRpc.Request invokeReq =
                     new JsonRpc.Request(
@@ -204,7 +312,7 @@ public class HttpMcpTransport implements Transport {
                         .header("MCP-Protocol-Version", protocolVersion)
                         .POST(HttpRequest.BodyPublishers.ofString(requestBody));
 
-                headers.forEach(requestBuilder::setHeader);
+                mergedHeaders.forEach(requestBuilder::setHeader);
 
                 return httpClient
                     .sendAsync(requestBuilder.build(), HttpResponse.BodyHandlers.ofString())
