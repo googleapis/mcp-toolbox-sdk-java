@@ -65,9 +65,9 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
   /**
    * Constructs a new McpToolboxClientImpl.
    *
-   * @param clientTransport The underlying MCP transport layer.
-   * @param clientHeaders Fallback headers for deprecated constructor compatibility.
-   * @param provider Fallback provider for deprecated constructor compatibility.
+   * @param transport The underlying MCP transport layer.
+   * @param headers Fallback headers for deprecated constructor compatibility.
+   * @param credentialsProvider Fallback provider for deprecated constructor compatibility.
    */
   @Deprecated
   public McpToolboxClientImpl(
@@ -148,7 +148,15 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
     return () -> CompletableFuture.completedFuture(bearerKey);
   }
 
-  /** Primary constructor for McpToolboxClientImpl. */
+  /**
+   * Primary constructor for McpToolboxClientImpl.
+   *
+   * @param transport The underlying MCP transport layer.
+   * @param headers Default HTTP headers.
+   * @param credentialsProvider Provider for credentials.
+   * @param preProcessors List of pre-processors.
+   * @param postProcessors List of post-processors.
+   */
   public McpToolboxClientImpl(
       Transport transport,
       Map<String, String> headers,
