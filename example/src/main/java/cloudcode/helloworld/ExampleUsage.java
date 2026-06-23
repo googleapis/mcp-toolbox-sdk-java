@@ -32,10 +32,10 @@ import com.google.auth.oauth2.IdTokenProvider;
 public class ExampleUsage {
     public static void main(String[] args) {
         // CONFIGURATION
-        String targetUrl = "YOUR_TOOLBOX_SERVICE_ENDPOINT";
+        String targetUrl = System.getProperty("toolbox.url", "YOUR_TOOLBOX_SERVICE_ENDPOINT");
 
         // Match the Service URL if using Cloud Run OIDC
-        String tokenAudience = targetUrl;
+        String tokenAudience = System.getProperty("toolbox.tokenAudience", targetUrl);
 
         // --------------------------------------------------------------------------------
         // AUTHENTICATION SETUP
@@ -44,7 +44,7 @@ public class ExampleUsage {
         // FOR PRODUCTION (Cloud Run): Comment out the 'keyPath' logic and use ADC directly.
         // --------------------------------------------------------------------------------
 
-        String keyPath = "YOUR_CREDENTIALS_JSON_FILE_PATH.json";
+        String keyPath = System.getProperty("toolbox.keyPath", "YOUR_CREDENTIALS_JSON_FILE_PATH.json");
 
         System.out.println("--- Starting MCP Toolbox Integration Test ---");
         System.out.println("Target Server: " + targetUrl);
