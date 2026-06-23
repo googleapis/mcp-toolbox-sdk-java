@@ -30,8 +30,7 @@ import java.util.logging.Logger;
 public final class McpToolboxClientImpl implements McpToolboxClient {
 
   /** Logger for logging messages. */
-  private static final Logger LOGGER =
-      Logger.getLogger(McpToolboxClientImpl.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(McpToolboxClientImpl.class.getName());
 
   /** Warning message for non-HTTPS URL usage. */
   private static final String HTTP_WARNING =
@@ -63,8 +62,7 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
    * Constructs a new McpToolboxClientImpl.
    *
    * @param clientTransport The underlying MCP transport layer.
-   * @param clientHeaders Fallback headers for deprecated constructor
-   *     compatibility.
+   * @param clientHeaders Fallback headers for deprecated constructor compatibility.
    * @param provider Fallback provider for deprecated constructor compatibility.
    */
   @Deprecated
@@ -75,16 +73,14 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
     this.transport = clientTransport;
     this.headers =
         clientHeaders != null
-            ? java.util.Collections.unmodifiableMap(
-                new java.util.HashMap<>(clientHeaders))
+            ? java.util.Collections.unmodifiableMap(new java.util.HashMap<>(clientHeaders))
             : java.util.Collections.emptyMap();
     this.credentialsProvider = provider;
     this.objectMapper = new ObjectMapper();
   }
 
   /**
-   * Deprecated constructor.
-   * Use the constructor accepting {@link CredentialsProvider} instead.
+   * Deprecated constructor. Use the constructor accepting {@link CredentialsProvider} instead.
    *
    * @param baseUrl The base URL.
    * @param apiKey The static API key.
@@ -92,8 +88,7 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
   @Deprecated
   public McpToolboxClientImpl(final String baseUrl, final String apiKey) {
     this(
-        new HttpMcpTransport(
-            baseUrl, Collections.emptyMap(), apiKeyToProvider(apiKey)),
+        new HttpMcpTransport(baseUrl, Collections.emptyMap(), apiKeyToProvider(apiKey)),
         Collections.emptyMap(),
         apiKeyToProvider(apiKey));
   }
@@ -105,8 +100,7 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
    * @param clientHeaders The HTTP headers to include in requests.
    */
   @Deprecated
-  public McpToolboxClientImpl(
-      final String baseUrl, final Map<String, String> clientHeaders) {
+  public McpToolboxClientImpl(final String baseUrl, final Map<String, String> clientHeaders) {
     this(new HttpMcpTransport(baseUrl, clientHeaders), clientHeaders, null);
   }
 
@@ -122,22 +116,17 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
       final String baseUrl,
       final Map<String, String> clientHeaders,
       final CredentialsProvider provider) {
-    this(
-        new HttpMcpTransport(baseUrl, clientHeaders, provider),
-        clientHeaders,
-        provider);
+    this(new HttpMcpTransport(baseUrl, clientHeaders, provider), clientHeaders, provider);
   }
 
   /**
-   * Deprecated constructor.
-   * Use the constructor accepting {@link CredentialsProvider} instead.
+   * Deprecated constructor. Use the constructor accepting {@link CredentialsProvider} instead.
    *
    * @param baseUrl The base URL.
    * @param provider The provider for auth headers.
    */
   @Deprecated
-  public McpToolboxClientImpl(
-      final String baseUrl, final CredentialsProvider provider) {
+  public McpToolboxClientImpl(final String baseUrl, final CredentialsProvider provider) {
     this(
         new HttpMcpTransport(baseUrl, Collections.emptyMap(), provider),
         Collections.emptyMap(),
@@ -145,15 +134,13 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
   }
 
   /**
-   * Deprecated constructor.
-   * Use the constructor accepting {@link Transport} instead.
+   * Deprecated constructor. Use the constructor accepting {@link Transport} instead.
    *
    * @param clientTransport The underlying transport.
    * @param provider The provider for auth headers.
    */
   @Deprecated
-  public McpToolboxClientImpl(
-      final Transport clientTransport, final CredentialsProvider provider) {
+  public McpToolboxClientImpl(final Transport clientTransport, final CredentialsProvider provider) {
     this(clientTransport, Collections.emptyMap(), provider);
   }
 
@@ -161,8 +148,7 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
     if (apiKey == null || apiKey.isEmpty()) {
       return null;
     }
-    String bearerKey =
-        apiKey.startsWith("Bearer ") ? apiKey : "Bearer " + apiKey;
+    String bearerKey = apiKey.startsWith("Bearer ") ? apiKey : "Bearer " + apiKey;
     return () -> CompletableFuture.completedFuture(bearerKey);
   }
 
@@ -170,15 +156,11 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
       final Map<String, String> extraMetadata) {
     if (this.transport instanceof HttpMcpTransport) {
       return CompletableFuture.completedFuture(
-          extraMetadata != null
-              ? extraMetadata
-              : java.util.Collections.emptyMap());
+          extraMetadata != null ? extraMetadata : java.util.Collections.emptyMap());
     }
     if (this.credentialsProvider == null && this.headers.isEmpty()) {
       return CompletableFuture.completedFuture(
-          extraMetadata != null
-              ? extraMetadata
-              : java.util.Collections.emptyMap());
+          extraMetadata != null ? extraMetadata : java.util.Collections.emptyMap());
     }
     return getAuthorizationHeader()
         .thenApply(
@@ -217,8 +199,7 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
   }
 
   @Override
-  public CompletableFuture<Map<String, ToolDefinition>> loadToolset(
-      final String toolsetName) {
+  public CompletableFuture<Map<String, ToolDefinition>> loadToolset(final String toolsetName) {
     return getMergedMetadata(java.util.Collections.emptyMap())
         .thenCompose(
             mergedMetadata ->
@@ -234,15 +215,13 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
       final Map<String, Map<String, AuthTokenGetter>> authBinds,
       final boolean strict) {
 
-    if (this.transport.getBaseUrl().toLowerCase(java.util.Locale.ROOT)
-            .startsWith("http://")
+    if (this.transport.getBaseUrl().toLowerCase(java.util.Locale.ROOT).startsWith("http://")
         && authBinds != null
         && !authBinds.isEmpty()) {
       LOGGER.warning(HTTP_WARNING);
     }
 
-    CompletableFuture<Map<String, ToolDefinition>> definitionsFuture =
-        loadToolset(toolsetName);
+    CompletableFuture<Map<String, ToolDefinition>> definitionsFuture = loadToolset(toolsetName);
 
     return definitionsFuture.thenApply(
         defs -> {
@@ -257,8 +236,7 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
             unknownTools.removeAll(defs.keySet());
             if (!unknownTools.isEmpty()) {
               throw new IllegalArgumentException(
-                  "Strict mode error: Bindings provided for unknown tools: "
-                      + unknownTools);
+                  "Strict mode error: Bindings provided for unknown tools: " + unknownTools);
             }
           }
 
@@ -285,10 +263,8 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
 
   @Override
   public CompletableFuture<Tool> loadTool(
-      final String toolName,
-      final Map<String, AuthTokenGetter> authTokenGetters) {
-    if (this.transport.getBaseUrl().toLowerCase(java.util.Locale.ROOT)
-            .startsWith("http://")
+      final String toolName, final Map<String, AuthTokenGetter> authTokenGetters) {
+    if (this.transport.getBaseUrl().toLowerCase(java.util.Locale.ROOT).startsWith("http://")
         && authTokenGetters != null
         && !authTokenGetters.isEmpty()) {
       LOGGER.warning(HTTP_WARNING);
@@ -318,8 +294,7 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
       final String toolName,
       final Map<String, Object> arguments,
       final Map<String, String> extraHeaders) {
-    if (this.transport.getBaseUrl().toLowerCase(java.util.Locale.ROOT)
-            .startsWith("http://")
+    if (this.transport.getBaseUrl().toLowerCase(java.util.Locale.ROOT).startsWith("http://")
         && extraHeaders != null
         && !extraHeaders.isEmpty()) {
       LOGGER.warning(HTTP_WARNING);
@@ -329,8 +304,7 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
             mergedMetadata ->
                 transport
                     .invokeTool(toolName, arguments, mergedMetadata)
-                    .thenApply(
-                        res -> handleInvokeResponse(res, toolName)));
+                    .thenApply(res -> handleInvokeResponse(res, toolName)));
   }
 
   private CompletableFuture<String> getAuthorizationHeader() {
@@ -345,14 +319,12 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
     return CompletableFuture.completedFuture(null);
   }
 
-  private ToolResult handleInvokeResponse(
-      final TransportResponse response, final String toolName) {
+  private ToolResult handleInvokeResponse(final TransportResponse response, final String toolName) {
     String body = response.getBody();
     if (response.getStatusCode() != java.net.HttpURLConnection.HTTP_OK) {
       return new ToolResult(
           java.util.List.of(
-              new ToolResult.Content(
-                  "text", "Error " + response.getStatusCode() + ": " + body)),
+              new ToolResult.Content("text", "Error " + response.getStatusCode() + ": " + body)),
           true);
     }
     try {
@@ -360,8 +332,7 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
       if (root.has("error")) {
         return new ToolResult(
             java.util.List.of(
-                new ToolResult.Content(
-                    "text", "MCP Error: " + root.get("error").toString())),
+                new ToolResult.Content("text", "MCP Error: " + root.get("error").toString())),
             true);
       }
 
@@ -369,22 +340,18 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
 
       JsonNode result = root.get("result");
       if (result != null) {
-        ToolResult parsedResult =
-            objectMapper.treeToValue(result, ToolResult.class);
+        ToolResult parsedResult = objectMapper.treeToValue(result, ToolResult.class);
         if (parsedResult.content() == null) {
           return new ToolResult(
-              java.util.List.of(
-                  new ToolResult.Content("text", result.asText())),
+              java.util.List.of(new ToolResult.Content("text", result.asText())),
               isError || parsedResult.isError());
         }
         return parsedResult;
       }
 
-      return new ToolResult(
-          java.util.List.of(new ToolResult.Content("text", body)), isError);
+      return new ToolResult(java.util.List.of(new ToolResult.Content("text", body)), isError);
     } catch (Exception e) {
-      return new ToolResult(
-          java.util.List.of(new ToolResult.Content("text", body)), false);
+      return new ToolResult(java.util.List.of(new ToolResult.Content("text", body)), false);
     }
   }
 }

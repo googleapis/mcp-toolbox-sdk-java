@@ -69,7 +69,8 @@ public final class HttpMcpTransport implements Transport {
   }
 
   /**
-   * Constructs a new HttpMcpTransport with a base URL, client-level headers, and credentials provider.
+   * Constructs a new HttpMcpTransport with a base URL, client-level headers, and credentials
+   * provider.
    *
    * @param baseUrl The base URL of the remote service.
    * @param clientHeaders The client-level headers.
@@ -182,7 +183,8 @@ public final class HttpMcpTransport implements Transport {
         });
   }
 
-  private synchronized CompletableFuture<Void> ensureInitialized(Map<String, String> extraMetadata) {
+  private synchronized CompletableFuture<Void> ensureInitialized(
+      Map<String, String> extraMetadata) {
     if (initialized) return CompletableFuture.completedFuture(null);
     Map<String, String> handshakeMetadata = new HashMap<>();
     if (extraMetadata != null) {
@@ -261,8 +263,7 @@ public final class HttpMcpTransport implements Transport {
       logger.warning(HTTP_WARNING);
     }
     return ensureInitialized(metadata)
-        .thenCompose(
-            v -> mergeHeaders(metadata))
+        .thenCompose(v -> mergeHeaders(metadata))
         .thenCompose(
             mergedHeaders -> {
               String path = toolsetName != null && !toolsetName.isEmpty() ? "/" + toolsetName : "";
@@ -295,8 +296,7 @@ public final class HttpMcpTransport implements Transport {
       logger.warning(HTTP_WARNING);
     }
     return ensureInitialized(metadata)
-        .thenCompose(
-            v -> mergeHeaders(metadata))
+        .thenCompose(v -> mergeHeaders(metadata))
         .thenCompose(
             mergedHeaders -> {
               try {
