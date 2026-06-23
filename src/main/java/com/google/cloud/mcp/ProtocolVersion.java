@@ -18,9 +18,16 @@ package com.google.cloud.mcp;
 
 /** Supported protocol versions for the Model Context Protocol. */
 public enum ProtocolVersion {
+  /** Protocol version 2025-11-25. */
   VERSION_2025_11_25("2025-11-25", true, true, false),
+
+  /** Protocol version 2025-06-18. */
   VERSION_2025_06_18("2025-06-18", true, true, false),
+
+  /** Protocol version 2025-03-26. */
   VERSION_2025_03_26("2025-03-26", true, false, true),
+
+  /** Protocol version 2024-11-05. */
   VERSION_2024_11_05("2024-11-05", false, false, false);
 
   private final String value;
@@ -39,22 +46,38 @@ public enum ProtocolVersion {
     this.requiresSessionIdHeader = requiresSessionIdHeader;
   }
 
-  /** Gets the string representation of the version (e.g. "2025-11-25"). */
+  /**
+   * Gets the string representation of the version (e.g. "2025-11-25").
+   *
+   * @return String version representation.
+   */
   public String getValue() {
     return value;
   }
 
-  /** Returns true if this version requires the "Accept: application/json" header. */
+  /**
+   * Returns true if this version requires the "Accept: application/json" header.
+   *
+   * @return true if Accept: application/json is required.
+   */
   public boolean requiresAcceptJson() {
     return requiresAcceptJson;
   }
 
-  /** Returns true if this version requires the "MCP-Protocol-Version" header. */
+  /**
+   * Returns true if this version requires the "MCP-Protocol-Version" header.
+   *
+   * @return true if MCP-Protocol-Version header is required.
+   */
   public boolean requiresVersionHeader() {
     return requiresVersionHeader;
   }
 
-  /** Returns true if this version requires the stateful "Mcp-Session-Id" header. */
+  /**
+   * Returns true if this version requires the stateful "Mcp-Session-Id" header.
+   *
+   * @return true if Mcp-Session-Id header is required.
+   */
   public boolean requiresSessionIdHeader() {
     return requiresSessionIdHeader;
   }

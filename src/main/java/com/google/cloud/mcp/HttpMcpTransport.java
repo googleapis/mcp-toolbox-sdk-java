@@ -62,15 +62,37 @@ public final class HttpMcpTransport implements Transport {
     this(baseUrl, Map.of(), (CredentialsProvider) null);
   }
 
+  /**
+   * Constructs a new HttpMcpTransport with base URL and default headers.
+   *
+   * @param baseUrl The base URL of the remote service.
+   * @param clientHeaders Default HTTP headers to include in every request.
+   */
   public HttpMcpTransport(String baseUrl, Map<String, String> clientHeaders) {
     this(baseUrl, clientHeaders, (CredentialsProvider) null);
   }
 
+  /**
+   * Constructs a new HttpMcpTransport with base URL, default headers and credentials provider.
+   *
+   * @param baseUrl The base URL of the remote service.
+   * @param clientHeaders Default HTTP headers to include in every request.
+   * @param credentialsProvider Provider for retrieving authorization credentials.
+   */
   public HttpMcpTransport(
       String baseUrl, Map<String, String> clientHeaders, CredentialsProvider credentialsProvider) {
     this(baseUrl, clientHeaders, credentialsProvider, null, null, null);
   }
 
+  /**
+   * Constructs a HttpMcpTransport.
+   *
+   * @param baseUrl The base URL of the remote service.
+   * @param clientHeaders Default HTTP headers to include in every request.
+   * @param preferredProtocolVersion Preferred MCP protocol version.
+   * @param httpClient Custom HTTP Client.
+   * @param executor Optional Executor for handling async requests.
+   */
   public HttpMcpTransport(
       String baseUrl,
       Map<String, String> clientHeaders,
@@ -80,6 +102,16 @@ public final class HttpMcpTransport implements Transport {
     this(baseUrl, clientHeaders, null, preferredProtocolVersion, httpClient, executor);
   }
 
+  /**
+   * Primary constructor for HttpMcpTransport.
+   *
+   * @param baseUrl The base URL of the remote service.
+   * @param clientHeaders Default HTTP headers to include in every request.
+   * @param credentialsProvider Provider for retrieving authorization credentials.
+   * @param preferredProtocolVersion Preferred MCP protocol version.
+   * @param httpClient Custom HTTP Client.
+   * @param executor Optional Executor for handling async requests.
+   */
   public HttpMcpTransport(
       String baseUrl,
       Map<String, String> clientHeaders,
