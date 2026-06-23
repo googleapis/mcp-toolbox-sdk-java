@@ -499,59 +499,6 @@ class McpToolboxClientImplTest {
   }
 
   @Test
-  void testLoadToolset_withDefaultValuesAndHints() throws Exception {
-    HttpResponse<String> initResponse = mock(HttpResponse.class);
-    when(initResponse.statusCode()).thenReturn(200);
-    when(initResponse.body()).thenReturn("{}");
-
-    HttpResponse<String> notifResponse = mock(HttpResponse.class);
-    when(notifResponse.statusCode()).thenReturn(200);
-    when(notifResponse.body()).thenReturn("{}");
-
-    HttpResponse<String> listResponse = mock(HttpResponse.class);
-    when(listResponse.statusCode()).thenReturn(200);
-    when(listResponse.body())
-        .thenReturn(
-            "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[{"
-                + "\"name\":\"test-tool\","
-                + "\"description\":\"A test tool description\","
-                + "\"readOnlyHint\":true,"
-                + "\"destructiveHint\":false,"
-                + "\"inputSchema\":{"
-                + "  \"type\":\"object\","
-                + "  \"properties\":{"
-                + "    \"param1\":{"
-                + "      \"type\":\"string\","
-                + "      \"description\":\"parameter 1\","
-                + "      \"default\":\"default-val\""
-                + "    }"
-                + "  }"
-                + "}"
-                + "}]}}");
-
-    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-        .thenReturn(CompletableFuture.completedFuture(initResponse))
-        .thenReturn(CompletableFuture.completedFuture(notifResponse))
-        .thenReturn(CompletableFuture.completedFuture(listResponse));
-
-    Map<String, ToolDefinition> tools = client.loadToolset(null).join();
-    assertNotNull(tools);
-    assertEquals(1, tools.size());
-
-    ToolDefinition def = tools.get("test-tool");
-    assertNotNull(def);
-    assertEquals("A test tool description", def.description());
-    assertEquals(true, def.readOnlyHint());
-    assertEquals(false, def.destructiveHint());
-
-    assertEquals(1, def.parameters().size());
-    ToolDefinition.Parameter param = def.parameters().get(0);
-    assertEquals("param1", param.name());
-    assertEquals("string", param.type());
-    assertEquals("default-val", param.defaultValue());
-  }
-
-  @Test
   void testLoadToolset_withInvalidUriThrowsException() {
     HttpMcpTransport transport = new HttpMcpTransport("http://invalid uri", mockHttpClient);
     McpToolboxClientImpl badClient =
@@ -879,8 +826,8 @@ class McpToolboxClientImplTest {
     assertTrue(ex.getCause().getMessage().contains("Simulated notification serialization failure"));
   }
 
-  @Test
   @SuppressWarnings("unchecked")
+  @Test
   void testClientPrePostProcessorsPropagation() throws Exception {
     Transport mockTransport = mock(Transport.class);
     ToolDefinition def =
@@ -934,5 +881,180 @@ class McpToolboxClientImplTest {
         (java.util.List<ToolPostProcessor>) postField.get(tool2);
     assertEquals(1, toolPost2.size());
     org.junit.jupiter.api.Assertions.assertSame(mockPost, toolPost2.get(0));
+  }
+
+  @Test
+  void testInvokeTool_MalformedJsonResponse_GracefullyFallsBack() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> invokeResponse = mock(HttpResponse.class);
+    when(invokeResponse.statusCode()).thenReturn(200);
+    when(invokeResponse.body()).thenReturn("{invalid-json"); // Trigger JSON parse exception
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(invokeResponse));
+
+    ToolResult res = client.invokeTool("test-tool", Map.of()).join();
+    assertNotNull(res);
+    assertFalse(res.isError());
+    assertEquals("{invalid-json", res.content().get(0).text());
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testGetAuthorizationHeader_WithNoAuthInHeaders() throws Exception {
+    McpToolboxClientImpl clientNoAuth =
+        new McpToolboxClientImpl(mock(Transport.class), Map.of("X-Other", "SomeValue"), null);
+
+    Method getAuthHeaderMethod =
+        McpToolboxClientImpl.class.getDeclaredMethod("getAuthorizationHeader");
+    getAuthHeaderMethod.setAccessible(true);
+    CompletableFuture<String> future =
+        (CompletableFuture<String>) getAuthHeaderMethod.invoke(clientNoAuth);
+    assertNull(future.join());
+  }
+
+  @Test
+  void testConstructor_WithOnlyTransport() {
+    Transport mockTransport = mock(Transport.class);
+    McpToolboxClientImpl simpleClient = new McpToolboxClientImpl(mockTransport);
+    assertNotNull(simpleClient);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testGetMergedMetadata_WithMockGenericTransport_AllBranches() throws Exception {
+    Transport mockTransport = mock(Transport.class);
+    when(mockTransport.getBaseUrl()).thenReturn("https://test-mcp-service.com");
+    when(mockTransport.invokeTool(any(), any(), any()))
+        .thenReturn(
+            CompletableFuture.completedFuture(new TransportResponse(200, "{\"result\":{}}")));
+
+    CredentialsProvider provider = () -> CompletableFuture.completedFuture("Bearer test-api-key");
+    McpToolboxClientImpl genericClient =
+        new McpToolboxClientImpl(mockTransport, Map.of("Custom-Header", "Value"), provider);
+
+    // Call invokeTool with extra metadata to trigger merge
+    genericClient
+        .invokeTool(
+            "test-tool",
+            Map.of(),
+            Map.of("Extra-Header", "ExtraValue", "Authorization", "Bearer overridden"))
+        .join();
+
+    ArgumentCaptor<Map<String, String>> metadataCaptor = ArgumentCaptor.forClass(Map.class);
+    verify(mockTransport).invokeTool(any(), any(), metadataCaptor.capture());
+
+    Map<String, String> mergedMetadata = metadataCaptor.getValue();
+    assertEquals("Value", mergedMetadata.get("Custom-Header"));
+    assertEquals("ExtraValue", mergedMetadata.get("Extra-Header"));
+    assertEquals("Bearer overridden", mergedMetadata.get("Authorization"));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testGetMergedMetadata_WithMockGenericTransport_NullExtraMetadata() throws Exception {
+    Transport mockTransport = mock(Transport.class);
+    when(mockTransport.getBaseUrl()).thenReturn("https://test-mcp-service.com");
+    when(mockTransport.invokeTool(any(), any(), any()))
+        .thenReturn(
+            CompletableFuture.completedFuture(new TransportResponse(200, "{\"result\":{}}")));
+
+    CredentialsProvider provider = () -> CompletableFuture.completedFuture("Bearer test-api-key");
+    McpToolboxClientImpl genericClient =
+        new McpToolboxClientImpl(mockTransport, Map.of("Custom-Header", "Value"), provider);
+
+    // Call invokeTool with null extra metadata to trigger branch
+    genericClient.invokeTool("test-tool", Map.of(), (Map<String, String>) null).join();
+
+    ArgumentCaptor<Map<String, String>> metadataCaptor = ArgumentCaptor.forClass(Map.class);
+    verify(mockTransport).invokeTool(any(), any(), metadataCaptor.capture());
+
+    Map<String, String> mergedMetadata = metadataCaptor.getValue();
+    assertEquals("Value", mergedMetadata.get("Custom-Header"));
+    assertEquals("Bearer test-api-key", mergedMetadata.get("Authorization"));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testGetMergedMetadata_WithMockGenericTransport_NullProviderAndEmptyHeaders()
+      throws Exception {
+    Transport mockTransport = mock(Transport.class);
+    when(mockTransport.getBaseUrl()).thenReturn("https://test-mcp-service.com");
+    when(mockTransport.invokeTool(any(), any(), any()))
+        .thenReturn(
+            CompletableFuture.completedFuture(new TransportResponse(200, "{\"result\":{}}")));
+
+    McpToolboxClientImpl genericClient = new McpToolboxClientImpl(mockTransport, Map.of(), null);
+
+    genericClient.invokeTool("test-tool", Map.of(), Map.of("Extra-Header", "ExtraValue")).join();
+
+    ArgumentCaptor<Map<String, String>> metadataCaptor = ArgumentCaptor.forClass(Map.class);
+    verify(mockTransport).invokeTool(any(), any(), metadataCaptor.capture());
+
+    Map<String, String> mergedMetadata = metadataCaptor.getValue();
+    assertEquals("ExtraValue", mergedMetadata.get("Extra-Header"));
+    assertFalse(mergedMetadata.containsKey("Authorization"));
+  }
+
+  @Test
+  void testLoadToolset_withDefaultValuesAndHints() throws Exception {
+    HttpResponse<String> initResponse = mock(HttpResponse.class);
+    when(initResponse.statusCode()).thenReturn(200);
+    when(initResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> notifResponse = mock(HttpResponse.class);
+    when(notifResponse.statusCode()).thenReturn(200);
+    when(notifResponse.body()).thenReturn("{}");
+
+    HttpResponse<String> listResponse = mock(HttpResponse.class);
+    when(listResponse.statusCode()).thenReturn(200);
+    when(listResponse.body())
+        .thenReturn(
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[{"
+                + "\"name\":\"test-tool\","
+                + "\"description\":\"A test tool description\","
+                + "\"readOnlyHint\":true,"
+                + "\"destructiveHint\":false,"
+                + "\"inputSchema\":{"
+                + "  \"type\":\"object\","
+                + "  \"properties\":{"
+                + "    \"param1\":{"
+                + "      \"type\":\"string\","
+                + "      \"description\":\"parameter 1\","
+                + "      \"default\":\"default-val\""
+                + "    }"
+                + "  }"
+                + "}"
+                + "}]}}");
+
+    when(mockHttpClient.sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(initResponse))
+        .thenReturn(CompletableFuture.completedFuture(notifResponse))
+        .thenReturn(CompletableFuture.completedFuture(listResponse));
+
+    Map<String, ToolDefinition> tools = client.loadToolset("").join();
+    assertNotNull(tools);
+    assertEquals(1, tools.size());
+
+    ToolDefinition def = tools.get("test-tool");
+    assertNotNull(def);
+    assertEquals("A test tool description", def.description());
+    assertEquals(true, def.readOnlyHint());
+    assertEquals(false, def.destructiveHint());
+
+    assertEquals(1, def.parameters().size());
+    ToolDefinition.Parameter param = def.parameters().get(0);
+    assertEquals("param1", param.name());
+    assertEquals("string", param.type());
+    assertEquals("default-val", param.defaultValue());
   }
 }

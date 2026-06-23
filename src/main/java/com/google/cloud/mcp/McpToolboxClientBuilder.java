@@ -23,7 +23,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /** Implementation of the {@link McpToolboxClient.Builder} interface. */
-public class McpToolboxClientBuilder implements McpToolboxClient.Builder {
+public final class McpToolboxClientBuilder implements McpToolboxClient.Builder {
   private String baseUrl;
   private String apiKey;
   private Map<String, String> headers = new HashMap<>();
@@ -102,7 +102,7 @@ public class McpToolboxClientBuilder implements McpToolboxClient.Builder {
       resolvedProvider = () -> CompletableFuture.completedFuture(bearerKey);
     }
 
-    Transport transport = new HttpMcpTransport(baseUrl, this.headers);
+    Transport transport = new HttpMcpTransport(baseUrl, this.headers, resolvedProvider);
     return new McpToolboxClientImpl(
         transport, this.headers, resolvedProvider, preProcessors, postProcessors);
   }
