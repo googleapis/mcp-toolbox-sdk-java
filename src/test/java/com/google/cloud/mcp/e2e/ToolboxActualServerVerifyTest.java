@@ -214,4 +214,61 @@ public class ToolboxActualServerVerifyTest {
       System.clearProperty("toolbox.keyPath");
     }
   }
+
+  @Test
+  public void testParameterBindingExampleFlow() throws Exception {
+    // Set System properties to configure ParameterBindingUsage to hit our local port 8099
+    System.setProperty("toolbox.url", "http://localhost:" + PORT + "/mcp");
+    System.setProperty("toolbox.keyPath", "");
+
+    // 1. Programmatically compile ParameterBindingUsage.java on the fly
+    File sourceFile = new File("example/src/main/java/cloudcode/simple/ParameterBindingUsage.java");
+    assertTrue(sourceFile.exists(), "ParameterBindingUsage.java does not exist");
+
+    JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+    StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
+    String classpath = System.getProperty("java.class.path");
+
+    List<String> optionList = new ArrayList<>();
+    optionList.add("-classpath");
+    optionList.add(classpath);
+    optionList.add("-d");
+    optionList.add("target/test-classes");
+
+    Iterable<? extends JavaFileObject> compilationUnits =
+        fileManager.getJavaFileObjectsFromFiles(Arrays.asList(sourceFile));
+    boolean compileSuccess =
+        compiler.getTask(null, fileManager, null, optionList, null, compilationUnits).call();
+    fileManager.close();
+
+    assertTrue(compileSuccess, "Compilation of ParameterBindingUsage.java failed.");
+
+    // 2. Load the compiled ParameterBindingUsage class
+    Class<?> clazz = Class.forName("cloudcode.simple.ParameterBindingUsage");
+
+    // Mock GoogleCredentials statically to return a dummy IdTokenProvider
+    try (MockedStatic<GoogleCredentials> mockedCredentials =
+        Mockito.mockStatic(GoogleCredentials.class)) {
+      GoogleCredentials mockCreds =
+          Mockito.mock(
+              GoogleCredentials.class,
+              Mockito.withSettings().extraInterfaces(IdTokenProvider.class));
+      IdToken mockToken = Mockito.mock(IdToken.class);
+      Mockito.when(mockToken.getTokenValue()).thenReturn("dummy-token");
+      Mockito.when(
+              ((IdTokenProvider) mockCreds)
+                  .idTokenWithAudience(Mockito.anyString(), Mockito.anyList()))
+          .thenReturn(mockToken);
+
+      mockedCredentials.when(GoogleCredentials::getApplicationDefault).thenReturn(mockCreds);
+
+      // Execute the actual example class's main method directly!
+      System.out.println("Executing ParameterBindingUsage.main...");
+      clazz.getMethod("main", String[].class).invoke(null, (Object) new String[0]);
+      System.out.println("ParameterBindingUsage.main completed successfully.");
+    } finally {
+      System.clearProperty("toolbox.url");
+      System.clearProperty("toolbox.keyPath");
+    }
+  }
 }
