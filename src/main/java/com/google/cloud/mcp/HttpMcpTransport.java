@@ -390,17 +390,31 @@ public final class HttpMcpTransport implements Transport {
                 }
               }
 
+              Object defaultValue = null;
+              if (propNode.has("default")) {
+                JsonNode defNode = propNode.get("default");
+                defaultValue = objectMapper.treeToValue(defNode, Object.class);
+              }
+
               params.add(
                   new ToolDefinition.Parameter(
                       paramName,
                       paramType,
                       requiredSet.contains(paramName),
                       paramDesc,
-                      authSources));
+                      authSources,
+                      defaultValue));
             }
           }
 
-          toolsMap.put(name, new ToolDefinition(description, params, authRequired));
+          Boolean readOnlyHint =
+              toolNode.has("readOnlyHint") ? toolNode.get("readOnlyHint").asBoolean() : null;
+          Boolean destructiveHint =
+              toolNode.has("destructiveHint") ? toolNode.get("destructiveHint").asBoolean() : null;
+
+          toolsMap.put(
+              name,
+              new ToolDefinition(description, params, authRequired, readOnlyHint, destructiveHint));
         }
       }
       return new TransportManifest(toolsMap);

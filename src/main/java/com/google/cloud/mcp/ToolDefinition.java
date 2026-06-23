@@ -17,6 +17,7 @@
 package com.google.cloud.mcp;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 /**
@@ -27,7 +28,17 @@ import java.util.List;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ToolDefinition(
-    String description, List<Parameter> parameters, List<String> authRequired) {
+    String description,
+    List<Parameter> parameters,
+    List<String> authRequired,
+    Boolean readOnlyHint,
+    Boolean destructiveHint) {
+
+  /** Backward-compatible constructor. */
+  public ToolDefinition(String description, List<Parameter> parameters, List<String> authRequired) {
+    this(description, parameters, authRequired, null, null);
+  }
+
   /**
    * Represents a parameter of a tool.
    *
@@ -36,6 +47,7 @@ public record ToolDefinition(
    * @param required Whether the parameter is required.
    * @param description A description of the parameter.
    * @param authSources A list of authentication sources for this parameter.
+   * @param defaultValue The default value for the parameter.
    */
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record Parameter(
@@ -43,6 +55,13 @@ public record ToolDefinition(
       String type,
       boolean required,
       String description,
-      List<String> authSources // Maps services to parameters
-      ) {}
+      List<String> authSources, // Maps services to parameters
+      @JsonProperty("default") Object defaultValue) {
+
+    /** Backward-compatible constructor. */
+    public Parameter(
+        String name, String type, boolean required, String description, List<String> authSources) {
+      this(name, type, required, description, authSources, null);
+    }
+  }
 }
