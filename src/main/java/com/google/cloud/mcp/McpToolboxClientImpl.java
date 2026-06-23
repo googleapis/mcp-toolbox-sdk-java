@@ -49,6 +49,7 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
 
   /** Jackson ObjectMapper for JSON parsing. */
   private final ObjectMapper objectMapper;
+
   private final List<ToolPreProcessor> preProcessors;
   private final List<ToolPostProcessor> postProcessors;
 
