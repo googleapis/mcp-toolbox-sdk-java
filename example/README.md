@@ -53,9 +53,19 @@ In any case remember to change the `YOUR_TOOLBOX_SERVICE_ENDPOINT` placeholder i
     ```bash
     mvn compile
     ```
-    Now run the example class:
+    Now run any of the example classes:
     ```bash
-    mvn clean compile exec:java -Dexec.mainClass="cloudcode.helloworld.ExampleUsage"
+    # Simple Async SDK Client usage
+    mvn clean compile exec:java -Dexec.mainClass="cloudcode.simple.ExampleUsage"
+
+    # Advanced Bulk Toolset pre-binding usage
+    mvn clean compile exec:java -Dexec.mainClass="cloudcode.bulk.BulkToolsetUsage"
+
+    # Input validation behavior testing
+    mvn clean compile exec:java -Dexec.mainClass="cloudcode.validation.InputValidationTest"
+
+    # Strict bindings behavior testing
+    mvn clean compile exec:java -Dexec.mainClass="cloudcode.validation.StrictFlagTest"
     ```
 
 ## Integration Verification Testing

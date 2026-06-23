@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cloudcode.helloworld;
+package cloudcode.bulk;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.IdTokenProvider;
@@ -154,9 +154,7 @@ public class BulkToolsetUsage {
 
     } catch (Exception e) {
       e.printStackTrace();
-      System.exit(1);
     }
     System.out.println("\n--- Bulk Toolset Example Complete ---");
-    System.exit(0);
   }
 }

@@ -102,7 +102,7 @@ public class ToolboxActualServerVerifyTest {
     System.setProperty("toolbox.keyPath", ""); // Empty string to bypass file checking and use ADC
 
     // 1. Programmatically compile ExampleUsage.java on the fly using test classpath
-    File sourceFile = new File("example/src/main/java/cloudcode/helloworld/ExampleUsage.java");
+    File sourceFile = new File("example/src/main/java/cloudcode/simple/ExampleUsage.java");
     assertTrue(
         sourceFile.exists(), "ExampleUsage.java does not exist at " + sourceFile.getAbsolutePath());
 
@@ -130,7 +130,7 @@ public class ToolboxActualServerVerifyTest {
     System.out.println("ExampleUsage.java compiled successfully.");
 
     // 2. Load the compiled ExampleUsage class
-    Class<?> clazz = Class.forName("cloudcode.helloworld.ExampleUsage");
+    Class<?> clazz = Class.forName("cloudcode.simple.ExampleUsage");
 
     // Mock GoogleCredentials statically to return a dummy IdTokenProvider
     try (MockedStatic<GoogleCredentials> mockedCredentials =
@@ -165,7 +165,7 @@ public class ToolboxActualServerVerifyTest {
     System.setProperty("toolbox.keyPath", "");
 
     // 1. Programmatically compile BulkToolsetUsage.java on the fly
-    File sourceFile = new File("example/src/main/java/cloudcode/helloworld/BulkToolsetUsage.java");
+    File sourceFile = new File("example/src/main/java/cloudcode/bulk/BulkToolsetUsage.java");
     assertTrue(sourceFile.exists(), "BulkToolsetUsage.java does not exist");
 
     JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
@@ -187,7 +187,7 @@ public class ToolboxActualServerVerifyTest {
     assertTrue(compileSuccess, "Compilation of BulkToolsetUsage.java failed.");
 
     // 2. Load the compiled BulkToolsetUsage class
-    Class<?> clazz = Class.forName("cloudcode.helloworld.BulkToolsetUsage");
+    Class<?> clazz = Class.forName("cloudcode.bulk.BulkToolsetUsage");
 
     // Mock GoogleCredentials statically to return a dummy IdTokenProvider
     try (MockedStatic<GoogleCredentials> mockedCredentials =

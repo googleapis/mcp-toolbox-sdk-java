@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cloudcode.helloworld;
+package cloudcode.simple;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.IdTokenProvider;
@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Sample Application to demostrate the usage of the MCP Toolbox Java SDK. Covers: Global Auth,
+ * Sample Application to demonstrate the usage of the MCP Toolbox Java SDK. Covers: Global Auth,
  * Parameterized Auth, Discovery, Simple Tool, Authenticated Tool, Parameter Binding.
  */
 public class ExampleUsage {
