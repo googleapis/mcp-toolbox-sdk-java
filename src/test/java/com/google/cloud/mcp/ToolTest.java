@@ -562,6 +562,7 @@ class ToolTest {
     assertEquals(null, defWithoutHints.readOnlyHint());
     assertEquals(null, defWithoutHints.destructiveHint());
   }
+
   @Test
   @SuppressWarnings("unchecked")
   void testExecute_withPreAndPostProcessors_modifiesArgsAndResult() throws Exception {
