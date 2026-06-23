@@ -58,6 +58,9 @@ In any case remember to change the `YOUR_TOOLBOX_SERVICE_ENDPOINT` placeholder i
     # Simple Async SDK Client usage
     mvn clean compile exec:java -Dexec.mainClass="cloudcode.simple.ExampleUsage"
 
+    # Sequential parameter bindings and authentication token provider usage
+    mvn clean compile exec:java -Dexec.mainClass="cloudcode.simple.ParameterBindingUsage"
+
     # Advanced Bulk Toolset pre-binding usage
     mvn clean compile exec:java -Dexec.mainClass="cloudcode.bulk.BulkToolsetUsage"
 
