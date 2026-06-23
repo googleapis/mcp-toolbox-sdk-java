@@ -17,6 +17,7 @@
 package com.google.cloud.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,6 +30,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
@@ -205,6 +207,13 @@ class HttpMcpTransportTest {
   }
 
   @Test
+  void testConstructor_WithOnlyBaseUrl() {
+    HttpMcpTransport simpleTransport = new HttpMcpTransport("https://test-mcp-service.com");
+    assertNotNull(simpleTransport);
+    assertEquals("https://test-mcp-service.com", simpleTransport.getBaseUrl());
+  }
+
+  @Test
   @SuppressWarnings("unchecked")
   void testInitialize_ServerReturnsErrorJsonRpcResponse() throws Exception {
     HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
@@ -223,5 +232,154 @@ class HttpMcpTransportTest {
             java.util.concurrent.ExecutionException.class, future::get);
     assertTrue(ex.getCause() instanceof McpException);
     assertTrue(ex.getCause().getMessage().contains("MCP Error"));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testListTools_WithHttpUrlAndMetadata_LogsWarning() throws Exception {
+    HttpMcpTransport httpTransport =
+        new HttpMcpTransport("http://test-mcp-service.com", mockClient);
+    HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
+    when(mockInitResponse.statusCode()).thenReturn(200);
+    when(mockInitResponse.body())
+        .thenReturn(
+            "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"protocolVersion\":\"2025-11-25\"}}");
+
+    HttpResponse<String> mockInitializedResponse = mock(HttpResponse.class);
+    when(mockInitializedResponse.statusCode()).thenReturn(200);
+    when(mockInitializedResponse.body()).thenReturn("");
+
+    HttpResponse<String> mockListResponse = mock(HttpResponse.class);
+    when(mockListResponse.statusCode()).thenReturn(200);
+    when(mockListResponse.body())
+        .thenReturn("{\"jsonrpc\":\"2.0\",\"id\":\"2\",\"result\":{\"tools\":[]}}");
+
+    when(mockClient.<String>sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockInitResponse))
+        .thenReturn(CompletableFuture.completedFuture(mockInitializedResponse))
+        .thenReturn(CompletableFuture.completedFuture(mockListResponse));
+
+    httpTransport.listTools("", Map.of("key", "val")).get();
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testListTools_Non200Response_ThrowsException() {
+    HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
+    when(mockInitResponse.statusCode()).thenReturn(200);
+    when(mockInitResponse.body())
+        .thenReturn(
+            "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"protocolVersion\":\"2025-11-25\"}}");
+
+    HttpResponse<String> mockInitializedResponse = mock(HttpResponse.class);
+    when(mockInitializedResponse.statusCode()).thenReturn(200);
+    when(mockInitializedResponse.body()).thenReturn("");
+
+    HttpResponse<String> mockErrorResponse = mock(HttpResponse.class);
+    when(mockErrorResponse.statusCode()).thenReturn(500);
+    when(mockErrorResponse.body()).thenReturn("Internal Server Error");
+
+    when(mockClient.<String>sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockInitResponse))
+        .thenReturn(CompletableFuture.completedFuture(mockInitializedResponse))
+        .thenReturn(CompletableFuture.completedFuture(mockErrorResponse));
+
+    Exception ex =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            Exception.class, () -> transport.listTools("", Collections.emptyMap()).get());
+    assertTrue(ex.getCause().getMessage().contains("Status: 500"));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testListTools_JsonRpcError_ThrowsException() {
+    HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
+    when(mockInitResponse.statusCode()).thenReturn(200);
+    when(mockInitResponse.body())
+        .thenReturn(
+            "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"protocolVersion\":\"2025-11-25\"}}");
+
+    HttpResponse<String> mockInitializedResponse = mock(HttpResponse.class);
+    when(mockInitializedResponse.statusCode()).thenReturn(200);
+    when(mockInitializedResponse.body()).thenReturn("");
+
+    HttpResponse<String> mockErrorResponse = mock(HttpResponse.class);
+    when(mockErrorResponse.statusCode()).thenReturn(200);
+    when(mockErrorResponse.body())
+        .thenReturn(
+            "{\"jsonrpc\":\"2.0\",\"id\":\"2\",\"error\":{\"code\":-1,\"message\":\"Custom"
+                + " error\"}}");
+
+    when(mockClient.<String>sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockInitResponse))
+        .thenReturn(CompletableFuture.completedFuture(mockInitializedResponse))
+        .thenReturn(CompletableFuture.completedFuture(mockErrorResponse));
+
+    Exception ex =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            Exception.class, () -> transport.listTools("", Collections.emptyMap()).get());
+    assertTrue(ex.getCause().getMessage().contains("Custom error"));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testListTools_ParsesComplexToolsCorrectly() throws Exception {
+    HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
+    when(mockInitResponse.statusCode()).thenReturn(200);
+    when(mockInitResponse.body())
+        .thenReturn(
+            "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"protocolVersion\":\"2025-11-25\"}}");
+
+    HttpResponse<String> mockInitializedResponse = mock(HttpResponse.class);
+    when(mockInitializedResponse.statusCode()).thenReturn(200);
+    when(mockInitializedResponse.body()).thenReturn("");
+
+    String json =
+        "{\"jsonrpc\":\"2.0\",\"id\":\"2\",\"result\":{\"tools\":["
+            + "{"
+            + "  \"name\":\"test-tool\","
+            + "  \"description\":\"Desc\","
+            + "  \"inputSchema\":{"
+            + "    \"type\":\"object\","
+            + "    \"required\":[\"p1\"],"
+            + "    \"properties\":{"
+            + "      \"p1\": { \"type\":\"string\", \"description\":\"p1 desc\" },"
+            + "      \"p2\": { }"
+            + "    }"
+            + "  },"
+            + "  \"_meta\":{"
+            + "    \"toolbox/authInvoke\": \"not-an-array\","
+            + "    \"toolbox/authParam\": {"
+            + "      \"p1\": [\"gcp\"]"
+            + "    }"
+            + "  }"
+            + "}"
+            + "]}}";
+    HttpResponse<String> mockListResponse = mock(HttpResponse.class);
+    when(mockListResponse.statusCode()).thenReturn(200);
+    when(mockListResponse.body()).thenReturn(json);
+
+    when(mockClient.<String>sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockInitResponse))
+        .thenReturn(CompletableFuture.completedFuture(mockInitializedResponse))
+        .thenReturn(CompletableFuture.completedFuture(mockListResponse));
+
+    TransportManifest manifest = transport.listTools("", Collections.emptyMap()).get();
+    assertNotNull(manifest);
+    ToolDefinition tool = manifest.getTools().get("test-tool");
+    assertNotNull(tool);
+    assertEquals("Desc", tool.description());
+    assertEquals(2, tool.parameters().size());
+
+    ToolDefinition.Parameter p1 =
+        tool.parameters().stream().filter(p -> p.name().equals("p1")).findFirst().get();
+    assertTrue(p1.required());
+    assertEquals("p1 desc", p1.description());
+    assertEquals(List.of("gcp"), p1.authSources());
+
+    ToolDefinition.Parameter p2 =
+        tool.parameters().stream().filter(p -> p.name().equals("p2")).findFirst().get();
+    assertFalse(p2.required());
+    assertEquals("string", p2.type());
   }
 }
