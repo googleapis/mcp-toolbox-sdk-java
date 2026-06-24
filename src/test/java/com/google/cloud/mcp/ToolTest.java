@@ -44,8 +44,10 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.ArgumentCaptor;
 
+@Timeout(value = 10, unit = java.util.concurrent.TimeUnit.SECONDS)
 class ToolTest {
 
   private ExecutorService pool;
@@ -547,6 +549,48 @@ class ToolTest {
     assertEquals(
         "value",
         defValueInDefinition.get("key"),
+        "The default value in definition must remain unmutated");
+  }
+
+  @Test
+  void testDefaultValueDeepCloning_withList() throws Exception {
+    McpToolboxClient mockClient = mock(McpToolboxClient.class);
+
+    List<Object> complexDefault = new ArrayList<>();
+    complexDefault.add("value");
+
+    ToolDefinition.Parameter paramWithDefault =
+        new ToolDefinition.Parameter("param1", "array", false, "A parameter", null, complexDefault);
+
+    ToolDefinition def = new ToolDefinition("A test tool", List.of(paramWithDefault), null);
+
+    Tool tool = new Tool("testTool", def, mockClient);
+
+    when(mockClient.invokeTool(eq("testTool"), any(), any()))
+        .thenReturn(
+            CompletableFuture.completedFuture(new ToolResult(Collections.emptyList(), false)));
+
+    Map<String, Object> args = new HashMap<>();
+    CompletableFuture<ToolResult> future = tool.execute(args);
+    future.join();
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Map<String, Object>> argsCaptor = ArgumentCaptor.forClass(Map.class);
+    verify(mockClient).invokeTool(eq("testTool"), argsCaptor.capture(), any());
+
+    Map<String, Object> capturedArgs = argsCaptor.getValue();
+    @SuppressWarnings("unchecked")
+    List<Object> injectedDefault = (List<Object>) capturedArgs.get("param1");
+
+    // Mutate the injected list
+    injectedDefault.set(0, "mutated_value");
+
+    // Ensure the original defaultValue stored in the definition remains untouched
+    @SuppressWarnings("unchecked")
+    List<Object> defValueInDefinition = (List<Object>) def.parameters().get(0).defaultValue();
+    assertEquals(
+        "value",
+        defValueInDefinition.get(0),
         "The default value in definition must remain unmutated");
   }
 

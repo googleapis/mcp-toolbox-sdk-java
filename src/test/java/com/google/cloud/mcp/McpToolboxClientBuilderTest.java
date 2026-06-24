@@ -19,6 +19,7 @@ package com.google.cloud.mcp;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -174,5 +175,20 @@ class McpToolboxClientBuilderTest {
             .build();
 
     assertNotNull(client);
+  }
+
+  @Test
+  void testMcpExceptionConstructor() {
+    RuntimeException cause = new RuntimeException("root cause");
+    McpException ex = new McpException("error message", cause);
+    assertEquals("error message", ex.getMessage());
+    assertSame(cause, ex.getCause());
+  }
+
+  @Test
+  void testProtocolVersionFromString() {
+    assertNull(ProtocolVersion.fromString(null));
+    assertNull(ProtocolVersion.fromString("invalid-version"));
+    assertEquals(ProtocolVersion.VERSION_2025_11_25, ProtocolVersion.fromString("2025-11-25"));
   }
 }

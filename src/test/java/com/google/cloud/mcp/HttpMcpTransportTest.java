@@ -35,7 +35,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
+@Timeout(value = 5, unit = java.util.concurrent.TimeUnit.SECONDS)
 class HttpMcpTransportTest {
 
   private HttpClient mockClient;
@@ -279,7 +281,32 @@ class HttpMcpTransportTest {
         .thenReturn(CompletableFuture.completedFuture(mockInitializedResponse))
         .thenReturn(CompletableFuture.completedFuture(mockListResponse));
 
-    httpTransport.listTools("", Map.of("key", "val")).get();
+    java.util.logging.Logger transportLogger =
+        java.util.logging.Logger.getLogger(HttpMcpTransport.class.getName());
+    java.util.List<java.util.logging.LogRecord> logRecords = new java.util.ArrayList<>();
+    java.util.logging.Handler logHandler =
+        new java.util.logging.Handler() {
+          @Override
+          public void publish(java.util.logging.LogRecord record) {
+            logRecords.add(record);
+          }
+
+          @Override
+          public void flush() {}
+
+          @Override
+          public void close() throws SecurityException {}
+        };
+    transportLogger.addHandler(logHandler);
+
+    try {
+      httpTransport.listTools("", Map.of("key", "val")).get();
+    } finally {
+      transportLogger.removeHandler(logHandler);
+    }
+
+    assertFalse(logRecords.isEmpty());
+    assertTrue(logRecords.get(0).getMessage().contains("This connection is using HTTP"));
   }
 
   @Test
