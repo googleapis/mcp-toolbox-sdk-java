@@ -20,6 +20,7 @@ import com.google.cloud.mcp.McpToolboxClient;
 import com.google.cloud.mcp.auth.AuthResolver;
 import com.google.cloud.mcp.auth.AuthTokenGetter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,10 +37,10 @@ public class Tool {
   private final ToolDefinition definition;
   private final McpToolboxClient client;
 
-  private final Map<String, Object> boundParameters = new HashMap<>();
-  private final Map<String, AuthTokenGetter> authGetters = new HashMap<>();
-  private final List<ToolPreProcessor> preProcessors = new ArrayList<>();
-  private final List<ToolPostProcessor> postProcessors = new ArrayList<>();
+  private final Map<String, Object> boundParameters;
+  private final Map<String, AuthTokenGetter> authGetters;
+  private final List<ToolPreProcessor> preProcessors;
+  private final List<ToolPostProcessor> postProcessors;
 
   /**
    * Constructs a new Tool.
@@ -52,6 +53,27 @@ public class Tool {
     this.name = name;
     this.definition = definition;
     this.client = client;
+    this.boundParameters = Collections.emptyMap();
+    this.authGetters = Collections.emptyMap();
+    this.preProcessors = Collections.emptyList();
+    this.postProcessors = Collections.emptyList();
+  }
+
+  private Tool(
+      String name,
+      ToolDefinition definition,
+      McpToolboxClient client,
+      Map<String, Object> boundParameters,
+      Map<String, AuthTokenGetter> authGetters,
+      List<ToolPreProcessor> preProcessors,
+      List<ToolPostProcessor> postProcessors) {
+    this.name = name;
+    this.definition = definition;
+    this.client = client;
+    this.boundParameters = Collections.unmodifiableMap(new HashMap<>(boundParameters));
+    this.authGetters = Collections.unmodifiableMap(new HashMap<>(authGetters));
+    this.preProcessors = Collections.unmodifiableList(new ArrayList<>(preProcessors));
+    this.postProcessors = Collections.unmodifiableList(new ArrayList<>(postProcessors));
   }
 
   /**
@@ -77,11 +99,20 @@ public class Tool {
    *
    * @param key The parameter name.
    * @param value The value to bind.
-   * @return The tool instance.
+   * @return A new tool instance with the parameter bound and pruned from definition.
    */
   public Tool bindParam(String key, Object value) {
-    this.boundParameters.put(key, value);
-    return this;
+    Map<String, Object> newBound = new HashMap<>(this.boundParameters);
+    newBound.put(key, value);
+    ToolDefinition newDef = pruneParameter(this.definition, key);
+    return new Tool(
+        this.name,
+        newDef,
+        this.client,
+        newBound,
+        this.authGetters,
+        this.preProcessors,
+        this.postProcessors);
   }
 
   /**
@@ -89,11 +120,20 @@ public class Tool {
    *
    * @param key The parameter name.
    * @param valueSupplier The supplier that provides the value at execution time.
-   * @return The tool instance.
+   * @return A new tool instance with the parameter bound and pruned from definition.
    */
   public Tool bindParam(String key, Supplier<Object> valueSupplier) {
-    this.boundParameters.put(key, valueSupplier);
-    return this;
+    Map<String, Object> newBound = new HashMap<>(this.boundParameters);
+    newBound.put(key, valueSupplier);
+    ToolDefinition newDef = pruneParameter(this.definition, key);
+    return new Tool(
+        this.name,
+        newDef,
+        this.client,
+        newBound,
+        this.authGetters,
+        this.preProcessors,
+        this.postProcessors);
   }
 
   /**
@@ -101,11 +141,37 @@ public class Tool {
    *
    * @param serviceName The name of the service.
    * @param getter The token getter.
-   * @return The tool instance.
+   * @return A new tool instance with the token getter registered.
    */
   public Tool addAuthTokenGetter(String serviceName, AuthTokenGetter getter) {
-    this.authGetters.put(serviceName, getter);
-    return this;
+    Map<String, AuthTokenGetter> newAuth = new HashMap<>(this.authGetters);
+    newAuth.put(serviceName, getter);
+    return new Tool(
+        this.name,
+        this.definition,
+        this.client,
+        this.boundParameters,
+        newAuth,
+        this.preProcessors,
+        this.postProcessors);
+  }
+
+  private static ToolDefinition pruneParameter(ToolDefinition original, String paramName) {
+    if (original.parameters() == null) {
+      return original;
+    }
+    List<ToolDefinition.Parameter> newParams = new ArrayList<>();
+    for (ToolDefinition.Parameter param : original.parameters()) {
+      if (!param.name().equals(paramName)) {
+        newParams.add(param);
+      }
+    }
+    return new ToolDefinition(
+        original.description(),
+        newParams,
+        original.authRequired(),
+        original.readOnlyHint(),
+        original.destructiveHint());
   }
 
   /**
@@ -115,19 +181,38 @@ public class Tool {
    * @return The tool instance.
    */
   public Tool addPreProcessor(ToolPreProcessor processor) {
-    this.preProcessors.add(processor);
-    return this;
+    List<ToolPreProcessor> newPre =
+        new ArrayList<>(this.preProcessors != null ? this.preProcessors : Collections.emptyList());
+    newPre.add(processor);
+    return new Tool(
+        this.name,
+        this.definition,
+        this.client,
+        this.boundParameters,
+        this.authGetters,
+        newPre,
+        this.postProcessors);
   }
 
   /**
    * Adds a post-processor to the tool.
    *
    * @param processor The post-processor to add.
-   * @return The tool instance.
+   * @return A new tool instance with the post-processor added.
    */
   public Tool addPostProcessor(ToolPostProcessor processor) {
-    this.postProcessors.add(processor);
-    return this;
+    List<ToolPostProcessor> newPost =
+        new ArrayList<>(
+            this.postProcessors != null ? this.postProcessors : Collections.emptyList());
+    newPost.add(processor);
+    return new Tool(
+        this.name,
+        this.definition,
+        this.client,
+        this.boundParameters,
+        this.authGetters,
+        this.preProcessors,
+        newPost);
   }
 
   /**

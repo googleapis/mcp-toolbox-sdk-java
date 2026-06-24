@@ -232,10 +232,9 @@ class McpToolboxService {
     return mcpClient
         .loadTool("book-ticket", Collections.singletonMap("google_auth", toolAuthGetter))
         .thenCompose(
-            tool -> {
-              tool.bindParam("passenger_name", passengerName);
-              return tool.execute(Collections.singletonMap("trip_id", tripId));
-            })
+            tool ->
+                tool.bindParam("passenger_name", passengerName)
+                    .execute(Collections.singletonMap("trip_id", tripId)))
         .thenApply(
             result -> {
               if (result.isError() || result.content() == null || result.content().isEmpty()) {

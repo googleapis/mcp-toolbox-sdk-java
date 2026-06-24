@@ -142,14 +142,14 @@ public class ExampleUsage {
 
                           // NOW bind the parameter
                           System.out.println("\n[B] Binding 'description' to 'soft toy'...");
-                          tool.bindParam("description", "soft toy");
 
                           System.out.println(
                               "    -> Executing BOUND (Runtime arg: 'barbie' - should be"
                                   + " IGNORED)...");
                           // We pass 'barbie', but expecting 'soft toy' price because of binding
                           // override
-                          return tool.execute(Map.of("description", "barbie"));
+                          return tool.bindParam("description", "soft toy")
+                              .execute(Map.of("description", "barbie"));
                         });
               })
           .thenAccept(

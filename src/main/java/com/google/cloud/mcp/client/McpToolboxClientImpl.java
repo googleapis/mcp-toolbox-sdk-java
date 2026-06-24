@@ -279,16 +279,20 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
             String toolName = entry.getKey();
             Tool tool = new Tool(toolName, entry.getValue(), this);
             if (paramBinds != null && paramBinds.containsKey(toolName)) {
-              paramBinds.get(toolName).forEach(tool::bindParam);
+              for (Map.Entry<String, Object> bind : paramBinds.get(toolName).entrySet()) {
+                tool = tool.bindParam(bind.getKey(), bind.getValue());
+              }
             }
             if (authBinds != null && authBinds.containsKey(toolName)) {
-              authBinds.get(toolName).forEach(tool::addAuthTokenGetter);
+              for (Map.Entry<String, AuthTokenGetter> bind : authBinds.get(toolName).entrySet()) {
+                tool = tool.addAuthTokenGetter(bind.getKey(), bind.getValue());
+              }
             }
             for (ToolPreProcessor preProcessor : this.preProcessors) {
-              tool.addPreProcessor(preProcessor);
+              tool = tool.addPreProcessor(preProcessor);
             }
             for (ToolPostProcessor postProcessor : this.postProcessors) {
-              tool.addPostProcessor(postProcessor);
+              tool = tool.addPostProcessor(postProcessor);
             }
             tools.put(toolName, tool);
           }
@@ -317,13 +321,15 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
               }
               Tool tool = new Tool(toolName, tools.get(toolName), this);
               if (authTokenGetters != null) {
-                authTokenGetters.forEach(tool::addAuthTokenGetter);
+                for (Map.Entry<String, AuthTokenGetter> entry : authTokenGetters.entrySet()) {
+                  tool = tool.addAuthTokenGetter(entry.getKey(), entry.getValue());
+                }
               }
               for (ToolPreProcessor preProcessor : this.preProcessors) {
-                tool.addPreProcessor(preProcessor);
+                tool = tool.addPreProcessor(preProcessor);
               }
               for (ToolPostProcessor postProcessor : this.postProcessors) {
-                tool.addPostProcessor(postProcessor);
+                tool = tool.addPostProcessor(postProcessor);
               }
               return tool;
             });

@@ -101,18 +101,19 @@ class ToolTest {
     Tool raceTool = new Tool("race-tool", def, client);
     for (int i = 0; i < services; i++) {
       final String token = "tok-" + i;
-      raceTool.addAuthTokenGetter(
-          "svc" + i,
-          () ->
-              CompletableFuture.supplyAsync(
-                  () -> {
-                    int spins = ThreadLocalRandom.current().nextInt(50);
-                    for (int s = 0; s < spins; s++) {
-                      Thread.onSpinWait();
-                    }
-                    return token;
-                  },
-                  pool));
+      raceTool =
+          raceTool.addAuthTokenGetter(
+              "svc" + i,
+              () ->
+                  CompletableFuture.supplyAsync(
+                      () -> {
+                        int spins = ThreadLocalRandom.current().nextInt(50);
+                        for (int s = 0; s < spins; s++) {
+                          Thread.onSpinWait();
+                        }
+                        return token;
+                      },
+                      pool));
     }
 
     for (int iter = 0; iter < iterations; iter++) {
@@ -210,9 +211,10 @@ class ToolTest {
               return CompletableFuture.completedFuture(new ToolResult(List.of(), false));
             });
 
-    Tool tool = new Tool("test-tool", def, client);
-    tool.bindParam("p-static", "static-value");
-    tool.bindParam("p-supplier", () -> "supplier-value");
+    Tool tool =
+        new Tool("test-tool", def, client)
+            .bindParam("p-static", "static-value")
+            .bindParam("p-supplier", () -> "supplier-value");
 
     tool.execute(Map.of()).join();
 
@@ -315,9 +317,10 @@ class ToolTest {
           return CompletableFuture.completedFuture(result);
         };
 
-    tool.addPreProcessor(preProcessor1);
-    tool.addPreProcessor(preProcessor2);
-    tool.addPostProcessor(postProcessor);
+    tool =
+        tool.addPreProcessor(preProcessor1)
+            .addPreProcessor(preProcessor2)
+            .addPostProcessor(postProcessor);
 
     when(mockClient.invokeTool(eq("test_tool"), anyMap(), anyMap()))
         .thenReturn(CompletableFuture.completedFuture(originalResult));
@@ -347,7 +350,7 @@ class ToolTest {
     ToolPreProcessor preProcessor =
         (name, args) -> CompletableFuture.failedFuture(new RuntimeException("PreProcessor failed"));
 
-    tool.addPreProcessor(preProcessor);
+    tool = tool.addPreProcessor(preProcessor);
 
     // Act
     CompletableFuture<ToolResult> futureResult = tool.execute(initialArgs);
@@ -366,5 +369,57 @@ class ToolTest {
 
     verify(mockClient, never()).invokeTool(eq("test_tool"), anyMap(), anyMap());
     verify(mockClient, never()).invokeTool(eq("test_tool"), anyMap());
+  }
+
+  @Test
+  void testBoundParameterPruning() {
+    List<ToolDefinition.Parameter> params =
+        List.of(
+            new ToolDefinition.Parameter("p1", "string", true, "param 1", List.of()),
+            new ToolDefinition.Parameter("p2", "integer", false, "param 2", List.of()));
+    ToolDefinition def = new ToolDefinition("test-tool", params, List.of());
+    McpToolboxClient client = mock(McpToolboxClient.class);
+
+    List<Map<String, Object>> capturedArgs = new ArrayList<>();
+    when(client.invokeTool(anyString(), anyMap(), anyMap()))
+        .thenAnswer(
+            inv -> {
+              capturedArgs.add(new HashMap<>(inv.getArgument(1)));
+              return CompletableFuture.completedFuture(new ToolResult(List.of(), false));
+            });
+
+    Tool tool = new Tool("test-tool", def, client);
+
+    // Initial check: both parameters present
+    assertEquals(2, tool.definition().parameters().size());
+
+    // Bind p1 statically
+    Tool boundTool = tool.bindParam("p1", "bound-value");
+
+    // Check that p1 is pruned from boundTool definition but remains in original tool definition
+    assertEquals(2, tool.definition().parameters().size());
+    assertEquals(1, boundTool.definition().parameters().size());
+    assertEquals("p2", boundTool.definition().parameters().get(0).name());
+
+    // Bind p2 with supplier
+    Tool boundTool2 = boundTool.bindParam("p2", () -> 42);
+
+    // Check that p2 is pruned from boundTool2 definition
+    assertEquals(0, boundTool2.definition().parameters().size());
+
+    // Execute boundTool2. Since both parameters are bound, we don't need to supply them at runtime,
+    // and they should be passed to the client.
+    boundTool2.execute(Map.of()).join();
+
+    assertEquals(1, capturedArgs.size());
+    Map<String, Object> args = capturedArgs.get(0);
+    assertEquals("bound-value", args.get("p1"));
+    assertEquals(42, args.get("p2"));
+
+    // Test pruning with null parameters
+    ToolDefinition nullParamsDef = new ToolDefinition("test-tool", null, List.of());
+    Tool nullParamsTool = new Tool("test-tool", nullParamsDef, client);
+    Tool boundNullParamsTool = nullParamsTool.bindParam("p1", "val");
+    assertEquals(null, boundNullParamsTool.definition().parameters());
   }
 }

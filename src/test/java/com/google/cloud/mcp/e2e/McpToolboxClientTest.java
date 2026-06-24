@@ -119,9 +119,12 @@ class McpToolboxClientE2ETest {
 
   @Test
   void testRunToolAuth() {
-    Tool tool = client.loadTool("get-row-by-id-auth").join();
-    tool.addAuthTokenGetter(
-        "my-test-auth", () -> CompletableFuture.completedFuture(server.getAuthToken1()));
+    Tool tool =
+        client
+            .loadTool("get-row-by-id-auth")
+            .join()
+            .addAuthTokenGetter(
+                "my-test-auth", () -> CompletableFuture.completedFuture(server.getAuthToken1()));
 
     ToolResult result = tool.execute(Map.of("id", "2")).join();
     assertFalse(result.isError());
@@ -131,10 +134,12 @@ class McpToolboxClientE2ETest {
 
   @Test
   void testRunToolWrongAuth() {
-    Tool tool = client.loadTool("get-row-by-id-auth").join();
-
-    tool.addAuthTokenGetter(
-        "my-test-auth", () -> CompletableFuture.completedFuture(server.getAuthToken2()));
+    Tool tool =
+        client
+            .loadTool("get-row-by-id-auth")
+            .join()
+            .addAuthTokenGetter(
+                "my-test-auth", () -> CompletableFuture.completedFuture(server.getAuthToken2()));
 
     ToolResult result = tool.execute(Map.of("id", "2")).join();
     assertTrue(
@@ -147,9 +152,12 @@ class McpToolboxClientE2ETest {
 
   @Test
   void testRunToolParamAuth() {
-    Tool tool = client.loadTool("get-row-by-email-auth").join();
-    tool.addAuthTokenGetter(
-        "my-test-auth", () -> CompletableFuture.completedFuture(server.getAuthToken1()));
+    Tool tool =
+        client
+            .loadTool("get-row-by-email-auth")
+            .join()
+            .addAuthTokenGetter(
+                "my-test-auth", () -> CompletableFuture.completedFuture(server.getAuthToken1()));
 
     ToolResult result = tool.execute(Map.of()).join();
     assertFalse(result.isError(), "Expected success but got error: " + getTextContent(result));
@@ -161,9 +169,12 @@ class McpToolboxClientE2ETest {
 
   @Test
   void testRunToolParamAuthNoField() {
-    Tool tool = client.loadTool("get-row-by-content-auth").join();
-    tool.addAuthTokenGetter(
-        "my-test-auth", () -> CompletableFuture.completedFuture(server.getAuthToken1()));
+    Tool tool =
+        client
+            .loadTool("get-row-by-content-auth")
+            .join()
+            .addAuthTokenGetter(
+                "my-test-auth", () -> CompletableFuture.completedFuture(server.getAuthToken1()));
 
     ToolResult result = tool.execute(Map.of()).join();
     assertTrue(result.isError());
