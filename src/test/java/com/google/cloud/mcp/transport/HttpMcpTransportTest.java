@@ -475,6 +475,7 @@ class HttpMcpTransportTest {
     assertFalse(p2.required());
     assertEquals("string", p2.type());
   }
+
   @Test
   @Timeout(5)
   @SuppressWarnings("unchecked")

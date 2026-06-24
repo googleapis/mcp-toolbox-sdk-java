@@ -199,5 +199,4 @@ class McpToolboxClientBuilderTest {
     assertNull(ProtocolVersion.fromString("invalid-version"));
     assertEquals(ProtocolVersion.VERSION_2025_11_25, ProtocolVersion.fromString("2025-11-25"));
   }
-
 }

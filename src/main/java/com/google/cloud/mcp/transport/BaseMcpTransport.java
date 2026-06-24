@@ -54,8 +54,13 @@ public abstract class BaseMcpTransport implements Transport {
   protected final Object initLock = new Object();
   protected CompletableFuture<Void> initFuture;
 
+  /** The start time of the session in nanoseconds. */
   protected Long sessionStartTime;
+
+  /** The error that occurred during the session, if any. */
   protected Throwable sessionError;
+
+  /** The negotiated protocol version. */
   protected ProtocolVersion negotiatedProtocolVersion;
 
   /**
@@ -224,6 +229,14 @@ public abstract class BaseMcpTransport implements Transport {
     }
   }
 
+  /**
+   * Performs the version-specific initialization handshake.
+   *
+   * @param authHeader The authorization header value, if present.
+   * @param handshakeHeaders The resolved headers for the handshake.
+   * @param traceHeaders The trace context headers to propagate.
+   * @return A CompletableFuture that completes when initialization is done.
+   */
   protected abstract CompletableFuture<Void> performInitialization(
       final String authHeader,
       final Map<String, String> handshakeHeaders,

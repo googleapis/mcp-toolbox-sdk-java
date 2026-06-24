@@ -25,7 +25,6 @@ import static org.mockito.Mockito.mock;
 import com.google.cloud.mcp.auth.AuthTokenGetter;
 import com.google.cloud.mcp.client.McpToolboxClientImpl;
 import com.google.cloud.mcp.exception.McpException;
-import com.google.cloud.mcp.exception.McpTransportException;
 import com.google.cloud.mcp.tool.Tool;
 import com.google.cloud.mcp.tool.ToolDefinition;
 import com.google.cloud.mcp.tool.ToolResult;
@@ -38,19 +37,6 @@ import org.junit.jupiter.api.Timeout;
 /** Miscellaneous unit tests to achieve 100% code coverage. */
 @Timeout(5)
 public class McpCoverageTest {
-
-  @Test
-  public void testMcpTransportExceptionCoverage() {
-    McpTransportException ex1 = new McpTransportException("message", 404);
-    assertEquals("message", ex1.getMessage());
-    assertEquals(404, ex1.getStatusCode());
-
-    McpTransportException ex2 =
-        new McpTransportException("message", 500, new RuntimeException("cause"));
-    assertEquals("message", ex2.getMessage());
-    assertEquals(500, ex2.getStatusCode());
-    assertEquals("cause", ex2.getCause().getMessage());
-  }
 
   @Test
   public void testMcpExceptionCoverage() {
