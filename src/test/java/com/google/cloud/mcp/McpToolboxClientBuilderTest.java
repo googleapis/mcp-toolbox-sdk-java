@@ -144,4 +144,20 @@ class McpToolboxClientBuilderTest {
         (CompletableFuture<String>) getAuthHeaderMethod.invoke(client);
     assertNull(future.join());
   }
+
+  @Test
+  void testProcessorsConfiguration() {
+    ToolPreProcessor pre = (name, args) -> CompletableFuture.completedFuture(args);
+    ToolPostProcessor post = (name, result) -> CompletableFuture.completedFuture(result);
+
+    McpToolboxClient client =
+        McpToolboxClient.builder()
+            .baseUrl("http://localhost:8080")
+            .preProcessor(pre)
+            .preProcessor(null)
+            .postProcessor(post)
+            .postProcessor(null)
+            .build();
+    assertNotNull(client);
+  }
 }

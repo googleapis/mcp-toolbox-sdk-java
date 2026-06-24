@@ -649,4 +649,73 @@ class ToolTest {
     verify(mockClient, never()).invokeTool(eq("test_tool"), anyMap(), anyMap());
     verify(mockClient, never()).invokeTool(eq("test_tool"), anyMap());
   }
+
+  @Test
+  void testDefaultValueDeepCloning_withList() throws Exception {
+    McpToolboxClient mockClient = mock(McpToolboxClient.class);
+
+    List<Object> complexDefault = new ArrayList<>();
+    complexDefault.add("item1");
+    complexDefault.add(Map.of("nestedKey", "nestedValue"));
+
+    ToolDefinition.Parameter paramWithDefault =
+        new ToolDefinition.Parameter("param1", "array", false, "A parameter", null, complexDefault);
+
+    ToolDefinition def = new ToolDefinition("A test tool", List.of(paramWithDefault), null);
+
+    Tool tool = new Tool("testTool", def, mockClient);
+
+    when(mockClient.invokeTool(eq("testTool"), any(), any()))
+        .thenReturn(
+            CompletableFuture.completedFuture(new ToolResult(Collections.emptyList(), false)));
+
+    Map<String, Object> args = new HashMap<>();
+    CompletableFuture<ToolResult> future = tool.execute(args);
+    future.join();
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Map<String, Object>> argsCaptor = ArgumentCaptor.forClass(Map.class);
+    verify(mockClient).invokeTool(eq("testTool"), argsCaptor.capture(), any());
+
+    Map<String, Object> capturedArgs = argsCaptor.getValue();
+    @SuppressWarnings("unchecked")
+    List<Object> injectedDefault = (List<Object>) capturedArgs.get("param1");
+
+    // Mutate the injected list
+    injectedDefault.set(0, "mutated_item");
+
+    // Ensure the original defaultValue stored in the definition remains untouched
+    @SuppressWarnings("unchecked")
+    List<Object> defValueInDefinition = (List<Object>) def.parameters().get(0).defaultValue();
+    assertEquals(
+        "item1",
+        defValueInDefinition.get(0),
+        "The default value in definition must remain unmutated");
+  }
+
+  @Test
+  void testValidateAndSanitizeArgs_requiredParameterProvided() throws Exception {
+    List<ToolDefinition.Parameter> params =
+        List.of(new ToolDefinition.Parameter("p-required", "string", true, "desc", List.of()));
+    ToolDefinition def = new ToolDefinition("test-tool", params, List.of());
+    McpToolboxClient client = mock(McpToolboxClient.class);
+    when(client.invokeTool(anyString(), anyMap(), anyMap()))
+        .thenReturn(CompletableFuture.completedFuture(new ToolResult(List.of(), false)));
+
+    Tool tool = new Tool("test-tool", def, client);
+    tool.execute(Map.of("p-required", "provided-value")).join(); // should succeed
+  }
+
+  @Test
+  void testValidateAndSanitizeArgs_nullTypeWithNonNullValue() throws Exception {
+    List<ToolDefinition.Parameter> params =
+        List.of(new ToolDefinition.Parameter("p-no-type", null, false, "desc", List.of()));
+    ToolDefinition def = new ToolDefinition("test-tool", params, List.of());
+    McpToolboxClient client = mock(McpToolboxClient.class);
+    when(client.invokeTool(anyString(), anyMap(), anyMap()))
+        .thenReturn(CompletableFuture.completedFuture(new ToolResult(List.of(), false)));
+
+    Tool tool = new Tool("test-tool", def, client);
+    tool.execute(Map.of("p-no-type", "some-value")).join(); // should succeed without checking type
+  }
 }
