@@ -160,6 +160,30 @@ public interface McpToolboxClient {
     Builder postProcessor(ToolPostProcessor postProcessor);
 
     /**
+     * Sets the preferred protocol version of the client.
+     *
+     * @param protocolVersion The protocol version (e.g. ProtocolVersion.VERSION_2025_11_25).
+     * @return The builder instance.
+     */
+    Builder protocolVersion(ProtocolVersion protocolVersion);
+
+    /**
+     * Sets a custom {@link java.net.http.HttpClient} for connection management.
+     *
+     * @param httpClient The custom HttpClient.
+     * @return The builder instance.
+     */
+    Builder httpClient(java.net.http.HttpClient httpClient);
+
+    /**
+     * Sets a custom {@link java.util.concurrent.Executor} for running asynchronous tasks.
+     *
+     * @param executor The custom Executor.
+     * @return The builder instance.
+     */
+    Builder executor(java.util.concurrent.Executor executor);
+
+    /**
      * Builds and returns a new {@link McpToolboxClient} instance.
      *
      * @return The new client instance.

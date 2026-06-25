@@ -30,6 +30,9 @@ public final class McpToolboxClientBuilder implements McpToolboxClient.Builder {
   private CredentialsProvider credentialsProvider;
   private final List<ToolPreProcessor> preProcessors = new ArrayList<>();
   private final List<ToolPostProcessor> postProcessors = new ArrayList<>();
+  private ProtocolVersion protocolVersion;
+  private java.net.http.HttpClient httpClient;
+  private java.util.concurrent.Executor executor;
 
   /** Constructs a new McpToolboxClientBuilder. */
   public McpToolboxClientBuilder() {}
@@ -77,6 +80,24 @@ public final class McpToolboxClientBuilder implements McpToolboxClient.Builder {
   }
 
   @Override
+  public McpToolboxClient.Builder protocolVersion(ProtocolVersion protocolVersion) {
+    this.protocolVersion = protocolVersion;
+    return this;
+  }
+
+  @Override
+  public McpToolboxClient.Builder httpClient(java.net.http.HttpClient httpClient) {
+    this.httpClient = httpClient;
+    return this;
+  }
+
+  @Override
+  public McpToolboxClient.Builder executor(java.util.concurrent.Executor executor) {
+    this.executor = executor;
+    return this;
+  }
+
+  @Override
   public McpToolboxClient build() {
     if (baseUrl == null || baseUrl.isEmpty()) {
       throw new IllegalArgumentException("Base URL must be provided");
@@ -102,7 +123,14 @@ public final class McpToolboxClientBuilder implements McpToolboxClient.Builder {
       resolvedProvider = () -> CompletableFuture.completedFuture(bearerKey);
     }
 
-    Transport transport = new HttpMcpTransport(baseUrl, this.headers, resolvedProvider);
+    Transport transport =
+        new HttpMcpTransport(
+            baseUrl,
+            this.headers,
+            resolvedProvider,
+            this.protocolVersion,
+            this.httpClient,
+            this.executor);
     return new McpToolboxClientImpl(
         transport, this.headers, resolvedProvider, preProcessors, postProcessors);
   }
