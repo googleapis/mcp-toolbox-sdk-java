@@ -45,7 +45,6 @@ public final class HttpMcpTransport implements Transport {
   private final Map<String, String> clientHeaders;
   private final CredentialsProvider credentialsProvider;
   private final HttpClient httpClient;
-  private final java.util.concurrent.Executor executor;
   private final ObjectMapper objectMapper;
   private final ProtocolVersion preferredProtocolVersion;
   private final Object initLock = new Object();
@@ -132,14 +131,18 @@ public final class HttpMcpTransport implements Transport {
         preferredProtocolVersion != null
             ? preferredProtocolVersion
             : ProtocolVersion.VERSION_2025_11_25;
-    this.httpClient =
-        httpClient != null
-            ? httpClient
-            : HttpClient.newBuilder()
-                .cookieHandler(new java.net.CookieManager())
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
-    this.executor = executor;
+    if (httpClient != null) {
+      this.httpClient = httpClient;
+    } else {
+      HttpClient.Builder builder =
+          HttpClient.newBuilder()
+              .cookieHandler(new java.net.CookieManager())
+              .connectTimeout(Duration.ofSeconds(10));
+      if (executor != null) {
+        builder.executor(executor);
+      }
+      this.httpClient = builder.build();
+    }
     this.objectMapper = new ObjectMapper();
   }
 

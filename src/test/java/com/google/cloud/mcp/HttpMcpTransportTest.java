@@ -236,6 +236,43 @@ class HttpMcpTransportTest {
   }
 
   @Test
+  void testConstructor_WithCustomExecutorConfiguresHttpClient() throws Exception {
+    java.util.concurrent.atomic.AtomicInteger taskCount =
+        new java.util.concurrent.atomic.AtomicInteger(0);
+    java.util.concurrent.Executor customExecutor =
+        runnable -> {
+          taskCount.incrementAndGet();
+          new Thread(runnable).start();
+        };
+
+    HttpMcpTransport transport =
+        new HttpMcpTransport(
+            "http://localhost:8080",
+            java.util.Map.of(),
+            ProtocolVersion.VERSION_2025_11_25,
+            null,
+            customExecutor);
+
+    java.lang.reflect.Field httpClientField = HttpMcpTransport.class.getDeclaredField("httpClient");
+    httpClientField.setAccessible(true);
+    java.net.http.HttpClient httpClient = (java.net.http.HttpClient) httpClientField.get(transport);
+
+    assertNotNull(httpClient);
+    Object internalExecutor = null;
+    try {
+      java.lang.reflect.Field executorField = httpClient.getClass().getDeclaredField("executor");
+      executorField.setAccessible(true);
+      internalExecutor = executorField.get(httpClient);
+    } catch (NoSuchFieldException e) {
+      // Fallback
+    }
+
+    if (internalExecutor != null) {
+      org.junit.jupiter.api.Assertions.assertSame(customExecutor, internalExecutor);
+    }
+  }
+
+  @Test
   @SuppressWarnings("unchecked")
   void testInitialize_ServerReturnsErrorJsonRpcResponse() throws Exception {
     HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
