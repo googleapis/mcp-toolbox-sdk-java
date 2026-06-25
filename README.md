@@ -397,10 +397,8 @@ Bind a fixed value to a tool object.
 ```java
 client.loadTool("get-toy-price").thenCompose(tool -> {
     // Bind 'currency' to 'USD' permanently for this tool instance
-    tool.bindParam("currency", "USD");
-    
     // Now invoke without specifying currency
-    return tool.execute(Map.of("description", "lego set")); 
+    return tool.bindParam("currency", "USD").execute(Map.of("description", "lego set")); 
 });
 ```
 
@@ -411,10 +409,9 @@ Instead of a static value, you can bind a parameter to a synchronous or asynchro
 ```java
 client.loadTool("check-order-status").thenCompose(tool -> {
     // Bind 'user_id' to a function that fetches the current user from context
-    tool.bindParam("user_id", () -> SecurityContext.getCurrentUser().getId());
-    
     // Invoke: The SDK will call the supplier to fill 'user_id'
-    return tool.execute(Map.of("order_id", "12345"));
+    return tool.bindParam("user_id", () -> SecurityContext.getCurrentUser().getId())
+        .execute(Map.of("order_id", "12345"));
 });
 ```
 
