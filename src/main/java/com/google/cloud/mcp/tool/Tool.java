@@ -19,6 +19,7 @@ package com.google.cloud.mcp.tool;
 import com.google.cloud.mcp.McpToolboxClient;
 import com.google.cloud.mcp.auth.AuthResolver;
 import com.google.cloud.mcp.auth.AuthTokenGetter;
+import com.google.cloud.mcp.exception.McpToolboxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,13 +33,25 @@ import java.util.function.Supplier;
  * resolution, and input validation.
  */
 public class Tool {
+  /** The name of the tool. */
   private final String name;
+
+  /** The definition of the tool. */
   private final ToolDefinition definition;
+
+  /** The client used to invoke the tool. */
   private final McpToolboxClient client;
 
+  /** The bound parameters. */
   private final Map<String, Object> boundParameters = new HashMap<>();
+
+  /** The auth token getters. */
   private final Map<String, AuthTokenGetter> authGetters = new HashMap<>();
+
+  /** The pre-processors. */
   private final List<ToolPreProcessor> preProcessors = new ArrayList<>();
+
+  /** The post-processors. */
   private final List<ToolPostProcessor> postProcessors = new ArrayList<>();
 
   /**
@@ -48,7 +61,7 @@ public class Tool {
    * @param definition The definition of the tool.
    * @param client The client used to invoke the tool.
    */
-  public Tool(String name, ToolDefinition definition, McpToolboxClient client) {
+  public Tool(final String name, final ToolDefinition definition, final McpToolboxClient client) {
     this.name = name;
     this.definition = definition;
     this.client = client;
@@ -131,13 +144,39 @@ public class Tool {
   }
 
   /**
+   * Synchronously executes the tool with the provided arguments.
+   *
+   * @param args The arguments for the tool invocation.
+   * @return The result of the tool execution.
+   * @throws McpToolboxException if execution fails.
+   */
+  public ToolResult executeSync(final Map<String, Object> args) {
+    try {
+      return execute(args).join();
+    } catch (java.util.concurrent.CompletionException
+        | java.util.concurrent.CancellationException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof McpToolboxException) {
+        throw (McpToolboxException) cause;
+      }
+      if (cause instanceof IllegalArgumentException) {
+        throw (IllegalArgumentException) cause;
+      }
+      if (cause != null) {
+        throw new McpToolboxException(cause.getMessage(), cause);
+      }
+      throw new McpToolboxException(e);
+    }
+  }
+
+  /**
    * Executes the tool with the provided arguments, applying any bound parameters and resolving
    * authentication tokens.
    *
    * @param args The arguments for the tool invocation.
    * @return A CompletableFuture containing the result of the tool execution.
    */
-  public CompletableFuture<ToolResult> execute(Map<String, Object> args) {
+  public CompletableFuture<ToolResult> execute(final Map<String, Object> args) {
     CompletableFuture<Map<String, Object>> argsFuture =
         CompletableFuture.completedFuture(new HashMap<>(args));
 
@@ -168,11 +207,12 @@ public class Tool {
                   .thenCompose(
                       resolvedAuth -> {
                         try {
-                          // Apply credential parameter bindings and extra headers
+                          // Apply credential parameter bindings and headers
                           resolvedAuth.applyTo(finalArgs, extraHeaders, definition);
 
                           // Validation & Cleanup
                           validateAndSanitizeArgs(finalArgs);
+
                           return client.invokeTool(name, finalArgs, extraHeaders);
                         } catch (Exception e) {
                           return CompletableFuture.failedFuture(e);
@@ -187,12 +227,18 @@ public class Tool {
     return resultFuture;
   }
 
-  /** Validates arguments against the tool definition and removes null values. */
-  private void validateAndSanitizeArgs(Map<String, Object> args) {
+  /**
+   * Validates arguments against the tool definition and removes null values.
+   *
+   * @param args The arguments to validate.
+   */
+  private void validateAndSanitizeArgs(final Map<String, Object> args) {
     // Remove nulls first (filtering none values)
     args.values().removeIf(Objects::isNull);
 
-    if (definition.parameters() == null) return;
+    if (definition.parameters() == null) {
+      return;
+    }
 
     for (ToolDefinition.Parameter param : definition.parameters()) {
       Object value = args.get(param.name());
@@ -221,7 +267,7 @@ public class Tool {
     }
   }
 
-  private Object deepCopy(Object value) {
+  private Object deepCopy(final Object value) {
     if (value instanceof Map) {
       Map<?, ?> map = (Map<?, ?>) value;
       Map<Object, Object> copy = new HashMap<>();
@@ -240,7 +286,7 @@ public class Tool {
     return value;
   }
 
-  private boolean isTypeMatch(Object value, String type) {
+  private boolean isTypeMatch(final Object value, final String type) {
     switch (type.toLowerCase()) {
       case "string":
         return value instanceof String;

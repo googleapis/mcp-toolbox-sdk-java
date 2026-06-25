@@ -492,9 +492,11 @@ class McpToolboxClientImplJsonRpcTest {
   }
 
   @Test
-  void testJsonRpcInstantiation() {
-    // Instantiate package-private JsonRpc namespace to cover its default constructor
-    JsonRpc rpc = new JsonRpc();
+  void testJsonRpcInstantiation() throws Exception {
+    // Instantiate private JsonRpc namespace to cover its constructor
+    java.lang.reflect.Constructor<JsonRpc> constructor = JsonRpc.class.getDeclaredConstructor();
+    constructor.setAccessible(true);
+    JsonRpc rpc = constructor.newInstance();
     assertNotNull(rpc);
   }
 

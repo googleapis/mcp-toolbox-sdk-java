@@ -23,8 +23,10 @@ import com.google.cloud.mcp.transport.v20250326.HttpMcpTransportV20250326;
 import com.google.cloud.mcp.transport.v20250618.HttpMcpTransportV20250618;
 import com.google.cloud.mcp.transport.v20251125.HttpMcpTransportV20251125;
 import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Logger;
 
 /** Default HTTP transport implementation routing requests to version-specific handlers. */
 public final class HttpMcpTransport implements Transport {
@@ -99,6 +101,41 @@ public final class HttpMcpTransport implements Transport {
       final ProtocolVersion preferredProtocolVersion,
       final HttpClient httpClient,
       final java.util.concurrent.Executor executor) {
+    this(
+        baseUrl,
+        clientHeaders,
+        credentialsProvider,
+        preferredProtocolVersion,
+        httpClient,
+        executor,
+        null,
+        null,
+        null);
+  }
+
+  /**
+   * Constructs a new HttpMcpTransport with full configuration.
+   *
+   * @param baseUrl The base URL of the MCP service.
+   * @param clientHeaders Optional headers to include in every request.
+   * @param credentialsProvider Optional provider for auth credentials.
+   * @param preferredProtocolVersion Optional preferred protocol version.
+   * @param httpClient Optional HttpClient instance.
+   * @param executor Optional Executor for handling async requests.
+   * @param connectTimeout Optional connection timeout.
+   * @param requestTimeout Optional request timeout.
+   * @param logger Optional Logger instance.
+   */
+  public HttpMcpTransport(
+      final String baseUrl,
+      final Map<String, String> clientHeaders,
+      final CredentialsProvider credentialsProvider,
+      final ProtocolVersion preferredProtocolVersion,
+      final HttpClient httpClient,
+      final java.util.concurrent.Executor executor,
+      final Duration connectTimeout,
+      final Duration requestTimeout,
+      final Logger logger) {
     final ProtocolVersion version =
         preferredProtocolVersion != null
             ? preferredProtocolVersion
@@ -108,34 +145,73 @@ public final class HttpMcpTransport implements Transport {
       case VERSION_2025_11_25:
         this.delegate =
             new HttpMcpTransportV20251125(
-                baseUrl, clientHeaders, credentialsProvider, httpClient, executor);
+                baseUrl,
+                clientHeaders,
+                credentialsProvider,
+                httpClient,
+                executor,
+                connectTimeout,
+                requestTimeout,
+                logger);
         break;
       case VERSION_2025_06_18:
         this.delegate =
             new HttpMcpTransportV20250618(
-                baseUrl, clientHeaders, credentialsProvider, httpClient, executor);
+                baseUrl,
+                clientHeaders,
+                credentialsProvider,
+                httpClient,
+                executor,
+                connectTimeout,
+                requestTimeout,
+                logger);
         break;
       case VERSION_2025_03_26:
         this.delegate =
             new HttpMcpTransportV20250326(
-                baseUrl, clientHeaders, credentialsProvider, httpClient, executor);
+                baseUrl,
+                clientHeaders,
+                credentialsProvider,
+                httpClient,
+                executor,
+                connectTimeout,
+                requestTimeout,
+                logger);
         break;
       case VERSION_2024_11_05:
         this.delegate =
             new HttpMcpTransportV20241105(
-                baseUrl, clientHeaders, credentialsProvider, httpClient, executor);
+                baseUrl,
+                clientHeaders,
+                credentialsProvider,
+                httpClient,
+                executor,
+                connectTimeout,
+                requestTimeout,
+                logger);
         break;
       default:
         throw new IllegalArgumentException("Unsupported protocol version: " + version);
     }
   }
 
-  /** Internal constructor for testing purposes. */
+  /**
+   * Internal constructor for testing purposes.
+   *
+   * @param baseUrl The base URL.
+   * @param httpClient The mock HttpClient.
+   */
   public HttpMcpTransport(final String baseUrl, final HttpClient httpClient) {
     this(baseUrl, Map.of(), null, null, httpClient, null);
   }
 
-  /** Internal constructor for testing purposes. */
+  /**
+   * Internal constructor for testing purposes.
+   *
+   * @param baseUrl The base URL.
+   * @param clientHeaders The client headers.
+   * @param httpClient The mock HttpClient.
+   */
   public HttpMcpTransport(
       final String baseUrl, final Map<String, String> clientHeaders, final HttpClient httpClient) {
     this(baseUrl, clientHeaders, null, null, httpClient, null);

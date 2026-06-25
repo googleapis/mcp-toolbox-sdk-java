@@ -37,22 +37,60 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
+/**
+ * Base class for HTTP-based MCP transports providing common functionality like session tracking,
+ * header merging, and credentials resolution.
+ */
 public abstract class BaseMcpTransport implements Transport {
 
+  /** Default static logger for BaseMcpTransport. */
   protected static final Logger logger = Logger.getLogger(BaseMcpTransport.class.getName());
+
+  /** Warning message displayed when using unencrypted HTTP connections. */
   protected static final String HTTP_WARNING =
       "This connection is using HTTP. To prevent credential exposure, please ensure all"
           + " communication is sent over HTTPS.";
 
+  /** The base URL of the MCP service. */
   protected final String baseUrl;
+
+  /** Client headers configured for the transport. */
   protected final Map<String, String> clientHeaders;
+
+  /** The credentials provider for dynamic authorization. */
   protected final CredentialsProvider credentialsProvider;
+
+  /** The HTTP client used for requests. */
   protected final HttpClient httpClient;
+
+  /** The ObjectMapper for JSON serialization. */
   protected final ObjectMapper objectMapper;
+
+  /** The preferred protocol version. */
   protected final ProtocolVersion preferredProtocolVersion;
+
+  /** Lock object to synchronize initialization. */
   protected final Object initLock = new Object();
+
+  /** Future indicating the status of initialization. */
   protected CompletableFuture<Void> initFuture;
 
+  /** The request timeout for HTTP requests. */
+  protected final java.time.Duration requestTimeout;
+
+  /** The logger used for active transport logging. */
+  protected final Logger activeLogger;
+
+  /**
+   * Constructs a new BaseMcpTransport.
+   *
+   * @param baseUrl The base URL.
+   * @param clientHeaders The client headers.
+   * @param credentialsProvider The credentials provider.
+   * @param preferredProtocolVersion The preferred protocol version.
+   * @param httpClient The HTTP client.
+   * @param executor The executor.
+   */
   protected BaseMcpTransport(
       final String baseUrl,
       final Map<String, String> clientHeaders,
@@ -60,6 +98,41 @@ public abstract class BaseMcpTransport implements Transport {
       final ProtocolVersion preferredProtocolVersion,
       final HttpClient httpClient,
       final java.util.concurrent.Executor executor) {
+    this(
+        baseUrl,
+        clientHeaders,
+        credentialsProvider,
+        preferredProtocolVersion,
+        httpClient,
+        executor,
+        null,
+        null,
+        null);
+  }
+
+  /**
+   * Constructs a new BaseMcpTransport with timeouts and custom logger.
+   *
+   * @param baseUrl The base URL.
+   * @param clientHeaders The client headers.
+   * @param credentialsProvider The credentials provider.
+   * @param preferredProtocolVersion The preferred protocol version.
+   * @param httpClient The HTTP client.
+   * @param executor The executor.
+   * @param connectTimeout The connection timeout.
+   * @param requestTimeout The request timeout.
+   * @param logger The custom logger.
+   */
+  protected BaseMcpTransport(
+      final String baseUrl,
+      final Map<String, String> clientHeaders,
+      final CredentialsProvider credentialsProvider,
+      final ProtocolVersion preferredProtocolVersion,
+      final HttpClient httpClient,
+      final java.util.concurrent.Executor executor,
+      final java.time.Duration connectTimeout,
+      final java.time.Duration requestTimeout,
+      final Logger logger) {
     if (baseUrl == null || baseUrl.isEmpty()) {
       throw new IllegalArgumentException("Base URL must be provided");
     }
@@ -79,12 +152,14 @@ public abstract class BaseMcpTransport implements Transport {
       HttpClient.Builder builder =
           HttpClient.newBuilder()
               .cookieHandler(new java.net.CookieManager())
-              .connectTimeout(Duration.ofSeconds(10));
+              .connectTimeout(connectTimeout != null ? connectTimeout : Duration.ofSeconds(10));
       if (executor != null) {
         builder.executor(executor);
       }
       this.httpClient = builder.build();
     }
+    this.requestTimeout = requestTimeout;
+    this.activeLogger = logger != null ? logger : BaseMcpTransport.logger;
     this.objectMapper = new ObjectMapper();
   }
 
@@ -187,9 +262,21 @@ public abstract class BaseMcpTransport implements Transport {
     }
   }
 
+  /**
+   * Performs the version-specific initialization handshake.
+   *
+   * @param authHeader The authorization header value, if present.
+   * @param handshakeHeaders The resolved headers for the handshake.
+   * @return A CompletableFuture that completes when initialization is done.
+   */
   protected abstract CompletableFuture<Void> performInitialization(
       final String authHeader, final Map<String, String> handshakeHeaders);
 
+  /**
+   * Applies protocol-specific headers to the request builder.
+   *
+   * @param builder The HTTP request builder.
+   */
   protected abstract void applyProtocolHeaders(final HttpRequest.Builder builder);
 
   @Override
@@ -197,7 +284,7 @@ public abstract class BaseMcpTransport implements Transport {
       final String toolsetName, final Map<String, String> metadata) {
     if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
         && !metadata.isEmpty()) {
-      logger.warning(HTTP_WARNING);
+      activeLogger.warning(HTTP_WARNING);
     }
     return ensureInitialized(metadata)
         .thenCompose(v -> mergeHeaders(metadata))
@@ -212,6 +299,9 @@ public abstract class BaseMcpTransport implements Transport {
                     HttpRequest.newBuilder()
                         .uri(URI.create(url))
                         .POST(HttpRequest.BodyPublishers.ofString(body));
+                if (requestTimeout != null) {
+                  req.timeout(requestTimeout);
+                }
                 mergedHeaders.forEach(req::setHeader);
                 applyProtocolHeaders(req);
 
@@ -231,7 +321,7 @@ public abstract class BaseMcpTransport implements Transport {
       final Map<String, String> metadata) {
     if (this.baseUrl.toLowerCase(java.util.Locale.ROOT).startsWith("http://")
         && !metadata.isEmpty()) {
-      logger.warning(HTTP_WARNING);
+      activeLogger.warning(HTTP_WARNING);
     }
     return ensureInitialized(metadata)
         .thenCompose(v -> mergeHeaders(metadata))
@@ -248,6 +338,9 @@ public abstract class BaseMcpTransport implements Transport {
                         .uri(URI.create(baseUrl))
                         .POST(HttpRequest.BodyPublishers.ofString(requestBody));
 
+                if (requestTimeout != null) {
+                  requestBuilder.timeout(requestTimeout);
+                }
                 mergedHeaders.forEach(requestBuilder::setHeader);
                 applyProtocolHeaders(requestBuilder);
 

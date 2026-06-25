@@ -216,15 +216,19 @@ public class App {
 For a detailed example, check the ExampleUsage.java file in the example folder of this repo.
 
 > [!NOTE]
->
-> The SDK is Async-First, using Java's `CompletableFuture` to bridge both patterns naturally.
-> - Asynchronous: Chain methods using `.thenCompose()`, `.thenAccept()`, and `.exceptionally()` for non-blocking execution.
-> - If you prefer synchronous execution, simply call `.join()` on the result to block until completion.
+> The SDK is async-first, but provides a pure synchronous blocking experience using `McpToolboxSyncClient`.
+> - **Asynchronous Client (`McpToolboxClient`):** Chain methods using `.thenCompose()`, `.thenAccept()`, and `.exceptionally()`.
+> - **Synchronous Client (`McpToolboxSyncClient`):** Call blocking methods directly. Under the hood, it manages threads safely and translates checked/execution exceptions into unchecked `McpToolboxException`s.
+
 ```java
-// Async (Non-blocking)
-client.invokeTool("tool-name", args).thenAccept(result -> ...);
-// Sync (Blocking)
-ToolResult result = client.invokeTool("tool-name", args).join();
+// Create a Synchronous Client
+McpToolboxSyncClient client = McpToolboxClient.builder()
+    .baseUrl("https://my-toolbox-service.a.run.app/mcp")
+    .buildSync();
+
+// Invoke a tool synchronously
+ToolResult result = client.invokeTool("get-toy-price", Map.of("description", "plush dinosaur"));
+System.out.println("Output: " + result.content().get(0).text());
 ```
 
 ## Authentication

@@ -176,6 +176,22 @@ public interface McpToolboxClient {
     Builder protocolVersion(ProtocolVersion protocolVersion);
 
     /**
+     * Sets the connect timeout for the underlying HttpClient.
+     *
+     * @param connectTimeout The connect timeout.
+     * @return The builder instance.
+     */
+    Builder connectTimeout(java.time.Duration connectTimeout);
+
+    /**
+     * Sets the request timeout for every HTTP request.
+     *
+     * @param requestTimeout The request timeout.
+     * @return The builder instance.
+     */
+    Builder requestTimeout(java.time.Duration requestTimeout);
+
+    /**
      * Sets a custom {@link java.net.http.HttpClient} for connection management.
      *
      * @param httpClient The custom HttpClient.
@@ -192,10 +208,25 @@ public interface McpToolboxClient {
     Builder executor(java.util.concurrent.Executor executor);
 
     /**
+     * Sets a custom Logger for telemetry and logs.
+     *
+     * @param logger The custom Logger.
+     * @return The builder instance.
+     */
+    Builder logger(java.util.logging.Logger logger);
+
+    /**
      * Builds and returns a new {@link McpToolboxClient} instance.
      *
      * @return The new client instance.
      */
     McpToolboxClient build();
+
+    /**
+     * Builds and returns a new {@link McpToolboxSyncClient} instance.
+     *
+     * @return The new synchronous client instance.
+     */
+    McpToolboxSyncClient buildSync();
   }
 }
