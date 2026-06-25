@@ -16,11 +16,11 @@ steps:
   - id: Install library requirements
     name: 'maven:3.9.6-eclipse-temurin-17'
     entrypoint: 'mvn'
-    args: ['clean', 'install', '-DskipTests']
+    args: ['-B', '-ntp', 'clean', 'install', '-DskipTests']
   - id: Run integration tests
     name: 'maven:3.9.6-eclipse-temurin-17'
     entrypoint: 'mvn'
-    args: ['test']
+    args: ['-B', '-ntp', 'test']
     env:
       - GOOGLE_CLOUD_PROJECT=$PROJECT_ID
       - TOOLBOX_VERSION=${_TOOLBOX_VERSION}
