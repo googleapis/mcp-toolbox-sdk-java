@@ -51,4 +51,7 @@ crash.*.log
 
 # Language Specific
 target/
+src/test/resources/toolbox
+src/test/resources/verification.db
+
 

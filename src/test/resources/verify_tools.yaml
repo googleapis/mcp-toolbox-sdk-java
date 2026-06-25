@@ -1,0 +1,22 @@
+kind: source
+name: local-sqlite
+type: sqlite
+database: "/Users/stenalpjolly/github/Google/opensource/mcp-toolbox-sdk-java/src/test/resources/verification.db"
+---
+kind: tool
+name: get-retail-facet-filters
+type: sqlite-sql
+source: local-sqlite
+description: "Get the list of facet filter values from the retail dataset."
+statement: "SELECT id, content, uri, category, sub_category, color, gender FROM apparels;"
+---
+kind: tool
+name: get-toy-price
+type: sqlite-sql
+source: local-sqlite
+description: "Get the price of a toy based on a description."
+parameters:
+  - name: description
+    type: string
+    description: "A description of the toy to search for."
+statement: "SELECT price FROM toys WHERE lower(description) LIKE '%' || lower(?) || '%' LIMIT 1;"

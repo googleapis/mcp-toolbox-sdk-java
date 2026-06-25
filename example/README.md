@@ -53,8 +53,39 @@ In any case remember to change the `YOUR_TOOLBOX_SERVICE_ENDPOINT` placeholder i
     ```bash
     mvn compile
     ```
-    Now run the example class:
+    Now run any of the example classes:
     ```bash
-    mvn clean compile exec:java -Dexec.mainClass="cloudcode.helloworld.ExampleUsage"
+    # Simple Async SDK Client usage
+    mvn clean compile exec:java -Dexec.mainClass="cloudcode.simple.ExampleUsage"
+
+    # Sequential parameter bindings and authentication token provider usage
+    mvn clean compile exec:java -Dexec.mainClass="cloudcode.simple.ParameterBindingUsage"
+
+    # Advanced Bulk Toolset pre-binding usage
+    mvn clean compile exec:java -Dexec.mainClass="cloudcode.bulk.BulkToolsetUsage"
+
+    # Input validation behavior testing
+    mvn clean compile exec:java -Dexec.mainClass="cloudcode.validation.InputValidationTest"
+
+    # Strict bindings behavior testing
+    mvn clean compile exec:java -Dexec.mainClass="cloudcode.validation.StrictFlagTest"
     ```
 
+## Integration Verification Testing
+
+To ensure the example remains fully functional and correct as the SDK evolves, the repository includes an automated integration test: `ToolboxActualServerVerifyTest`.
+
+### Purpose of the Test
+This test validates the `ExampleUsage` client flow against the actual `toolbox` server binary using a local SQLite database. It compiles `ExampleUsage.java` dynamically and executes its `main` method, asserting that:
+- Server discovery works and returns correct tools schema.
+- Parameters can be dynamically queried, validated, and bound.
+- Executing SQL queries via MCP Toolbox against SQLite returns the exact expected rows and prices.
+
+### How to Run the Verification Test Locally
+To run this verification test:
+1. Ensure the `toolbox` server binary for your architecture is placed at:
+   `src/test/resources/toolbox`
+2. Run:
+   ```bash
+   mvn test -Dtest=ToolboxActualServerVerifyTest -Dnet.bytebuddy.experimental=true
+   ```
