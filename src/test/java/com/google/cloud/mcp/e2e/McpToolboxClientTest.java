@@ -21,9 +21,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.cloud.mcp.McpToolboxClient;
-import com.google.cloud.mcp.Tool;
-import com.google.cloud.mcp.ToolDefinition;
-import com.google.cloud.mcp.ToolResult;
+import com.google.cloud.mcp.tool.Tool;
+import com.google.cloud.mcp.tool.ToolDefinition;
+import com.google.cloud.mcp.tool.ToolResult;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
