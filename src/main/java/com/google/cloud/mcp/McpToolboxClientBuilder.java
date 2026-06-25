@@ -16,7 +16,9 @@
 
 package com.google.cloud.mcp;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -26,6 +28,8 @@ public final class McpToolboxClientBuilder implements McpToolboxClient.Builder {
   private String apiKey;
   private Map<String, String> headers = new HashMap<>();
   private CredentialsProvider credentialsProvider;
+  private final List<ToolPreProcessor> preProcessors = new ArrayList<>();
+  private final List<ToolPostProcessor> postProcessors = new ArrayList<>();
 
   /** Constructs a new McpToolboxClientBuilder. */
   public McpToolboxClientBuilder() {}
@@ -57,6 +61,22 @@ public final class McpToolboxClientBuilder implements McpToolboxClient.Builder {
   }
 
   @Override
+  public McpToolboxClient.Builder preProcessor(ToolPreProcessor preProcessor) {
+    if (preProcessor != null) {
+      this.preProcessors.add(preProcessor);
+    }
+    return this;
+  }
+
+  @Override
+  public McpToolboxClient.Builder postProcessor(ToolPostProcessor postProcessor) {
+    if (postProcessor != null) {
+      this.postProcessors.add(postProcessor);
+    }
+    return this;
+  }
+
+  @Override
   public McpToolboxClient build() {
     if (baseUrl == null || baseUrl.isEmpty()) {
       throw new IllegalArgumentException("Base URL must be provided");
@@ -83,6 +103,7 @@ public final class McpToolboxClientBuilder implements McpToolboxClient.Builder {
     }
 
     Transport transport = new HttpMcpTransport(baseUrl, this.headers, resolvedProvider);
-    return new McpToolboxClientImpl(transport, this.headers, resolvedProvider);
+    return new McpToolboxClientImpl(
+        transport, this.headers, resolvedProvider, preProcessors, postProcessors);
   }
 }

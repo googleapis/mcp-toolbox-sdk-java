@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -49,6 +50,9 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
   /** Jackson ObjectMapper for JSON parsing. */
   private final ObjectMapper objectMapper;
 
+  private final List<ToolPreProcessor> preProcessors;
+  private final List<ToolPostProcessor> postProcessors;
+
   /**
    * Constructs a new McpToolboxClientImpl.
    *
@@ -61,22 +65,14 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
   /**
    * Constructs a new McpToolboxClientImpl.
    *
-   * @param clientTransport The underlying MCP transport layer.
-   * @param clientHeaders Fallback headers for deprecated constructor compatibility.
-   * @param provider Fallback provider for deprecated constructor compatibility.
+   * @param transport The underlying MCP transport layer.
+   * @param headers Fallback headers for deprecated constructor compatibility.
+   * @param credentialsProvider Fallback provider for deprecated constructor compatibility.
    */
   @Deprecated
   public McpToolboxClientImpl(
-      final Transport clientTransport,
-      final Map<String, String> clientHeaders,
-      final CredentialsProvider provider) {
-    this.transport = clientTransport;
-    this.headers =
-        clientHeaders != null
-            ? java.util.Collections.unmodifiableMap(new java.util.HashMap<>(clientHeaders))
-            : java.util.Collections.emptyMap();
-    this.credentialsProvider = provider;
-    this.objectMapper = new ObjectMapper();
+      Transport transport, Map<String, String> headers, CredentialsProvider credentialsProvider) {
+    this(transport, headers, credentialsProvider, null, null);
   }
 
   /**
@@ -150,6 +146,32 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
     }
     String bearerKey = apiKey.startsWith("Bearer ") ? apiKey : "Bearer " + apiKey;
     return () -> CompletableFuture.completedFuture(bearerKey);
+  }
+
+  /**
+   * Primary constructor for McpToolboxClientImpl.
+   *
+   * @param transport The underlying MCP transport layer.
+   * @param headers Default HTTP headers.
+   * @param credentialsProvider Provider for credentials.
+   * @param preProcessors List of pre-processors.
+   * @param postProcessors List of post-processors.
+   */
+  public McpToolboxClientImpl(
+      Transport transport,
+      Map<String, String> headers,
+      CredentialsProvider credentialsProvider,
+      List<ToolPreProcessor> preProcessors,
+      List<ToolPostProcessor> postProcessors) {
+    this.transport = transport;
+    this.headers =
+        headers != null
+            ? java.util.Collections.unmodifiableMap(new java.util.HashMap<>(headers))
+            : java.util.Collections.emptyMap();
+    this.credentialsProvider = credentialsProvider;
+    this.preProcessors = preProcessors != null ? List.copyOf(preProcessors) : List.of();
+    this.postProcessors = postProcessors != null ? List.copyOf(postProcessors) : List.of();
+    this.objectMapper = new ObjectMapper();
   }
 
   private CompletableFuture<Map<String, String>> getMergedMetadata(
@@ -250,6 +272,12 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
             if (authBinds != null && authBinds.containsKey(toolName)) {
               authBinds.get(toolName).forEach(tool::addAuthTokenGetter);
             }
+            for (ToolPreProcessor preProcessor : this.preProcessors) {
+              tool.addPreProcessor(preProcessor);
+            }
+            for (ToolPostProcessor postProcessor : this.postProcessors) {
+              tool.addPostProcessor(postProcessor);
+            }
             tools.put(toolName, tool);
           }
           return tools;
@@ -278,6 +306,12 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
               Tool tool = new Tool(toolName, tools.get(toolName), this);
               if (authTokenGetters != null) {
                 authTokenGetters.forEach(tool::addAuthTokenGetter);
+              }
+              for (ToolPreProcessor preProcessor : this.preProcessors) {
+                tool.addPreProcessor(preProcessor);
+              }
+              for (ToolPostProcessor postProcessor : this.postProcessors) {
+                tool.addPostProcessor(postProcessor);
               }
               return tool;
             });

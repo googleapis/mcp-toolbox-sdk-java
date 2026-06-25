@@ -22,6 +22,11 @@ import java.util.Map;
 public final class ResolvedAuth {
   private final Map<String, String> tokens;
 
+  /**
+   * Constructs a new ResolvedAuth.
+   *
+   * @param tokens The map of resolved auth tokens.
+   */
   public ResolvedAuth(Map<String, String> tokens) {
     Map<String, String> copy = new java.util.HashMap<>();
     if (tokens != null) {

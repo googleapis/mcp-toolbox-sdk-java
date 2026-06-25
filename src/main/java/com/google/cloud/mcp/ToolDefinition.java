@@ -25,6 +25,9 @@ import java.util.List;
  *
  * @param description A description of what the tool does.
  * @param parameters A list of parameters the tool accepts.
+ * @param authRequired List of auth services required by the tool.
+ * @param readOnlyHint Hint indicating whether the tool is read-only.
+ * @param destructiveHint Hint indicating whether the tool is destructive.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ToolDefinition(
@@ -34,7 +37,13 @@ public record ToolDefinition(
     Boolean readOnlyHint,
     Boolean destructiveHint) {
 
-  /** Backward-compatible constructor. */
+  /**
+   * Backward-compatible constructor.
+   *
+   * @param description A description of what the tool does.
+   * @param parameters A list of parameters the tool accepts.
+   * @param authRequired List of auth services required.
+   */
   public ToolDefinition(String description, List<Parameter> parameters, List<String> authRequired) {
     this(description, parameters, authRequired, null, null);
   }
@@ -58,7 +67,15 @@ public record ToolDefinition(
       List<String> authSources, // Maps services to parameters
       @JsonProperty("default") Object defaultValue) {
 
-    /** Backward-compatible constructor. */
+    /**
+     * Backward-compatible constructor.
+     *
+     * @param name The name of the parameter.
+     * @param type The type of the parameter.
+     * @param required Whether the parameter is required.
+     * @param description A description of the parameter.
+     * @param authSources Authentication sources list.
+     */
     public Parameter(
         String name, String type, boolean required, String description, List<String> authSources) {
       this(name, type, required, description, authSources, null);

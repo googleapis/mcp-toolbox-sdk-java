@@ -826,6 +826,63 @@ class McpToolboxClientImplTest {
     assertTrue(ex.getCause().getMessage().contains("Simulated notification serialization failure"));
   }
 
+  @SuppressWarnings("unchecked")
+  @Test
+  void testClientPrePostProcessorsPropagation() throws Exception {
+    Transport mockTransport = mock(Transport.class);
+    ToolDefinition def =
+        new ToolDefinition("desc", java.util.List.of(), java.util.List.of(), null, null);
+    TransportManifest manifest = new TransportManifest(java.util.Map.of("test-tool", def));
+
+    when(mockTransport.listTools(any(), any()))
+        .thenReturn(CompletableFuture.completedFuture(manifest));
+    when(mockTransport.getBaseUrl()).thenReturn("http://localhost:8080");
+
+    ToolPreProcessor mockPre = mock(ToolPreProcessor.class);
+    ToolPostProcessor mockPost = mock(ToolPostProcessor.class);
+
+    McpToolboxClientImpl customClient =
+        new McpToolboxClientImpl(
+            mockTransport,
+            java.util.Collections.emptyMap(),
+            null,
+            java.util.List.of(mockPre),
+            java.util.List.of(mockPost));
+
+    // 1. Verify loadToolset propagates processors
+    java.util.Map<String, Tool> tools = customClient.loadToolset("", null, null, false).get();
+    Tool tool1 = tools.get("test-tool");
+    assertNotNull(tool1);
+
+    Field preField = Tool.class.getDeclaredField("preProcessors");
+    preField.setAccessible(true);
+    java.util.List<ToolPreProcessor> toolPre1 =
+        (java.util.List<ToolPreProcessor>) preField.get(tool1);
+    assertEquals(1, toolPre1.size());
+    org.junit.jupiter.api.Assertions.assertSame(mockPre, toolPre1.get(0));
+
+    Field postField = Tool.class.getDeclaredField("postProcessors");
+    postField.setAccessible(true);
+    java.util.List<ToolPostProcessor> toolPost1 =
+        (java.util.List<ToolPostProcessor>) postField.get(tool1);
+    assertEquals(1, toolPost1.size());
+    org.junit.jupiter.api.Assertions.assertSame(mockPost, toolPost1.get(0));
+
+    // 2. Verify loadTool propagates processors
+    Tool tool2 = customClient.loadTool("test-tool").get();
+    assertNotNull(tool2);
+
+    java.util.List<ToolPreProcessor> toolPre2 =
+        (java.util.List<ToolPreProcessor>) preField.get(tool2);
+    assertEquals(1, toolPre2.size());
+    org.junit.jupiter.api.Assertions.assertSame(mockPre, toolPre2.get(0));
+
+    java.util.List<ToolPostProcessor> toolPost2 =
+        (java.util.List<ToolPostProcessor>) postField.get(tool2);
+    assertEquals(1, toolPost2.size());
+    org.junit.jupiter.api.Assertions.assertSame(mockPost, toolPost2.get(0));
+  }
+
   @Test
   void testInvokeTool_MalformedJsonResponse_GracefullyFallsBack() throws Exception {
     HttpResponse<String> initResponse = mock(HttpResponse.class);
