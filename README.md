@@ -96,7 +96,7 @@ Add the dependency to your `pom.xml`:
 <dependency>
     <groupId>com.google.cloud.mcp</groupId>
     <artifactId>mcp-toolbox-sdk-java</artifactId>
-    <version>0.2.0</version> <!-- {x-version-update:mcp-toolbox-sdk-java:current} -->
+    <version>0.2.1</version> <!-- {x-version-update:mcp-toolbox-sdk-java:current} -->
     <scope>compile</scope>
 </dependency>
 ```
