@@ -18,6 +18,7 @@ package com.google.cloud.mcp.transport;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -309,5 +310,22 @@ class HttpMcpTransportStatelessTest {
       cause = cause.getCause();
     }
     assertTrue(cause instanceof com.google.cloud.mcp.exception.McpException);
+    assertTrue(cause.getMessage().contains("No mutually supported protocol version"));
+  }
+
+  @Test
+  void testHttpMcpTransportV20260618_ModifyRequestParams_Fallback() throws Exception {
+    com.google.cloud.mcp.transport.v20260618.HttpMcpTransportV20260618 transportV20260618 =
+        new com.google.cloud.mcp.transport.v20260618.HttpMcpTransportV20260618(
+            "https://test.com", Map.of(), null, mock(HttpClient.class), null);
+
+    java.lang.reflect.Method method =
+        com.google.cloud.mcp.transport.v20260618.HttpMcpTransportV20260618.class.getDeclaredMethod(
+            "modifyRequestParams", String.class, Object.class);
+    method.setAccessible(true);
+
+    Object inputParams = new Object();
+    Object result = method.invoke(transportV20260618, "other/method", inputParams);
+    assertSame(inputParams, result);
   }
 }

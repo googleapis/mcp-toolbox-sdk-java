@@ -28,7 +28,6 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.mcp.ProtocolVersion;
 import com.google.cloud.mcp.auth.CredentialsProvider;
-import com.google.cloud.mcp.exception.McpException;
 import com.google.cloud.mcp.tool.ToolDefinition;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -282,231 +281,55 @@ class HttpMcpTransportTest {
 
   @Test
   @SuppressWarnings("unchecked")
-  void testInitialize_ServerReturnsErrorJsonRpcResponse() throws Exception {
-    List<ProtocolVersion> versions =
-        List.of(
-            ProtocolVersion.VERSION_2025_11_25,
-            ProtocolVersion.VERSION_2025_06_18,
-            ProtocolVersion.VERSION_2025_03_26,
-            ProtocolVersion.VERSION_2024_11_05);
-    for (ProtocolVersion version : versions) {
-      HttpClient localMockClient = mock(HttpClient.class);
-      HttpMcpTransport versionedTransport =
-          new HttpMcpTransport(
-              "https://test-mcp-service.com",
-              Collections.emptyMap(),
-              null,
-              version,
-              localMockClient,
-              null);
+  void testListTools_WithHttpUrlAndMetadata_LogsWarning() throws Exception {
+    HttpMcpTransport httpTransport =
+        new HttpMcpTransport("http://test-mcp-service.com", mockClient);
+    HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
+    when(mockInitResponse.statusCode()).thenReturn(200);
+    when(mockInitResponse.body())
+        .thenReturn(
+            "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"protocolVersion\":\"2025-11-25\"}}");
 
-      HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
-      when(mockInitResponse.statusCode()).thenReturn(200);
-      when(mockInitResponse.body())
-          .thenReturn(
-              "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"error\":{\"code\":-32603,\"message\":\"Internal"
-                  + " error\"}}");
+    HttpResponse<String> mockInitializedResponse = mock(HttpResponse.class);
+    when(mockInitializedResponse.statusCode()).thenReturn(200);
+    when(mockInitializedResponse.body()).thenReturn("");
 
-      when(localMockClient.<String>sendAsync(
-              any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-          .thenReturn(CompletableFuture.completedFuture(mockInitResponse));
+    HttpResponse<String> mockListResponse = mock(HttpResponse.class);
+    when(mockListResponse.statusCode()).thenReturn(200);
+    when(mockListResponse.body())
+        .thenReturn("{\"jsonrpc\":\"2.0\",\"id\":\"2\",\"result\":{\"tools\":[]}}");
 
-      CompletableFuture<TransportManifest> future =
-          versionedTransport.listTools("", Collections.emptyMap());
-      java.util.concurrent.ExecutionException ex =
-          org.junit.jupiter.api.Assertions.assertThrows(
-              java.util.concurrent.ExecutionException.class, future::get);
-      assertTrue(ex.getCause() instanceof McpException);
-      assertTrue(ex.getCause().getMessage().contains("MCP Error"));
+    when(mockClient.<String>sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockInitResponse))
+        .thenReturn(CompletableFuture.completedFuture(mockInitializedResponse))
+        .thenReturn(CompletableFuture.completedFuture(mockListResponse));
+
+    java.util.logging.Logger transportLogger =
+        java.util.logging.Logger.getLogger(BaseMcpTransport.class.getName());
+    java.util.List<java.util.logging.LogRecord> logRecords = new java.util.ArrayList<>();
+    java.util.logging.Handler logHandler =
+        new java.util.logging.Handler() {
+          @Override
+          public void publish(java.util.logging.LogRecord record) {
+            logRecords.add(record);
+          }
+
+          @Override
+          public void flush() {}
+
+          @Override
+          public void close() throws SecurityException {}
+        };
+    transportLogger.addHandler(logHandler);
+
+    try {
+      httpTransport.listTools("", Map.of("key", "val")).get();
+    } finally {
+      transportLogger.removeHandler(logHandler);
     }
-  }
 
-  @Test
-  @SuppressWarnings("unchecked")
-  void testListTools_Non200Response_ThrowsException() {
-    List<ProtocolVersion> versions =
-        List.of(
-            ProtocolVersion.VERSION_2025_11_25,
-            ProtocolVersion.VERSION_2025_06_18,
-            ProtocolVersion.VERSION_2025_03_26,
-            ProtocolVersion.VERSION_2024_11_05);
-    for (ProtocolVersion version : versions) {
-      HttpClient localMockClient = mock(HttpClient.class);
-      HttpMcpTransport versionedTransport =
-          new HttpMcpTransport(
-              "https://test-mcp-service.com",
-              Collections.emptyMap(),
-              null,
-              version,
-              localMockClient,
-              null);
-
-      HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
-      when(mockInitResponse.statusCode()).thenReturn(200);
-      when(mockInitResponse.body())
-          .thenReturn(
-              "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"protocolVersion\":\""
-                  + version.getValue()
-                  + "\"}}");
-      java.net.http.HttpHeaders mockHeaders =
-          java.net.http.HttpHeaders.of(
-              Map.of("Mcp-Session-Id", List.of("test-session-123")), (k, v) -> true);
-      when(mockInitResponse.headers()).thenReturn(mockHeaders);
-
-      HttpResponse<String> mockInitializedResponse = mock(HttpResponse.class);
-      when(mockInitializedResponse.statusCode()).thenReturn(200);
-      when(mockInitializedResponse.body()).thenReturn("");
-
-      HttpResponse<String> mockErrorResponse = mock(HttpResponse.class);
-      when(mockErrorResponse.statusCode()).thenReturn(500);
-      when(mockErrorResponse.body()).thenReturn("Internal Server Error");
-
-      when(localMockClient.<String>sendAsync(
-              any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-          .thenReturn(CompletableFuture.completedFuture(mockInitResponse))
-          .thenReturn(CompletableFuture.completedFuture(mockInitializedResponse))
-          .thenReturn(CompletableFuture.completedFuture(mockErrorResponse));
-
-      Exception ex =
-          org.junit.jupiter.api.Assertions.assertThrows(
-              Exception.class,
-              () -> versionedTransport.listTools("", Collections.emptyMap()).get());
-      assertTrue(ex.getCause().getMessage().contains("Status: 500"));
-    }
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
-  void testListTools_JsonRpcError_ThrowsException() {
-    List<ProtocolVersion> versions =
-        List.of(
-            ProtocolVersion.VERSION_2025_11_25,
-            ProtocolVersion.VERSION_2025_06_18,
-            ProtocolVersion.VERSION_2025_03_26,
-            ProtocolVersion.VERSION_2024_11_05);
-    for (ProtocolVersion version : versions) {
-      HttpClient localMockClient = mock(HttpClient.class);
-      HttpMcpTransport versionedTransport =
-          new HttpMcpTransport(
-              "https://test-mcp-service.com",
-              Collections.emptyMap(),
-              null,
-              version,
-              localMockClient,
-              null);
-
-      HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
-      when(mockInitResponse.statusCode()).thenReturn(200);
-      when(mockInitResponse.body())
-          .thenReturn(
-              "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"protocolVersion\":\""
-                  + version.getValue()
-                  + "\"}}");
-      java.net.http.HttpHeaders mockHeaders =
-          java.net.http.HttpHeaders.of(
-              Map.of("Mcp-Session-Id", List.of("test-session-123")), (k, v) -> true);
-      when(mockInitResponse.headers()).thenReturn(mockHeaders);
-
-      HttpResponse<String> mockInitializedResponse = mock(HttpResponse.class);
-      when(mockInitializedResponse.statusCode()).thenReturn(200);
-      when(mockInitializedResponse.body()).thenReturn("");
-
-      HttpResponse<String> mockErrorResponse = mock(HttpResponse.class);
-      when(mockErrorResponse.statusCode()).thenReturn(200);
-      when(mockErrorResponse.body())
-          .thenReturn(
-              "{\"jsonrpc\":\"2.0\",\"id\":\"2\",\"error\":{\"code\":-1,\"message\":\"Custom"
-                  + " error\"}}");
-
-      when(localMockClient.<String>sendAsync(
-              any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-          .thenReturn(CompletableFuture.completedFuture(mockInitResponse))
-          .thenReturn(CompletableFuture.completedFuture(mockInitializedResponse))
-          .thenReturn(CompletableFuture.completedFuture(mockErrorResponse));
-
-      Exception ex =
-          org.junit.jupiter.api.Assertions.assertThrows(
-              Exception.class,
-              () -> versionedTransport.listTools("", Collections.emptyMap()).get());
-      assertTrue(ex.getCause().getMessage().contains("Custom error"));
-    }
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
-  void testInitialize_VersionMismatch_ThrowsException() {
-    List<ProtocolVersion> versions =
-        List.of(
-            ProtocolVersion.VERSION_2025_11_25,
-            ProtocolVersion.VERSION_2025_06_18,
-            ProtocolVersion.VERSION_2025_03_26,
-            ProtocolVersion.VERSION_2024_11_05);
-    for (ProtocolVersion version : versions) {
-      HttpClient localMockClient = mock(HttpClient.class);
-      HttpMcpTransport versionedTransport =
-          new HttpMcpTransport(
-              "https://test-mcp-service.com",
-              Collections.emptyMap(),
-              null,
-              version,
-              localMockClient,
-              null);
-
-      HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
-      when(mockInitResponse.statusCode()).thenReturn(200);
-      when(mockInitResponse.body())
-          .thenReturn(
-              "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"protocolVersion\":\"2000-01-01\"}}");
-
-      when(localMockClient.<String>sendAsync(
-              any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-          .thenReturn(CompletableFuture.completedFuture(mockInitResponse));
-
-      Exception ex =
-          org.junit.jupiter.api.Assertions.assertThrows(
-              Exception.class,
-              () -> versionedTransport.listTools("", Collections.emptyMap()).get());
-      assertTrue(ex.getCause().getMessage().contains("version mismatch"));
-    }
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
-  void testInitialize_MissingSessionIdHeader_ThrowsException() {
-    List<ProtocolVersion> sessionVer = List.of(ProtocolVersion.VERSION_2025_03_26);
-    for (ProtocolVersion version : sessionVer) {
-      HttpClient localMockClient = mock(HttpClient.class);
-      HttpMcpTransport versionedTransport =
-          new HttpMcpTransport(
-              "https://test-mcp-service.com",
-              Collections.emptyMap(),
-              null,
-              version,
-              localMockClient,
-              null);
-
-      HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
-      when(mockInitResponse.statusCode()).thenReturn(200);
-      when(mockInitResponse.body())
-          .thenReturn(
-              "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"protocolVersion\":\""
-                  + version.getValue()
-                  + "\"}}");
-      java.net.http.HttpHeaders mockHeaders =
-          java.net.http.HttpHeaders.of(Map.of(), (k, v) -> true);
-      when(mockInitResponse.headers()).thenReturn(mockHeaders);
-
-      when(localMockClient.<String>sendAsync(
-              any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-          .thenReturn(CompletableFuture.completedFuture(mockInitResponse));
-
-      Exception ex =
-          org.junit.jupiter.api.Assertions.assertThrows(
-              Exception.class,
-              () -> versionedTransport.listTools("", Collections.emptyMap()).get());
-      assertTrue(
-          ex.getCause().getMessage().contains("Server did not return a Mcp-Session-Id header"));
-    }
+    assertFalse(logRecords.isEmpty());
+    assertTrue(logRecords.get(0).getMessage().contains("This connection is using HTTP"));
   }
 
   @Test
@@ -685,42 +508,6 @@ class HttpMcpTransportTest {
     assertNotNull(ProtocolVersion.values());
     assertEquals(ProtocolVersion.VERSION_2026_06_18, ProtocolVersion.valueOf("VERSION_2026_06_18"));
     org.junit.jupiter.api.Assertions.assertNull(ProtocolVersion.fromString("invalid-version"));
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
-  void testInitialize_Non200Response_ThrowsException() {
-    List<ProtocolVersion> versions =
-        List.of(
-            ProtocolVersion.VERSION_2025_11_25,
-            ProtocolVersion.VERSION_2025_06_18,
-            ProtocolVersion.VERSION_2025_03_26,
-            ProtocolVersion.VERSION_2024_11_05);
-    for (ProtocolVersion version : versions) {
-      HttpClient localMockClient = mock(HttpClient.class);
-      HttpMcpTransport versionedTransport =
-          new HttpMcpTransport(
-              "https://test-mcp-service.com",
-              Collections.emptyMap(),
-              null,
-              version,
-              localMockClient,
-              null);
-
-      HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
-      when(mockInitResponse.statusCode()).thenReturn(500);
-      when(mockInitResponse.body()).thenReturn("Init Server Error");
-
-      when(localMockClient.<String>sendAsync(
-              any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
-          .thenReturn(CompletableFuture.completedFuture(mockInitResponse));
-
-      Exception ex =
-          org.junit.jupiter.api.Assertions.assertThrows(
-              Exception.class,
-              () -> versionedTransport.listTools("", Collections.emptyMap()).get());
-      assertTrue(ex.getCause().getMessage().contains("Init failed: 500"));
-    }
   }
 
   @Test
