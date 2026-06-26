@@ -234,12 +234,14 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
 
   @Override
   public CompletableFuture<Map<String, ToolDefinition>> loadToolset(final String toolsetName) {
-    return getMergedMetadata(java.util.Collections.emptyMap())
-        .thenCompose(
-            mergedMetadata ->
-                transport
-                    .listTools(toolsetName, mergedMetadata)
-                    .thenApply(TransportManifest::getTools));
+    return executeWithFallback(
+        () ->
+            getMergedMetadata(java.util.Collections.emptyMap())
+                .thenCompose(
+                    mergedMetadata ->
+                        transport
+                            .listTools(toolsetName, mergedMetadata)
+                            .thenApply(TransportManifest::getTools)));
   }
 
   @Override
@@ -345,12 +347,14 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
         && !extraHeaders.isEmpty()) {
       LOGGER.warning(HTTP_WARNING);
     }
-    return getMergedMetadata(extraHeaders)
-        .thenCompose(
-            mergedMetadata ->
-                transport
-                    .invokeTool(toolName, arguments, mergedMetadata)
-                    .thenApply(res -> handleInvokeResponse(res, toolName)));
+    return executeWithFallback(
+        () ->
+            getMergedMetadata(extraHeaders)
+                .thenCompose(
+                    mergedMetadata ->
+                        transport
+                            .invokeTool(toolName, arguments, mergedMetadata)
+                            .thenApply(res -> handleInvokeResponse(res, toolName))));
   }
 
   private CompletableFuture<String> getAuthorizationHeader() {
@@ -399,5 +403,47 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
     } catch (Exception e) {
       return new ToolResult(java.util.List.of(new ToolResult.Content("text", body)), false);
     }
+  }
+
+  private <T> CompletableFuture<T> executeWithFallback(
+      java.util.function.Supplier<CompletableFuture<T>> action) {
+    CompletableFuture<T> future;
+    try {
+      future = action.get();
+    } catch (Exception e) {
+      future = CompletableFuture.failedFuture(e);
+    }
+    return future
+        .handle(
+            (result, ex) -> {
+              if (ex != null) {
+                Throwable cause =
+                    (ex instanceof java.util.concurrent.CompletionException) ? ex.getCause() : ex;
+                if (cause
+                    instanceof
+                    com.google.cloud.mcp.exception.McpProtocolNegotiationException negEx) {
+                  if (this.transport instanceof HttpMcpTransport httpTransport) {
+                    com.google.cloud.mcp.ProtocolVersion fallbackVer =
+                        com.google.cloud.mcp.ProtocolVersion.fromString(
+                            negEx.getNegotiatedVersion());
+                    if (fallbackVer != null) {
+                      LOGGER.warning(
+                          "Protocol fallback required. Switching to version "
+                              + fallbackVer.getValue());
+                      httpTransport.switchVersion(fallbackVer);
+
+                      try {
+                        return action.get();
+                      } catch (Exception e) {
+                        return CompletableFuture.<T>failedFuture(e);
+                      }
+                    }
+                  }
+                }
+                return CompletableFuture.<T>failedFuture(ex);
+              }
+              return CompletableFuture.completedFuture(result);
+            })
+        .thenCompose(f -> f);
   }
 }

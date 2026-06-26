@@ -16,6 +16,7 @@
 
 package com.google.cloud.mcp;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.Map;
 import java.util.UUID;
 
@@ -44,9 +45,11 @@ public class JsonRpc {
     }
   }
 
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public static class CallToolParams {
     public String name;
     public Map<String, Object> arguments;
+    public Map<String, Object> _meta;
 
     public CallToolParams(final String name, final Map<String, Object> arguments) {
       this.name = name;

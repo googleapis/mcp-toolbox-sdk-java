@@ -192,6 +192,10 @@ public abstract class BaseMcpTransport implements Transport {
 
   protected abstract void applyProtocolHeaders(final HttpRequest.Builder builder);
 
+  protected Object modifyRequestParams(final String method, final Object params) {
+    return params;
+  }
+
   @Override
   public final CompletableFuture<TransportManifest> listTools(
       final String toolsetName, final Map<String, String> metadata) {
@@ -206,7 +210,8 @@ public abstract class BaseMcpTransport implements Transport {
               String path = toolsetName != null && !toolsetName.isEmpty() ? "/" + toolsetName : "";
               String url = baseUrl + path;
               try {
-                JsonRpc.Request listReq = new JsonRpc.Request("tools/list", Map.of());
+                Object finalParams = modifyRequestParams("tools/list", Map.of());
+                JsonRpc.Request listReq = new JsonRpc.Request("tools/list", finalParams);
                 String body = objectMapper.writeValueAsString(listReq);
                 HttpRequest.Builder req =
                     HttpRequest.newBuilder()
@@ -238,9 +243,10 @@ public abstract class BaseMcpTransport implements Transport {
         .thenCompose(
             mergedHeaders -> {
               try {
-                JsonRpc.Request invokeReq =
-                    new JsonRpc.Request(
+                Object finalParams =
+                    modifyRequestParams(
                         "tools/call", new JsonRpc.CallToolParams(toolName, arguments));
+                JsonRpc.Request invokeReq = new JsonRpc.Request("tools/call", finalParams);
                 String requestBody = objectMapper.writeValueAsString(invokeReq);
 
                 HttpRequest.Builder requestBuilder =
@@ -253,7 +259,11 @@ public abstract class BaseMcpTransport implements Transport {
 
                 return httpClient
                     .sendAsync(requestBuilder.build(), HttpResponse.BodyHandlers.ofString())
-                    .thenApply(res -> new TransportResponse(res.statusCode(), res.body()));
+                    .thenApply(
+                        res -> {
+                          checkResponseForNegotiationError(res);
+                          return new TransportResponse(res.statusCode(), res.body());
+                        });
               } catch (Exception e) {
                 return CompletableFuture.failedFuture(e);
               }
@@ -266,6 +276,7 @@ public abstract class BaseMcpTransport implements Transport {
   }
 
   private TransportManifest handleListToolsResponse(final HttpResponse<String> response) {
+    checkResponseForNegotiationError(response);
     if (response.statusCode() != 200) {
       throw new RuntimeException(
           "Failed to list tools. Status: " + response.statusCode() + " " + response.body());
@@ -273,7 +284,8 @@ public abstract class BaseMcpTransport implements Transport {
     try {
       JsonNode root = objectMapper.readTree(response.body());
       if (root.has("error")) {
-        throw new RuntimeException("MCP Error: " + root.get("error").toString());
+        throw new com.google.cloud.mcp.exception.McpException(
+            "MCP Error: " + root.get("error").toString());
       }
       JsonNode result = root.get("result");
       JsonNode toolsNode = result.get("tools");
@@ -356,8 +368,70 @@ public abstract class BaseMcpTransport implements Transport {
         }
       }
       return new TransportManifest(toolsMap);
+    } catch (com.google.cloud.mcp.exception.McpException e) {
+      throw e;
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private void checkResponseForNegotiationError(final HttpResponse<String> response) {
+    if (response == null || response.body() == null || response.body().isEmpty()) {
+      return;
+    }
+    try {
+      JsonNode root = objectMapper.readTree(response.body());
+      if (root.has("error")) {
+        JsonNode errorNode = root.get("error");
+        if (errorNode.has("code")) {
+          int code = errorNode.get("code").asInt();
+          if (code == -32004 || code == -32001) {
+            JsonNode dataNode = errorNode.get("data");
+            if (dataNode != null && dataNode.has("supported")) {
+              JsonNode supportedNode = dataNode.get("supported");
+              if (supportedNode.isArray()) {
+                java.util.List<String> serverSupported = new java.util.ArrayList<>();
+                for (JsonNode versionNode : supportedNode) {
+                  serverSupported.add(versionNode.asText());
+                }
+
+                String negotiated = findHighestCommonVersion(serverSupported);
+                if (negotiated != null) {
+                  throw new com.google.cloud.mcp.exception.McpProtocolNegotiationException(
+                      "Protocol version fallback requested by server to: " + negotiated,
+                      negotiated);
+                } else {
+                  throw new com.google.cloud.mcp.exception.McpException(
+                      "No mutually supported protocol version. Client supports: [2026-06-18, 2025-11-25, 2025-06-18, 2025-03-26, 2024-11-05], Server supports: "
+                          + serverSupported);
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (com.google.cloud.mcp.exception.McpProtocolNegotiationException e) {
+      throw e;
+    } catch (com.google.cloud.mcp.exception.McpException e) {
+      throw e;
+    } catch (Exception e) {
+      // Ignore JSON parsing exceptions here, they will be caught by caller
+    }
+  }
+
+  private String findHighestCommonVersion(java.util.List<String> serverSupported) {
+    java.util.List<String> clientPreference =
+        java.util.List.of(
+            ProtocolVersion.VERSION_2026_06_18.getValue(),
+            ProtocolVersion.VERSION_2025_11_25.getValue(),
+            ProtocolVersion.VERSION_2025_06_18.getValue(),
+            ProtocolVersion.VERSION_2025_03_26.getValue(),
+            ProtocolVersion.VERSION_2024_11_05.getValue());
+    for (String preferred : clientPreference) {
+      if (serverSupported.contains(preferred)) {
+        return preferred;
+      }
+    }
+    return null;
   }
 }

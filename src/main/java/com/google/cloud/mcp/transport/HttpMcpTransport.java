@@ -22,6 +22,7 @@ import com.google.cloud.mcp.transport.v20241105.HttpMcpTransportV20241105;
 import com.google.cloud.mcp.transport.v20250326.HttpMcpTransportV20250326;
 import com.google.cloud.mcp.transport.v20250618.HttpMcpTransportV20250618;
 import com.google.cloud.mcp.transport.v20251125.HttpMcpTransportV20251125;
+import com.google.cloud.mcp.transport.v20260618.HttpMcpTransportV20260618;
 import java.net.http.HttpClient;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -29,7 +30,12 @@ import java.util.concurrent.CompletableFuture;
 /** Default HTTP transport implementation routing requests to version-specific handlers. */
 public final class HttpMcpTransport implements Transport {
 
-  private final Transport delegate;
+  private final String baseUrl;
+  private final Map<String, String> clientHeaders;
+  private final CredentialsProvider credentialsProvider;
+  private final HttpClient httpClient;
+  private final java.util.concurrent.Executor executor;
+  private volatile Transport delegate;
 
   /**
    * Constructs a new HttpMcpTransport with a base URL.
@@ -99,12 +105,34 @@ public final class HttpMcpTransport implements Transport {
       final ProtocolVersion preferredProtocolVersion,
       final HttpClient httpClient,
       final java.util.concurrent.Executor executor) {
+    this.baseUrl = baseUrl;
+    this.clientHeaders = clientHeaders;
+    this.credentialsProvider = credentialsProvider;
+    this.httpClient = httpClient;
+    this.executor = executor;
+
     final ProtocolVersion version =
         preferredProtocolVersion != null
             ? preferredProtocolVersion
             : ProtocolVersion.VERSION_2025_11_25;
 
+    switchVersion(version);
+  }
+
+  public synchronized void switchVersion(final ProtocolVersion version) {
+    if (this.delegate != null) {
+      try {
+        this.delegate.close();
+      } catch (Exception e) {
+        // ignore
+      }
+    }
     switch (version) {
+      case VERSION_2026_06_18:
+        this.delegate =
+            new HttpMcpTransportV20260618(
+                baseUrl, clientHeaders, credentialsProvider, httpClient, executor);
+        break;
       case VERSION_2025_11_25:
         this.delegate =
             new HttpMcpTransportV20251125(
