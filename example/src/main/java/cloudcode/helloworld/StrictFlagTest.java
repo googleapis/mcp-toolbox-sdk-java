@@ -17,18 +17,16 @@
 package cloudcode.helloworld;
 
 import com.google.cloud.mcp.McpToolboxClient;
-import com.google.cloud.mcp.Tool;
-import java.util.Map;
+import com.google.cloud.mcp.tool.Tool;
 import java.util.HashMap;
+import java.util.Map;
 
 public class StrictFlagTest {
   public static void main(String[] args) {
     String targetUrl = "YOUR_TOOLBOX_SERVICE_ENDPOINT";
     System.out.println("--- Starting MCP Toolbox Strict Flag Test ---");
 
-    McpToolboxClient client = McpToolboxClient.builder()
-        .baseUrl(targetUrl)
-        .build();
+    McpToolboxClient client = McpToolboxClient.builder().baseUrl(targetUrl).build();
 
     // Prepare bindings for a NON-EXISTENT tool
     Map<String, Map<String, Object>> paramBinds = new HashMap<>();
@@ -38,7 +36,8 @@ public class StrictFlagTest {
     System.out.println("\n[Test 1] Loading with Strict = FALSE...");
     try {
       Map<String, Tool> tools = client.loadToolset(null, paramBinds, null, false).join();
-      System.out.println("    ✅ Success! Loaded " + tools.size() + " tools. Unknown binding was ignored.");
+      System.out.println(
+          "    ✅ Success! Loaded " + tools.size() + " tools. Unknown binding was ignored.");
     } catch (Exception e) {
       System.err.println("    ❌ Failed unexpectedly: " + e.getMessage());
     }

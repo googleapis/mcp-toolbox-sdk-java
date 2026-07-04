@@ -18,6 +18,9 @@ package com.google.cloud.mcp;
 
 /** Supported protocol versions for the Model Context Protocol. */
 public enum ProtocolVersion {
+  /** Protocol version 2026-06-18. */
+  VERSION_2026_06_18("2026-06-18", true, true, false),
+
   /** Protocol version 2025-11-25. */
   VERSION_2025_11_25("2025-11-25", true, true, false),
 

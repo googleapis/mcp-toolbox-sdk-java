@@ -40,6 +40,8 @@ public class CymbalTransitApplication {
     // Start the Spring Boot application.
     app.run(args);
     logger.info(
-        "Hello from Cloud Run! The container started successfully and is listening for HTTP requests on " + port);
+        "Hello from Cloud Run! The container started successfully and is listening for HTTP"
+            + " requests on "
+            + port);
   }
 }
