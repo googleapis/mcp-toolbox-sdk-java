@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package com.google.cloud.mcp;
+package com.google.cloud.mcp.transport;
 
 import java.util.Map;
 import java.util.UUID;
 
-public class JsonRpc {
-  public static class Request {
+class JsonRpc {
+  static class Request {
     public String jsonrpc = "2.0";
     public String id;
     public String method;
@@ -33,7 +33,7 @@ public class JsonRpc {
     }
   }
 
-  public static class Notification {
+  static class Notification {
     public String jsonrpc = "2.0";
     public String method;
     public Object params;
@@ -44,7 +44,7 @@ public class JsonRpc {
     }
   }
 
-  public static class CallToolParams {
+  static class CallToolParams {
     public String name;
     public Map<String, Object> arguments;
 
@@ -54,7 +54,7 @@ public class JsonRpc {
     }
   }
 
-  public static class InitializeParams {
+  static class InitializeParams {
     public String protocolVersion;
     public Map<String, Object> capabilities;
     public Map<String, String> clientInfo;

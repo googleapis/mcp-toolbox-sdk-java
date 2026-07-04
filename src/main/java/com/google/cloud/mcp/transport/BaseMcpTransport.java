@@ -18,7 +18,6 @@ package com.google.cloud.mcp.transport;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.cloud.mcp.JsonRpc;
 import com.google.cloud.mcp.ProtocolVersion;
 import com.google.cloud.mcp.auth.CredentialsProvider;
 import com.google.cloud.mcp.tool.ToolDefinition;

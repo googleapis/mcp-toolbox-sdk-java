@@ -14,27 +14,22 @@
  * limitations under the License.
  */
 
-package com.google.cloud.mcp.transport.v20250326;
+package com.google.cloud.mcp.transport;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.cloud.mcp.JsonRpc;
 import com.google.cloud.mcp.ProtocolVersion;
 import com.google.cloud.mcp.auth.CredentialsProvider;
 import com.google.cloud.mcp.exception.McpException;
-import com.google.cloud.mcp.transport.BaseMcpTransport;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-public final class HttpMcpTransportV20250326 extends BaseMcpTransport {
+public final class HttpMcpTransportV20251125 extends BaseMcpTransport {
 
-  private volatile String sessionId;
-
-  public HttpMcpTransportV20250326(
+  public HttpMcpTransportV20251125(
       final String baseUrl,
       final Map<String, String> clientHeaders,
       final CredentialsProvider credentialsProvider,
@@ -44,7 +39,7 @@ public final class HttpMcpTransportV20250326 extends BaseMcpTransport {
         baseUrl,
         clientHeaders,
         credentialsProvider,
-        ProtocolVersion.VERSION_2025_03_26,
+        ProtocolVersion.VERSION_2025_11_25,
         httpClient,
         executor);
   }
@@ -61,7 +56,7 @@ public final class HttpMcpTransportV20250326 extends BaseMcpTransport {
           new JsonRpc.Request(
               "initialize",
               new JsonRpc.InitializeParams(
-                  ProtocolVersion.VERSION_2025_03_26.getValue(), "mcp-toolbox-sdk-java"));
+                  ProtocolVersion.VERSION_2025_11_25.getValue(), "mcp-toolbox-sdk-java"));
       String body = objectMapper.writeValueAsString(initReq);
       HttpRequest.Builder req =
           HttpRequest.newBuilder()
@@ -90,27 +85,18 @@ public final class HttpMcpTransportV20250326 extends BaseMcpTransport {
                   if (result != null && result.has("protocolVersion")) {
                     serverVersion = result.get("protocolVersion").asText();
                   } else {
-                    serverVersion = ProtocolVersion.VERSION_2025_03_26.getValue();
+                    serverVersion = ProtocolVersion.VERSION_2025_11_25.getValue();
                   }
 
-                  if (!ProtocolVersion.VERSION_2025_03_26.getValue().equals(serverVersion)) {
+                  if (!ProtocolVersion.VERSION_2025_11_25.getValue().equals(serverVersion)) {
                     return CompletableFuture.failedFuture(
                         new McpException(
                             "MCP version mismatch: client ("
-                                + ProtocolVersion.VERSION_2025_03_26.getValue()
+                                + ProtocolVersion.VERSION_2025_11_25.getValue()
                                 + ") != server ("
                                 + serverVersion
                                 + ")"));
                   }
-
-                  Optional<String> sessionIdOpt = res.headers().firstValue("Mcp-Session-Id");
-                  if (sessionIdOpt.isEmpty()) {
-                    return CompletableFuture.failedFuture(
-                        new McpException(
-                            "Server did not return a Mcp-Session-Id header during"
-                                + " initialization."));
-                  }
-                  this.sessionId = sessionIdOpt.get();
 
                   JsonRpc.Notification notif =
                       new JsonRpc.Notification("notifications/initialized", Map.of());
@@ -139,8 +125,6 @@ public final class HttpMcpTransportV20250326 extends BaseMcpTransport {
   protected void applyProtocolHeaders(final HttpRequest.Builder builder) {
     builder.header("Content-Type", "application/json");
     builder.header("Accept", "application/json");
-    if (sessionId != null) {
-      builder.header("Mcp-Session-Id", sessionId);
-    }
+    builder.header("MCP-Protocol-Version", ProtocolVersion.VERSION_2025_11_25.getValue());
   }
 }

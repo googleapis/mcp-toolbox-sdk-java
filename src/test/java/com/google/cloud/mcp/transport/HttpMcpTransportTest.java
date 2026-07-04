@@ -474,4 +474,11 @@ class HttpMcpTransportTest {
     assertFalse(p2.required());
     assertEquals("string", p2.type());
   }
+
+  @Test
+  void testJsonRpcInstantiation() {
+    // Instantiate package-private JsonRpc namespace to cover its default constructor
+    JsonRpc rpc = new JsonRpc();
+    assertNotNull(rpc);
+  }
 }

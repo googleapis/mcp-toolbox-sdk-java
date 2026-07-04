@@ -18,10 +18,6 @@ package com.google.cloud.mcp.transport;
 
 import com.google.cloud.mcp.ProtocolVersion;
 import com.google.cloud.mcp.auth.CredentialsProvider;
-import com.google.cloud.mcp.transport.v20241105.HttpMcpTransportV20241105;
-import com.google.cloud.mcp.transport.v20250326.HttpMcpTransportV20250326;
-import com.google.cloud.mcp.transport.v20250618.HttpMcpTransportV20250618;
-import com.google.cloud.mcp.transport.v20251125.HttpMcpTransportV20251125;
 import java.net.http.HttpClient;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;

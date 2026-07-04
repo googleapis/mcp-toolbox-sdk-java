@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-package com.google.cloud.mcp.transport.v20241105;
+package com.google.cloud.mcp.transport;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.cloud.mcp.JsonRpc;
 import com.google.cloud.mcp.ProtocolVersion;
 import com.google.cloud.mcp.auth.CredentialsProvider;
 import com.google.cloud.mcp.exception.McpException;
-import com.google.cloud.mcp.transport.BaseMcpTransport;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;

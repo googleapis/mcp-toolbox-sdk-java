@@ -31,7 +31,6 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.mcp.JsonRpc;
 import com.google.cloud.mcp.McpToolboxClient;
 import com.google.cloud.mcp.auth.AuthTokenGetter;
 import com.google.cloud.mcp.auth.CredentialsProvider;
@@ -824,8 +823,13 @@ class McpToolboxClientImplTest {
     // Mock ObjectMapper to throw on notification
     ObjectMapper mockMapper = mock(ObjectMapper.class);
     when(mockMapper.readTree(any(String.class))).thenReturn(new ObjectMapper().readTree("{}"));
-    when(mockMapper.writeValueAsString(any(JsonRpc.Request.class))).thenReturn("{}");
-    when(mockMapper.writeValueAsString(any(JsonRpc.Notification.class)))
+    when(mockMapper.writeValueAsString(
+            org.mockito.ArgumentMatchers.argThat(
+                arg -> arg != null && arg.getClass().getSimpleName().equals("Request"))))
+        .thenReturn("{}");
+    when(mockMapper.writeValueAsString(
+            org.mockito.ArgumentMatchers.argThat(
+                arg -> arg != null && arg.getClass().getSimpleName().equals("Notification"))))
         .thenThrow(new RuntimeException("Simulated notification serialization failure"));
 
     Field delegateField = HttpMcpTransport.class.getDeclaredField("delegate");

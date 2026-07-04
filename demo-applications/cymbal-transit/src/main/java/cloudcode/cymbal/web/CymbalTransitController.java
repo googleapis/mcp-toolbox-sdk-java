@@ -52,7 +52,7 @@ public class CymbalTransitController {
 }
 
 /**
- * 1. AI AGENT CONFIGURATION Configures Gemini 3 Flash and binds it to our LangChain4j Agent
+ * 1. AI AGENT CONFIGURATION Configures Gemini 3.5 Flash and binds it to our LangChain4j Agent
  * Interface.
  */
 @Configuration
@@ -104,7 +104,7 @@ interface TransitAgent {
         + " for booking ticket actionable between 2 cities,  'searchPolicies' is for finding"
         + " matching policies for this company.",
     "Be intuitive and intelligent in finding the context even when user has typos. Do no"
-        + " hallucinate and make up stuff though. USe only data from the tools. ",
+        + " hallucinate and make up stuff though. Use only data from the tools. ",
     "Don't show any asterisks while listing results. Keep it formatted and numbered or bulleted."
         + " asterisks distract."
   })
@@ -202,8 +202,6 @@ class McpToolboxService {
             result -> {
               if (result.isError() || result.content() == null || result.content().isEmpty())
                 return "No schedules found.";
-              // return result.content().get(0).text();
-              // return result.text();
               return result.content().stream()
                   .map(content -> content.text())
                   .collect(Collectors.joining(", ", "[", "]"));
@@ -261,7 +259,9 @@ class McpToolboxService {
 }
 
 /**
- * 5. THE REST CONTROLLER Now radically simplified! No more manual if/else logic or JSON parsing.
+ * 5. THE REST CONTROLLER
+ *
+ * <p>Now radically simplified! No more manual if/else logic or JSON parsing.
  */
 @RestController
 @RequestMapping("/api/agent")
@@ -279,7 +279,7 @@ class TransitAgentController {
     // We use the HTTP Session ID to tell LangChain4j which memory context to load
     String sessionId = session.getId();
 
-    // Let Gemini 3 Flash handle the thinking, tool execution, and response generation!
+    // Let Gemini 3.5 Flash handle the thinking, tool execution, and response generation!
     String agentResponse = transitAgent.chat(sessionId, userMessage);
 
     return ResponseEntity.ok(agentResponse);

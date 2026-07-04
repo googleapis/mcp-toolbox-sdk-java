@@ -26,7 +26,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.cloud.mcp.JsonRpc;
 import com.google.cloud.mcp.auth.CredentialsProvider;
 import com.google.cloud.mcp.tool.ToolDefinition;
 import com.google.cloud.mcp.tool.ToolResult;
@@ -489,13 +488,6 @@ class McpToolboxClientImplJsonRpcTest {
     assertTrue(tools.containsKey("test-tool"));
     ToolDefinition toolDef = tools.get("test-tool");
     assertTrue(toolDef.parameters().isEmpty());
-  }
-
-  @Test
-  void testJsonRpcInstantiation() {
-    // Instantiate package-private JsonRpc namespace to cover its default constructor
-    JsonRpc rpc = new JsonRpc();
-    assertNotNull(rpc);
   }
 
   @Test

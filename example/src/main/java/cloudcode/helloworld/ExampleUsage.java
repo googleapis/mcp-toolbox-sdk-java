@@ -26,8 +26,10 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Sample Application to demostrate the usage of the MCP Toolbox Java SDK. Covers: Global Auth,
- * Parameterized Auth, Discovery, Simple Tool, Authenticated Tool, Parameter Binding.
+ * Sample Application to demostrate the usage of the MCP Toolbox Java SDK.
+ *
+ * <p>Covers: Global Auth, Parameterized Auth, Discovery, Simple Tool, Authenticated Tool, Parameter
+ * Binding.
  */
 public class ExampleUsage {
   public static void main(String[] args) {
