@@ -45,7 +45,7 @@ In any case remember to change the `YOUR_TOOLBOX_SERVICE_ENDPOINT` placeholder i
    <dependency>
      <groupId>com.google.cloud.mcp</groupId>
      <artifactId>mcp-toolbox-sdk-java</artifactId>
-     <version>1.0.0</version> <!-- {x-version-update:mcp-toolbox-sdk-java:current} -->
+     <version>1.0.1-SNAPSHOT</version> <!-- {x-version-update:mcp-toolbox-sdk-java:current} -->
    </dependency>
    ```
 
