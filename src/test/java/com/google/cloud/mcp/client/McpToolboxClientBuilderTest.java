@@ -27,6 +27,10 @@ import com.google.cloud.mcp.McpToolboxClient;
 import com.google.cloud.mcp.ProtocolVersion;
 import com.google.cloud.mcp.auth.CredentialsProvider;
 import com.google.cloud.mcp.exception.McpException;
+import com.google.cloud.mcp.exception.McpProtocolException;
+import com.google.cloud.mcp.exception.McpToolboxException;
+import com.google.cloud.mcp.exception.McpTransportException;
+import com.google.cloud.mcp.exception.ToolExecutionException;
 import com.google.cloud.mcp.tool.ToolPostProcessor;
 import com.google.cloud.mcp.tool.ToolPreProcessor;
 import com.google.cloud.mcp.transport.Transport;
@@ -191,6 +195,9 @@ class McpToolboxClientBuilderTest {
     McpException ex = new McpException("error message", cause);
     assertEquals("error message", ex.getMessage());
     assertSame(cause, ex.getCause());
+
+    McpException exMsg = new McpException("only message");
+    assertEquals("only message", exMsg.getMessage());
   }
 
   @Test
@@ -198,5 +205,48 @@ class McpToolboxClientBuilderTest {
     assertNull(ProtocolVersion.fromString(null));
     assertNull(ProtocolVersion.fromString("invalid-version"));
     assertEquals(ProtocolVersion.VERSION_2025_11_25, ProtocolVersion.fromString("2025-11-25"));
+  }
+
+  @Test
+  void testMcpTransportExceptionConstructors() {
+    McpTransportException ex1 = new McpTransportException("msg1");
+    assertEquals("msg1", ex1.getMessage());
+    assertEquals(-1, ex1.getStatusCode());
+
+    McpTransportException ex2 = new McpTransportException("msg2", 404);
+    assertEquals("msg2", ex2.getMessage());
+    assertEquals(404, ex2.getStatusCode());
+
+    RuntimeException cause = new RuntimeException("root");
+    McpTransportException ex3 = new McpTransportException("msg3", cause);
+    assertEquals("msg3", ex3.getMessage());
+    assertSame(cause, ex3.getCause());
+    assertEquals(-1, ex3.getStatusCode());
+
+    McpTransportException ex4 = new McpTransportException("msg4", 500, cause);
+    assertEquals("msg4", ex4.getMessage());
+    assertSame(cause, ex4.getCause());
+    assertEquals(500, ex4.getStatusCode());
+  }
+
+  @Test
+  void testOtherExceptionConstructors() {
+    RuntimeException cause = new RuntimeException("root");
+    McpToolboxException tb1 = new McpToolboxException("tb msg");
+    McpToolboxException tb2 = new McpToolboxException("tb msg", cause);
+    McpToolboxException tb3 = new McpToolboxException(cause);
+    assertEquals("tb msg", tb1.getMessage());
+    assertEquals("tb msg", tb2.getMessage());
+    assertSame(cause, tb3.getCause());
+
+    McpProtocolException proto1 = new McpProtocolException("proto msg");
+    McpProtocolException proto2 = new McpProtocolException("proto msg", cause);
+    assertEquals("proto msg", proto1.getMessage());
+    assertSame(cause, proto2.getCause());
+
+    ToolExecutionException exec1 = new ToolExecutionException("exec msg");
+    ToolExecutionException exec2 = new ToolExecutionException("exec msg", cause);
+    assertEquals("exec msg", exec1.getMessage());
+    assertSame(cause, exec2.getCause());
   }
 }
