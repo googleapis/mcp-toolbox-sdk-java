@@ -39,6 +39,9 @@ public class ToolboxE2ESetup implements BeforeAllCallback, AfterAllCallback {
   private static final String PROJECT_ID_ENV = "GOOGLE_CLOUD_PROJECT";
   private static final String TOOLBOX_VERSION_ENV = "TOOLBOX_VERSION";
   private static final String TOOLBOX_MANIFEST_VERSION_ENV = "TOOLBOX_MANIFEST_VERSION";
+  private static final String TOOLBOX_SERVER_URL_ENV = "TOOLBOX_SERVER_URL";
+  private static final String TOOLBOX_AUTH_TOKEN_1_ENV = "TOOLBOX_AUTH_TOKEN_1";
+  private static final String TOOLBOX_AUTH_TOKEN_2_ENV = "TOOLBOX_AUTH_TOKEN_2";
   private static final String BINARY_NAME = "toolbox";
 
   private Process serverProcess;
@@ -48,10 +51,36 @@ public class ToolboxE2ESetup implements BeforeAllCallback, AfterAllCallback {
 
   @Override
   public void beforeAll(ExtensionContext context) throws Exception {
+    String serverUrl = System.getenv(TOOLBOX_SERVER_URL_ENV);
     String projectId = System.getenv(PROJECT_ID_ENV);
+
     org.junit.jupiter.api.Assumptions.assumeTrue(
-        projectId != null && !projectId.trim().isEmpty(),
-        "Skipping E2E tests because " + PROJECT_ID_ENV + " is not set.");
+        (projectId != null && !projectId.trim().isEmpty())
+            || (serverUrl != null && !serverUrl.trim().isEmpty()),
+        "Skipping E2E tests because neither "
+            + PROJECT_ID_ENV
+            + " nor "
+            + TOOLBOX_SERVER_URL_ENV
+            + " is set.");
+
+    // If an external server URL is provided, use it directly
+    if (serverUrl != null && !serverUrl.trim().isEmpty()) {
+      logger.warning("================================================================");
+      logger.warning("WARNING: Using external pre-configured TOOLBOX_SERVER_URL: " + serverUrl);
+      logger.warning("Ensure external server was started with manifest revision 34+");
+      logger.warning("================================================================");
+      authToken1 = System.getenv(TOOLBOX_AUTH_TOKEN_1_ENV);
+      authToken2 = System.getenv(TOOLBOX_AUTH_TOKEN_2_ENV);
+      if (authToken1 == null && projectId != null && !projectId.trim().isEmpty()) {
+        String client1Id = accessSecretVersion(projectId, "sdk_testing_client1", "latest");
+        authToken1 = getAuthToken(client1Id);
+      }
+      if (authToken2 == null && projectId != null && !projectId.trim().isEmpty()) {
+        String client2Id = accessSecretVersion(projectId, "sdk_testing_client2", "latest");
+        authToken2 = getAuthToken(client2Id);
+      }
+      return;
+    }
 
     String toolboxVersion = getEnvVar(TOOLBOX_VERSION_ENV);
     String manifestVersion = getEnvVar(TOOLBOX_MANIFEST_VERSION_ENV);
@@ -107,9 +136,10 @@ public class ToolboxE2ESetup implements BeforeAllCallback, AfterAllCallback {
       serverProcess.destroy();
       try {
         if (!serverProcess.waitFor(5, TimeUnit.SECONDS)) {
-          serverProcess.destroy();
+          serverProcess.destroyForcibly();
         }
       } catch (InterruptedException e) {
+        serverProcess.destroyForcibly();
         Thread.currentThread().interrupt();
       }
     }
@@ -124,7 +154,18 @@ public class ToolboxE2ESetup implements BeforeAllCallback, AfterAllCallback {
   }
 
   public String getBaseUrl() {
+    String envUrl = System.getenv(TOOLBOX_SERVER_URL_ENV);
+    if (envUrl != null && !envUrl.trim().isEmpty()) {
+      return envUrl;
+    }
     return "http://localhost:5000/mcp";
+  }
+
+  public static String getTextContent(com.google.cloud.mcp.tool.ToolResult result) {
+    if (result == null) {
+      return "";
+    }
+    return result.text();
   }
 
   private void startServer() throws IOException, InterruptedException {
