@@ -29,6 +29,23 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ToolResult(
     @JsonProperty("content") List<Content> content, @JsonProperty("isError") boolean isError) {
+
+  /**
+   * Returns the concatenated text content from all text items in this result, or an empty string if
+   * no text content is available.
+   *
+   * @return The concatenated text content.
+   */
+  public String text() {
+    if (content == null) {
+      return "";
+    }
+    return content.stream()
+        .filter(c -> "text".equals(c.type()) && c.text() != null)
+        .map(Content::text)
+        .collect(java.util.stream.Collectors.joining("\n"));
+  }
+
   /**
    * Represents a single content item in a tool result.
    *

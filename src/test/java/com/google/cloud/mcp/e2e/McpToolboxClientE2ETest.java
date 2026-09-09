@@ -16,17 +16,22 @@
 
 package com.google.cloud.mcp.e2e;
 
-import static com.google.cloud.mcp.e2e.ToolboxE2ESetup.getTextContent;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.mcp.McpToolboxClient;
+import com.google.cloud.mcp.ProtocolVersion;
 import com.google.cloud.mcp.tool.Tool;
 import com.google.cloud.mcp.tool.ToolDefinition;
 import com.google.cloud.mcp.tool.ToolResult;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -35,6 +40,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 @Timeout(value = 60, unit = TimeUnit.SECONDS)
 class McpToolboxClientE2ETest {
@@ -112,9 +119,8 @@ class McpToolboxClientE2ETest {
     Tool tool = client.loadTool("get-n-rows").join();
     ToolResult result = tool.execute(Map.of("num_rows", "2")).join();
 
-    assertFalse(
-        result.isError(), "Expected successful result, but got error: " + getTextContent(result));
-    String output = getTextContent(result);
+    assertFalse(result.isError(), "Expected successful result, but got error: " + result.text());
+    String output = result.text();
     assertTrue(output.contains("row1"), "Output didn't contain row1. Actual output: " + output);
     assertTrue(output.contains("row2"));
     assertFalse(output.contains("row3"));
@@ -164,7 +170,7 @@ class McpToolboxClientE2ETest {
     Tool boundTool = tool.bindParam("num_rows", "3");
 
     ToolResult result = boundTool.execute(Map.of()).join();
-    String output = getTextContent(result);
+    String output = result.text();
 
     assertTrue(output.contains("row1"), "Actual output: " + output);
     assertTrue(output.contains("row2"));
@@ -178,7 +184,7 @@ class McpToolboxClientE2ETest {
     Tool boundTool = tool.bindParam("num_rows", () -> "3");
 
     ToolResult result = boundTool.execute(Map.of()).join();
-    String output = getTextContent(result);
+    String output = result.text();
 
     assertTrue(output.contains("row1"), "Actual output: " + output);
     assertTrue(output.contains("row2"));
@@ -222,7 +228,7 @@ class McpToolboxClientE2ETest {
 
     ToolResult result = tool.execute(Map.of("id", "2")).join();
     assertFalse(result.isError());
-    String output = getTextContent(result);
+    String output = result.text();
     assertTrue(output.contains("row2"));
   }
 
@@ -236,12 +242,9 @@ class McpToolboxClientE2ETest {
                 "my-test-auth", () -> CompletableFuture.completedFuture(server.getAuthToken2()));
 
     ToolResult result = tool.execute(Map.of("id", "2")).join();
+    assertTrue(result.isError(), "Expected error for wrong auth. Actual output: " + result.text());
     assertTrue(
-        result.isError(),
-        "Expected error for wrong auth. Actual output: " + getTextContent(result));
-    assertTrue(
-        getTextContent(result).toLowerCase().contains("unauthorized"),
-        "Actual output: " + getTextContent(result));
+        result.text().toLowerCase().contains("unauthorized"), "Actual output: " + result.text());
   }
 
   @Test
@@ -251,11 +254,10 @@ class McpToolboxClientE2ETest {
     ToolResult result = tool.execute(Map.of("id", "2")).join();
     assertTrue(
         result.isError(),
-        "Expected error when invoking tool without auth token. Output: " + getTextContent(result));
+        "Expected error when invoking tool without auth token. Output: " + result.text());
     assertTrue(
-        getTextContent(result).toLowerCase().contains("unauthorized")
-            || getTextContent(result).contains("401"),
-        "Expected unauthorized/401 error message. Actual output: " + getTextContent(result));
+        result.text().toLowerCase().contains("unauthorized") || result.text().contains("401"),
+        "Expected unauthorized/401 error message. Actual output: " + result.text());
   }
 
   @Test
@@ -268,8 +270,8 @@ class McpToolboxClientE2ETest {
                 "my-test-auth", () -> CompletableFuture.completedFuture(server.getAuthToken1()));
 
     ToolResult result = tool.execute(Map.of()).join();
-    assertFalse(result.isError(), "Expected success but got error: " + getTextContent(result));
-    String output = getTextContent(result);
+    assertFalse(result.isError(), "Expected success but got error: " + result.text());
+    String output = result.text();
     assertTrue(output.contains("row4"), "Actual output: " + output);
     assertTrue(output.contains("row5"));
     assertTrue(output.contains("row6"));
@@ -286,7 +288,7 @@ class McpToolboxClientE2ETest {
 
     ToolResult result = tool.execute(Map.of()).join();
     assertTrue(result.isError());
-    assertTrue(getTextContent(result).contains("no field named row_data"));
+    assertTrue(result.text().contains("no field named row_data"));
   }
 
   @Test
@@ -309,5 +311,317 @@ class McpToolboxClientE2ETest {
     assertTrue(
         ex.getCause().getMessage().contains("Token unavailable"),
         "Unexpected cause: " + ex.getCause().getMessage());
+  }
+
+  // =========================================================================
+  // 5. Optional & Default Parameters Suite (search-rows)
+  // =========================================================================
+
+  @Test
+  void testSearchRowsDefinitionSchema() {
+    Tool tool = client.loadTool("search-rows").join();
+    assertEquals("search-rows", tool.name());
+    assertNotNull(tool.definition());
+
+    boolean hasEmail = false;
+    boolean hasData = false;
+    boolean hasId = false;
+
+    if (tool.definition().parameters() != null) {
+      for (ToolDefinition.Parameter p : tool.definition().parameters()) {
+        if ("email".equals(p.name())) {
+          hasEmail = true;
+          assertTrue(p.required(), "Parameter 'email' should be required");
+          assertEquals("string", p.type());
+        } else if ("data".equals(p.name())) {
+          hasData = true;
+          assertFalse(p.required(), "Parameter 'data' should be optional");
+          assertEquals("string", p.type());
+        } else if ("id".equals(p.name())) {
+          hasId = true;
+          assertFalse(p.required(), "Parameter 'id' should be optional");
+          assertEquals("integer", p.type());
+        }
+      }
+    }
+    assertTrue(hasEmail, "Missing required parameter 'email' in definition");
+    assertTrue(hasData, "Missing optional parameter 'data' in definition");
+    assertTrue(hasId, "Missing optional parameter 'id' in definition");
+  }
+
+  @Test
+  void testSearchRowsOmittingOptionals() {
+    Tool tool = client.loadTool("search-rows").join();
+    ToolResult result = tool.execute(Map.of("email", "twishabansal@google.com")).join();
+
+    assertFalse(result.isError(), "Expected success: " + result.text());
+    String output = result.text();
+    assertTrue(output.contains("twishabansal@google.com"), "Output: " + output);
+    assertTrue(output.contains("row2"), "Output: " + output);
+    assertFalse(output.contains("row1"), "Output should not contain row1: " + output);
+    assertFalse(output.contains("row3"), "Output should not contain row3: " + output);
+  }
+
+  @Test
+  void testSearchRowsWithAllParamsProvided() {
+    Tool tool = client.loadTool("search-rows").join();
+    Map<String, Object> args = new HashMap<>();
+    args.put("email", "twishabansal@google.com");
+    args.put("data", "row3");
+    args.put("id", 3L);
+
+    ToolResult result = tool.execute(args).join();
+    assertFalse(result.isError(), "Expected success: " + result.text());
+    String output = result.text();
+    assertTrue(output.contains("twishabansal@google.com"));
+    assertTrue(output.contains("row3"));
+    assertFalse(output.contains("row2"));
+  }
+
+  @Test
+  void testSearchRowsWithNullOptionalParams() {
+    Tool tool = client.loadTool("search-rows").join();
+    Map<String, Object> args = new HashMap<>();
+    args.put("email", "twishabansal@google.com");
+    args.put("data", null);
+    args.put("id", null);
+
+    ToolResult result = tool.execute(args).join();
+    assertFalse(result.isError(), "Expected success: " + result.text());
+    String output = result.text();
+    assertTrue(output.contains("twishabansal@google.com"));
+    assertTrue(output.contains("row2"));
+  }
+
+  @Test
+  void testSearchRowsWithNullRequiredParam() {
+    Tool tool = client.loadTool("search-rows").join();
+    Map<String, Object> args = new HashMap<>();
+    args.put("email", null);
+    args.put("data", "row3");
+
+    CompletionException ex =
+        assertThrows(
+            CompletionException.class,
+            () -> {
+              tool.execute(args).join();
+            });
+    assertNotNull(ex.getCause());
+    assertTrue(ex.getCause() instanceof IllegalArgumentException);
+    assertTrue(ex.getCause().getMessage().contains("Missing required parameter 'email'"));
+  }
+
+  @Test
+  void testSearchRowsWithWrongParamType() {
+    Tool tool = client.loadTool("search-rows").join();
+    Map<String, Object> args = new HashMap<>();
+    args.put("email", "twishabansal@google.com");
+    args.put("id", "not-an-integer");
+
+    CompletionException ex =
+        assertThrows(
+            CompletionException.class,
+            () -> {
+              tool.execute(args).join();
+            });
+    assertNotNull(ex.getCause());
+    assertTrue(ex.getCause() instanceof IllegalArgumentException);
+    assertTrue(ex.getCause().getMessage().contains("expected type 'integer' but got 'String'"));
+  }
+
+  @Test
+  void testSearchRowsMissingRequiredParam() {
+    Tool tool = client.loadTool("search-rows").join();
+    CompletionException ex =
+        assertThrows(
+            CompletionException.class,
+            () -> {
+              tool.execute(Map.of("data", "row3")).join();
+            });
+    assertNotNull(ex.getCause());
+    assertTrue(
+        ex.getCause() instanceof IllegalArgumentException,
+        "Expected IllegalArgumentException but got: " + ex.getCause().getClass().getName());
+    assertTrue(
+        ex.getCause().getMessage().contains("Missing required parameter 'email'"),
+        "Unexpected message: " + ex.getCause().getMessage());
+  }
+
+  @Test
+  void testSearchRowsNonMatchingData() {
+    Tool tool = client.loadTool("search-rows").join();
+    Map<String, Object> args = new HashMap<>();
+    args.put("email", "twishabansal@google.com");
+    args.put("id", 3L);
+    args.put("data", "row4");
+
+    ToolResult result = tool.execute(args).join();
+    assertFalse(result.isError(), "Expected success: " + result.text());
+    String output = result.text().trim();
+    assertEquals("null", output, "Expected 'null' response for non-matching data, got: " + output);
+  }
+
+  // =========================================================================
+  // 6. Map & Structured Payloads Suite (process-data)
+  // =========================================================================
+
+  @Test
+  void testProcessDataDefinitionSchema() {
+    Tool tool = client.loadTool("process-data").join();
+    assertEquals("process-data", tool.name());
+    assertNotNull(tool.definition());
+
+    boolean hasExecutionContext = false;
+    boolean hasUserScores = false;
+    boolean hasFeatureFlags = false;
+
+    if (tool.definition().parameters() != null) {
+      for (ToolDefinition.Parameter p : tool.definition().parameters()) {
+        if ("execution_context".equals(p.name())) {
+          hasExecutionContext = true;
+          assertTrue(p.required(), "Parameter 'execution_context' should be required");
+          assertNotNull(p.type());
+          assertTrue(
+              "object".equalsIgnoreCase(p.type()),
+              "Parameter 'execution_context' type should be 'object', got: " + p.type());
+        } else if ("user_scores".equals(p.name())) {
+          hasUserScores = true;
+          assertTrue(p.required(), "Parameter 'user_scores' should be required");
+          assertNotNull(p.type());
+          assertTrue(
+              "object".equalsIgnoreCase(p.type()),
+              "Parameter 'user_scores' type should be 'object', got: " + p.type());
+        } else if ("feature_flags".equals(p.name())) {
+          hasFeatureFlags = true;
+          assertFalse(p.required(), "Parameter 'feature_flags' should be optional");
+          assertNotNull(p.type());
+          assertTrue(
+              "object".equalsIgnoreCase(p.type()),
+              "Parameter 'feature_flags' type should be 'object', got: " + p.type());
+        }
+      }
+    }
+    assertTrue(hasExecutionContext, "Missing required parameter 'execution_context' in definition");
+    assertTrue(hasUserScores, "Missing required parameter 'user_scores' in definition");
+    assertTrue(hasFeatureFlags, "Missing optional parameter 'feature_flags' in definition");
+  }
+
+  @Test
+  void testProcessDataWithMapParams() throws JsonProcessingException {
+    Tool tool = client.loadTool("process-data").join();
+    Map<String, Object> execCtx = new LinkedHashMap<>();
+    execCtx.put("env", "prod");
+    execCtx.put("id", 1234);
+    execCtx.put("user", 1234.5);
+
+    Map<String, Object> userScores = new LinkedHashMap<>();
+    userScores.put("user1", 100);
+    userScores.put("user2", 200);
+
+    Map<String, Object> featureFlags = new LinkedHashMap<>();
+    featureFlags.put("new_feature", true);
+
+    Map<String, Object> args = new LinkedHashMap<>();
+    args.put("execution_context", execCtx);
+    args.put("user_scores", userScores);
+    args.put("feature_flags", featureFlags);
+
+    ToolResult result = tool.execute(args).join();
+
+    assertFalse(result.isError(), "Expected success: " + result.text());
+    String output = result.text();
+    JsonNode root = new ObjectMapper().readTree(output);
+    JsonNode node = root.isArray() ? root.get(0) : root;
+
+    assertEquals("prod", node.path("execution_context").path("env").asText());
+    assertEquals(1234, node.path("execution_context").path("id").asInt());
+    assertEquals(1234.5, node.path("execution_context").path("user").asDouble(), 0.001);
+    assertEquals(100, node.path("user_scores").path("user1").asInt());
+    assertEquals(200, node.path("user_scores").path("user2").asInt());
+    assertTrue(node.path("feature_flags").path("new_feature").asBoolean());
+  }
+
+  @Test
+  void testProcessDataOmittingOptionalMap() throws JsonProcessingException {
+    Tool tool = client.loadTool("process-data").join();
+    Map<String, Object> execCtx = new LinkedHashMap<>();
+    execCtx.put("env", "dev");
+
+    Map<String, Object> userScores = new LinkedHashMap<>();
+    userScores.put("user3", 300);
+
+    Map<String, Object> args = new LinkedHashMap<>();
+    args.put("execution_context", execCtx);
+    args.put("user_scores", userScores);
+
+    ToolResult result = tool.execute(args).join();
+
+    assertFalse(result.isError(), "Expected success: " + result.text());
+    String output = result.text();
+    JsonNode root = new ObjectMapper().readTree(output);
+    JsonNode node = root.isArray() ? root.get(0) : root;
+
+    assertEquals("dev", node.path("execution_context").path("env").asText());
+    assertEquals(300, node.path("user_scores").path("user3").asInt());
+    assertTrue(
+        node.path("feature_flags").isNull() || node.path("feature_flags").isMissingNode(),
+        "Expected null feature_flags: " + output);
+  }
+
+  @Test
+  void testProcessDataWithWrongMapValueType() {
+    Tool tool = client.loadTool("process-data").join();
+    Map<String, Object> execCtx = new LinkedHashMap<>();
+    execCtx.put("env", "staging");
+
+    CompletionException ex =
+        assertThrows(
+            CompletionException.class,
+            () -> {
+              tool.execute(Map.of("execution_context", execCtx, "user_scores", "not-a-map")).join();
+            });
+    assertNotNull(ex.getCause());
+    assertTrue(ex.getCause() instanceof IllegalArgumentException);
+    assertTrue(ex.getCause().getMessage().contains("expected type 'object' but got 'String'"));
+  }
+
+  // =========================================================================
+  // 7. Transport Headers & Protocol Suite
+  // =========================================================================
+
+  @Test
+  void testClientWithCustomHeaders() {
+    Map<String, String> customHeaders =
+        Map.of("X-Custom-Client-Header", "SDK-Java-Client", "X-Integration-Source", "TestSuite");
+
+    McpToolboxClient customHeaderClient =
+        McpToolboxClient.builder().baseUrl(server.getBaseUrl()).headers(customHeaders).build();
+
+    Tool tool = customHeaderClient.loadTool("get-n-rows").join();
+    assertNotNull(tool);
+    ToolResult result = tool.execute(Map.of("num_rows", "1")).join();
+    assertFalse(result.isError(), "Execution failed: " + result.text());
+    assertTrue(result.text().contains("row1"));
+  }
+
+  @ParameterizedTest
+  @EnumSource(
+      value = ProtocolVersion.class,
+      names = {
+        "VERSION_2024_11_05",
+        "VERSION_2025_03_26",
+        "VERSION_2025_06_18",
+        "VERSION_2025_11_25"
+      })
+  void testClientWithExplicitProtocolVersions(ProtocolVersion version) {
+    McpToolboxClient versionedClient =
+        McpToolboxClient.builder().baseUrl(server.getBaseUrl()).protocolVersion(version).build();
+
+    Tool tool = versionedClient.loadTool("get-n-rows").join();
+    assertNotNull(tool);
+    ToolResult result = tool.execute(Map.of("num_rows", "1")).join();
+    assertFalse(
+        result.isError(), "Execution failed for protocol " + version + ": " + result.text());
+    assertTrue(result.text().contains("row1"), "Expected row1 for protocol " + version);
   }
 }

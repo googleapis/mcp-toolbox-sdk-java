@@ -65,7 +65,10 @@ public class ToolboxE2ESetup implements BeforeAllCallback, AfterAllCallback {
 
     // If an external server URL is provided, use it directly
     if (serverUrl != null && !serverUrl.trim().isEmpty()) {
-      logger.info("Using pre-configured TOOLBOX_SERVER_URL: " + serverUrl);
+      logger.warning("================================================================");
+      logger.warning("WARNING: Using external pre-configured TOOLBOX_SERVER_URL: " + serverUrl);
+      logger.warning("Ensure external server was started with manifest revision 34+");
+      logger.warning("================================================================");
       authToken1 = System.getenv(TOOLBOX_AUTH_TOKEN_1_ENV);
       authToken2 = System.getenv(TOOLBOX_AUTH_TOKEN_2_ENV);
       if (authToken1 == null && projectId != null && !projectId.trim().isEmpty()) {
@@ -133,9 +136,10 @@ public class ToolboxE2ESetup implements BeforeAllCallback, AfterAllCallback {
       serverProcess.destroy();
       try {
         if (!serverProcess.waitFor(5, TimeUnit.SECONDS)) {
-          serverProcess.destroy();
+          serverProcess.destroyForcibly();
         }
       } catch (InterruptedException e) {
+        serverProcess.destroyForcibly();
         Thread.currentThread().interrupt();
       }
     }
@@ -158,13 +162,10 @@ public class ToolboxE2ESetup implements BeforeAllCallback, AfterAllCallback {
   }
 
   public static String getTextContent(com.google.cloud.mcp.tool.ToolResult result) {
-    if (result == null || result.content() == null) {
+    if (result == null) {
       return "";
     }
-    return result.content().stream()
-        .filter(c -> "text".equals(c.type()) && c.text() != null)
-        .map(com.google.cloud.mcp.tool.ToolResult.Content::text)
-        .collect(java.util.stream.Collectors.joining("\n"));
+    return result.text();
   }
 
   private void startServer() throws IOException, InterruptedException {
