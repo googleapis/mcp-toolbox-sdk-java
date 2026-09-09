@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.0.0](https://github.com/googleapis/mcp-toolbox-sdk-java/compare/v0.2.0...v1.0.0) (2026-09-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* prune bound parameters from exposed tool definition ([#70](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/70))
+
+### Features
+
+* add default parameter support ([#59](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/59)) ([92a7a02](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/92a7a02576bde67f5d8a0d46ab59c4734f5234d1))
+* Add HTTP credential exposure warnings ([#55](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/55)) ([1e7b2ee](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/1e7b2eef51c2c93c818d64a17a089b9289c7b83b))
+* add pre & post processing hooks for tools ([#58](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/58)) ([a998703](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/a9987037114594674a978cc6ff18e99370d7331d))
+* decouple client authentication with CredentialsProvider and AuthMethods ([#63](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/63)) ([3fa5621](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/3fa562135b4eb373f0700cb6ee5c395cbba14197))
+* implement version selection and session tracking in java sdk ([#66](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/66)) ([fdcb675](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/fdcb675837ac58650a2ff8a6279bd9d099dadfab))
+* introduce Transport layer abstraction and HttpMcpTransport ([#64](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/64)) ([5b06f65](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/5b06f65bc24728eed832302fa539d5c7fef271e1))
+* prune bound parameters from exposed tool definition ([#70](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/70)) ([10985ff](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/10985ffde69d81156c4a709e610485e1660a0ffc))
+* Support generic client headers map ([#56](https://github.com/googleapis/mcp-toolbox-sdk-java/issues/56)) ([735f3a7](https://github.com/googleapis/mcp-toolbox-sdk-java/commit/735f3a7cb894d40e981f8629a5507a4deed58a03))
+
 ## [0.2.0](https://github.com/googleapis/mcp-toolbox-sdk-java/compare/v0.1.1...v0.2.0) (2026-03-02)
 
 
