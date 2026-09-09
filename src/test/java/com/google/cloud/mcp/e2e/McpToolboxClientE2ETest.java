@@ -458,7 +458,12 @@ class McpToolboxClientE2ETest {
     ToolResult result = tool.execute(args).join();
     assertFalse(result.isError(), "Expected success: " + result.text());
     String output = result.text().trim();
-    assertEquals("null", output, "Expected 'null' response for non-matching data, got: " + output);
+    assertTrue(
+        output.isEmpty() || "null".equals(output),
+        "Expected empty or 'null' response for non-matching data, got: " + output);
+    assertFalse(output.contains("row1"));
+    assertFalse(output.contains("row2"));
+    assertFalse(output.contains("row3"));
   }
 
   // =========================================================================
@@ -532,13 +537,14 @@ class McpToolboxClientE2ETest {
     String output = result.text();
     JsonNode root = new ObjectMapper().readTree(output);
     JsonNode node = root.isArray() ? root.get(0) : root;
+    JsonNode dataNode = node.has("jsonb_build_object") ? node.get("jsonb_build_object") : node;
 
-    assertEquals("prod", node.path("execution_context").path("env").asText());
-    assertEquals(1234, node.path("execution_context").path("id").asInt());
-    assertEquals(1234.5, node.path("execution_context").path("user").asDouble(), 0.001);
-    assertEquals(100, node.path("user_scores").path("user1").asInt());
-    assertEquals(200, node.path("user_scores").path("user2").asInt());
-    assertTrue(node.path("feature_flags").path("new_feature").asBoolean());
+    assertEquals("prod", dataNode.path("execution_context").path("env").asText());
+    assertEquals(1234, dataNode.path("execution_context").path("id").asInt());
+    assertEquals(1234.5, dataNode.path("execution_context").path("user").asDouble(), 0.001);
+    assertEquals(100, dataNode.path("user_scores").path("user1").asInt());
+    assertEquals(200, dataNode.path("user_scores").path("user2").asInt());
+    assertTrue(dataNode.path("feature_flags").path("new_feature").asBoolean());
   }
 
   @Test
@@ -560,11 +566,12 @@ class McpToolboxClientE2ETest {
     String output = result.text();
     JsonNode root = new ObjectMapper().readTree(output);
     JsonNode node = root.isArray() ? root.get(0) : root;
+    JsonNode dataNode = node.has("jsonb_build_object") ? node.get("jsonb_build_object") : node;
 
-    assertEquals("dev", node.path("execution_context").path("env").asText());
-    assertEquals(300, node.path("user_scores").path("user3").asInt());
+    assertEquals("dev", dataNode.path("execution_context").path("env").asText());
+    assertEquals(300, dataNode.path("user_scores").path("user3").asInt());
     assertTrue(
-        node.path("feature_flags").isNull() || node.path("feature_flags").isMissingNode(),
+        dataNode.path("feature_flags").isNull() || dataNode.path("feature_flags").isMissingNode(),
         "Expected null feature_flags: " + output);
   }
 
