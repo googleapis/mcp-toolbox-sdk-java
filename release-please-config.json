@@ -29,7 +29,8 @@
       "package-name": "mcp-toolbox-sdk-java",
       "extra-files": [
         "README.md",
-        "example/README.md"
+        "example/README.md",
+        "example/pom.xml"
       ]
     }
   },
