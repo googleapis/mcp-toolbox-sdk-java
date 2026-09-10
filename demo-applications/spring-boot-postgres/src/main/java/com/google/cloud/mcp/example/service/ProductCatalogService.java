@@ -1,0 +1,210 @@
+/*
+ * Copyright 2026 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.cloud.mcp.example.service;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.cloud.mcp.McpToolboxClient;
+import com.google.cloud.mcp.example.model.Product;
+import com.google.cloud.mcp.tool.ToolResult;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+/** Service orchestrating product catalog operations against PostgreSQL via the MCP Toolbox SDK. */
+@Service
+public class ProductCatalogService {
+
+  private static final Logger logger = LoggerFactory.getLogger(ProductCatalogService.class);
+
+  private final McpToolboxClient client;
+  private final ObjectMapper objectMapper;
+
+  public ProductCatalogService(McpToolboxClient client, ObjectMapper objectMapper) {
+    this.client = client;
+    this.objectMapper = objectMapper;
+  }
+
+  /**
+   * Discovers and lists all tools exposed by the MCP Toolbox server.
+   *
+   * @return CompletableFuture containing list of tool names.
+   */
+  public CompletableFuture<List<String>> listAvailableTools() {
+    return client
+        .listTools()
+        .thenApply(
+            tools -> {
+              List<String> names = tools.keySet().stream().sorted().toList();
+              logger.debug("Discovered {} tools: {}", names.size(), names);
+              return names;
+            });
+  }
+
+  /**
+   * Retrieves all products from the PostgreSQL database using the 'execute_sql' tool.
+   *
+   * @return CompletableFuture containing list of {@link Product} objects.
+   */
+  public CompletableFuture<List<Product>> getAllProducts() {
+    String sql = "SELECT id, name, category, price, stock FROM products ORDER BY id;";
+    logger.debug("Executing SQL via MCP: {}", sql);
+
+    return client
+        .invokeTool("execute_sql", Map.of("sql", sql))
+        .thenApply(this::parseProductsResult);
+  }
+
+  /**
+   * Inserts a new product into the database using the 'execute_sql' tool.
+   *
+   * @param name Name of the product (required, non-blank, max 100 characters).
+   * @param category Category of the product (optional, max 50 characters).
+   * @param price Price of the product (must be non-negative, finite number).
+   * @param stock Stock quantity (must be non-negative).
+   * @return CompletableFuture completing when the record has been persisted.
+   */
+  public CompletableFuture<Void> addProduct(String name, String category, double price, int stock) {
+    if (name == null || name.trim().isEmpty()) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("Product name cannot be null or empty"));
+    }
+    String trimmedName = name.trim();
+    if (trimmedName.length() > 100) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("Product name cannot exceed 100 characters"));
+    }
+
+    String trimmedCategory = category != null ? category.trim() : null;
+    if (trimmedCategory != null && trimmedCategory.length() > 50) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("Product category cannot exceed 50 characters"));
+    }
+
+    if (Double.isNaN(price) || Double.isInfinite(price) || price < 0.0) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("Product price must be a valid finite non-negative number"));
+    }
+    if (stock < 0) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("Product stock must be non-negative"));
+    }
+
+    String sanitizedName = sanitizeSqlString(trimmedName);
+    String categorySql =
+        (trimmedCategory != null && !trimmedCategory.isEmpty())
+            ? "'" + sanitizeSqlString(trimmedCategory) + "'"
+            : "NULL";
+    String sql =
+        String.format(
+            Locale.US,
+            "INSERT INTO products (name, category, price, stock) VALUES ('%s', %s, %.2f, %d);",
+            sanitizedName,
+            categorySql,
+            price,
+            stock);
+
+    logger.debug("Executing insert SQL via MCP: {}", sql);
+
+    return client
+        .invokeTool("execute_sql", Map.of("sql", sql))
+        .thenAccept(
+            result -> {
+              if (result.isError()) {
+                String errorMsg = extractErrorMessage(result);
+                logger.error("Failed to insert product: {}", errorMsg);
+                throw new IllegalStateException("Tool execution failed: " + errorMsg);
+              }
+              logger.info("Product successfully persisted: {}", trimmedName);
+            });
+  }
+
+  /**
+   * Introspects table existence and metadata using the 'list_tables' tool.
+   *
+   * @param tableName Name of the table to introspect.
+   * @return CompletableFuture containing table introspection metadata string.
+   */
+  public CompletableFuture<String> getTableSchema(String tableName) {
+    logger.debug("Inspecting table metadata for: {}", tableName);
+    Map<String, Object> args =
+        tableName != null ? Map.of("table_names", tableName) : Collections.emptyMap();
+
+    return client
+        .invokeTool("list_tables", args)
+        .thenApply(
+            result -> {
+              if (result.isError()) {
+                throw new IllegalStateException(
+                    "Schema inspection failed: " + extractErrorMessage(result));
+              }
+              if (result.content() != null && !result.content().isEmpty()) {
+                return result.content().get(0).text();
+              }
+              return "{}";
+            });
+  }
+
+  private List<Product> parseProductsResult(ToolResult result) {
+    if (result.isError()) {
+      String errorMsg = extractErrorMessage(result);
+      logger.error("execute_sql returned error: {}", errorMsg);
+      throw new IllegalStateException("Query failed: " + errorMsg);
+    }
+
+    if (result.content() == null || result.content().isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    List<Product> products = new ArrayList<>();
+    for (var content : result.content()) {
+      String rawJson = content.text();
+      if (rawJson != null && !rawJson.trim().isEmpty()) {
+        String trimmed = rawJson.trim();
+        try {
+          if (trimmed.startsWith("[")) {
+            Product[] parsedArray = objectMapper.readValue(trimmed, Product[].class);
+            Collections.addAll(products, parsedArray);
+          } else {
+            Product product = objectMapper.readValue(trimmed, Product.class);
+            products.add(product);
+          }
+        } catch (JsonProcessingException e) {
+          logger.warn("Could not deserialize content as Product: {}", trimmed, e);
+        }
+      }
+    }
+    return products;
+  }
+
+  private String sanitizeSqlString(String input) {
+    return input.replace("\0", "").replace("'", "''");
+  }
+
+  private String extractErrorMessage(ToolResult result) {
+    if (result.content() != null && !result.content().isEmpty()) {
+      return result.content().get(0).text();
+    }
+    return "Unknown error";
+  }
+}
