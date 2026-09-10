@@ -33,6 +33,7 @@ import com.google.cloud.mcp.tool.ToolDefinition;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -280,7 +281,6 @@ class HttpMcpTransportTest {
     }
   }
 
-  @Test
   @SuppressWarnings("unchecked")
   void testInitialize_ServerReturnsErrorJsonRpcResponse() throws Exception {
     HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
@@ -476,9 +476,47 @@ class HttpMcpTransportTest {
   }
 
   @Test
-  void testJsonRpcInstantiation() {
-    // Instantiate package-private JsonRpc namespace to cover its default constructor
-    JsonRpc rpc = new JsonRpc();
-    assertNotNull(rpc);
+  @SuppressWarnings("unchecked")
+  void testInvokeTool_WithRequestTimeout() throws Exception {
+    HttpMcpTransport transportWithTimeout =
+        new HttpMcpTransport(
+            "https://test-mcp-service.com",
+            Map.of(),
+            null,
+            ProtocolVersion.VERSION_2025_11_25,
+            mockClient,
+            null,
+            Duration.ofSeconds(5),
+            Duration.ofSeconds(3),
+            null);
+
+    HttpResponse<String> mockInitResponse = mock(HttpResponse.class);
+    when(mockInitResponse.statusCode()).thenReturn(200);
+    when(mockInitResponse.body())
+        .thenReturn(
+            "{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{\"protocolVersion\":\"2025-11-25\"}}");
+
+    HttpResponse<String> mockInitializedResponse = mock(HttpResponse.class);
+    when(mockInitializedResponse.statusCode()).thenReturn(200);
+    when(mockInitializedResponse.body()).thenReturn("");
+
+    HttpResponse<String> mockInvokeResponse = mock(HttpResponse.class);
+    when(mockInvokeResponse.statusCode()).thenReturn(200);
+    when(mockInvokeResponse.body())
+        .thenReturn(
+            "{\"jsonrpc\":\"2.0\",\"id\":\"3\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"success\"}]}}");
+
+    when(mockClient.<String>sendAsync(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+        .thenReturn(CompletableFuture.completedFuture(mockInitResponse))
+        .thenReturn(CompletableFuture.completedFuture(mockInitializedResponse))
+        .thenReturn(CompletableFuture.completedFuture(mockInvokeResponse));
+
+    TransportResponse response =
+        transportWithTimeout
+            .invokeTool("test-tool", Map.of("param1", "value1"), Collections.emptyMap())
+            .get();
+
+    assertNotNull(response);
+    assertEquals(200, response.getStatusCode());
   }
 }
