@@ -37,6 +37,7 @@ tools:
       - name: id
         type: integer
         description: The ID of the product.
+        required: true
     statement: |
       SELECT id, name, category, price, stock FROM products WHERE id = $1;
 
@@ -48,6 +49,7 @@ tools:
       - name: category
         type: string
         description: Category name to filter by.
+        required: true
     statement: |
       SELECT id, name, category, price, stock FROM products WHERE category = $1 ORDER BY id;
 
@@ -59,6 +61,7 @@ tools:
       - name: name
         type: string
         description: Name of the product.
+        required: true
       - name: category
         type: string
         description: Optional category of the product.
@@ -66,9 +69,11 @@ tools:
       - name: price
         type: float
         description: Retail price of the product.
+        required: true
       - name: stock
         type: integer
         description: Stock quantity available.
+        required: true
     statement: |
       INSERT INTO products (name, category, price, stock) VALUES ($1, $2, $3, $4)
       RETURNING id, name, category, price, stock;
@@ -81,6 +86,7 @@ tools:
       - name: id
         type: integer
         description: The ID of the product to delete.
+        required: true
     statement: |
       DELETE FROM products WHERE id = $1 RETURNING id;
 
@@ -99,6 +105,7 @@ tools:
       - name: table_name
         type: string
         description: Name of the table to introspect.
+        required: true
     statement: |
       SELECT table_name, column_name, data_type, is_nullable
       FROM information_schema.columns

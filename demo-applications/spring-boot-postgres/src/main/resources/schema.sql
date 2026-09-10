@@ -3,9 +3,11 @@ CREATE TABLE IF NOT EXISTS products (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     category VARCHAR(50),
-    price NUMERIC(10,2) NOT NULL,
-    stock INT NOT NULL
+    price NUMERIC(10,2) NOT NULL CHECK (price >= 0),
+    stock INT NOT NULL CHECK (stock >= 0)
 );
+
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
 
 -- Seed data for initial catalog
 INSERT INTO products (name, category, price, stock) VALUES

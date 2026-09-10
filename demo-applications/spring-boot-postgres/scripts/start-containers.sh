@@ -18,29 +18,33 @@ set -euo pipefail
 echo "==> Cleaning up previous test containers if running..."
 docker rm -f mcp-toolbox mcp-postgres 2>/dev/null || true
 
+POSTGRES_USER="${POSTGRES_USER:-mcpuser}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-mcppass}"
+POSTGRES_DATABASE="${POSTGRES_DATABASE:-mcpdb}"
+
 echo "==> Starting PostgreSQL container (port 5433:5432)..."
 docker run -d --name mcp-postgres -p 5433:5432 \
-  -e POSTGRES_USER=mcpuser \
-  -e POSTGRES_PASSWORD=mcppass \
-  -e POSTGRES_DB=mcpdb \
+  -e POSTGRES_USER="${POSTGRES_USER}" \
+  -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
+  -e POSTGRES_DB="${POSTGRES_DATABASE}" \
   postgres:15-alpine
 
 echo "==> Waiting for PostgreSQL to be ready..."
-until docker exec mcp-postgres pg_isready -U mcpuser -d mcpdb; do
+until docker exec mcp-postgres pg_isready -U "${POSTGRES_USER}" -d "${POSTGRES_DATABASE}"; do
   sleep 1
 done
 
 echo "==> Initializing schema and seed data in PostgreSQL from schema.sql..."
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-docker exec -i mcp-postgres psql -U mcpuser -d mcpdb < "${SCRIPT_DIR}/../src/main/resources/schema.sql"
+docker exec -i mcp-postgres psql -U "${POSTGRES_USER}" -d "${POSTGRES_DATABASE}" < "${SCRIPT_DIR}/../src/main/resources/schema.sql"
 
 echo "==> Starting MCP Toolbox container with custom tools.yaml (port 5005:5000)..."
 docker run -d --name mcp-toolbox --link mcp-postgres:postgres -p 5005:5000 \
   -e POSTGRES_HOST=postgres \
   -e POSTGRES_PORT=5432 \
-  -e POSTGRES_DATABASE=mcpdb \
-  -e POSTGRES_USER=mcpuser \
-  -e POSTGRES_PASSWORD=mcppass \
+  -e POSTGRES_DATABASE="${POSTGRES_DATABASE}" \
+  -e POSTGRES_USER="${POSTGRES_USER}" \
+  -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD}" \
   -v "${SCRIPT_DIR}/../tools.yaml:/tools.yaml:ro" \
   us-central1-docker.pkg.dev/database-toolbox/toolbox/toolbox:latest \
   --config /tools.yaml --address 0.0.0.0 --port 5000

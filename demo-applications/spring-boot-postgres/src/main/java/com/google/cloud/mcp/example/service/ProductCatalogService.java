@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -53,7 +54,8 @@ public class ProductCatalogService {
   public CompletableFuture<List<String>> listAvailableTools() {
     return client
         .listTools()
-        .thenApply(
+        .orTimeout(10, TimeUnit.SECONDS)
+        .thenApplyAsync(
             tools -> {
               List<String> names = tools.keySet().stream().sorted().toList();
               logger.debug("Discovered {} tools: {}", names.size(), names);
@@ -70,7 +72,8 @@ public class ProductCatalogService {
     logger.debug("Invoking 'get-all-products' tool via MCP");
     return client
         .invokeTool("get-all-products", Collections.emptyMap())
-        .thenApply(this::parseProductsResult);
+        .orTimeout(10, TimeUnit.SECONDS)
+        .thenApplyAsync(this::parseProductsResult);
   }
 
   /**
@@ -87,7 +90,8 @@ public class ProductCatalogService {
     logger.debug("Invoking 'get-product-by-id' tool via MCP for id: {}", id);
     return client
         .invokeTool("get-product-by-id", Map.of("id", id))
-        .thenApply(this::parseProductsResult)
+        .orTimeout(10, TimeUnit.SECONDS)
+        .thenApplyAsync(this::parseProductsResult)
         .thenApply(products -> products.isEmpty() ? null : products.get(0));
   }
 
@@ -106,7 +110,8 @@ public class ProductCatalogService {
     logger.debug("Invoking 'get-products-by-category' tool via MCP for: {}", trimmedCategory);
     return client
         .invokeTool("get-products-by-category", Map.of("category", trimmedCategory))
-        .thenApply(this::parseProductsResult);
+        .orTimeout(10, TimeUnit.SECONDS)
+        .thenApplyAsync(this::parseProductsResult);
   }
 
   /**
@@ -116,9 +121,10 @@ public class ProductCatalogService {
    * @param category Category of the product (optional, max 50 characters).
    * @param price Price of the product (must be non-negative, finite number).
    * @param stock Stock quantity (must be non-negative).
-   * @return CompletableFuture completing when the record has been persisted.
+   * @return CompletableFuture containing the newly persisted {@link Product}.
    */
-  public CompletableFuture<Void> addProduct(String name, String category, double price, int stock) {
+  public CompletableFuture<Product> addProduct(
+      String name, String category, double price, int stock) {
     if (name == null || name.trim().isEmpty()) {
       return CompletableFuture.failedFuture(
           new IllegalArgumentException("Product name cannot be null or empty"));
@@ -156,14 +162,47 @@ public class ProductCatalogService {
 
     return client
         .invokeTool("add-product", arguments)
-        .thenAccept(
+        .orTimeout(10, TimeUnit.SECONDS)
+        .thenApplyAsync(this::parseProductsResult)
+        .thenApply(
+            products -> {
+              if (products.isEmpty()) {
+                throw new IllegalStateException("Insert succeeded but no product record returned");
+              }
+              Product created = products.get(0);
+              logger.info(
+                  "Product successfully persisted with id {}: {}", created.id(), trimmedName);
+              return created;
+            });
+  }
+
+  /**
+   * Deletes a product from the database using the 'delete-product-by-id' tool.
+   *
+   * @param id The product ID (must be positive).
+   * @return CompletableFuture containing true if deleted, false otherwise.
+   */
+  public CompletableFuture<Boolean> deleteProductById(int id) {
+    if (id <= 0) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("Product ID must be positive"));
+    }
+    logger.debug("Invoking 'delete-product-by-id' tool via MCP for id: {}", id);
+    return client
+        .invokeTool("delete-product-by-id", Map.of("id", id))
+        .orTimeout(10, TimeUnit.SECONDS)
+        .thenApply(
             result -> {
               if (result.isError()) {
                 String errorMsg = extractErrorMessage(result);
-                logger.error("Failed to insert product: {}", errorMsg);
+                logger.error("Failed to delete product {}: {}", id, errorMsg);
                 throw new IllegalStateException("Tool execution failed: " + errorMsg);
               }
-              logger.info("Product successfully persisted: {}", trimmedName);
+              if (result.content() != null && !result.content().isEmpty()) {
+                String text = result.content().get(0).text();
+                return text != null && text.contains("\"id\"");
+              }
+              return false;
             });
   }
 
@@ -182,6 +221,7 @@ public class ProductCatalogService {
 
     return client
         .invokeTool(toolName, args)
+        .orTimeout(10, TimeUnit.SECONDS)
         .thenApply(
             result -> {
               if (result.isError()) {
@@ -220,7 +260,9 @@ public class ProductCatalogService {
             products.add(product);
           }
         } catch (JsonProcessingException e) {
-          logger.warn("Could not deserialize content as Product: {}", trimmed, e);
+          logger.error("Could not deserialize content as Product: {}", trimmed, e);
+          throw new IllegalStateException(
+              "Failed to deserialize product catalog payload: " + e.getMessage(), e);
         }
       }
     }

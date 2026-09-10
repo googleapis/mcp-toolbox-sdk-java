@@ -160,14 +160,24 @@ class ProductCatalogServiceTest {
   }
 
   @Test
-  @DisplayName("addProduct passes typed arguments map to add-product tool")
+  @DisplayName("addProduct passes typed arguments map to add-product tool and returns product")
   void testAddProduct_Valid_PassesArgumentsWithCategory() {
     ToolResult successResult =
-        new ToolResult(List.of(new ToolResult.Content("text", "{\"id\":10}")), false);
+        new ToolResult(
+            List.of(
+                new ToolResult.Content(
+                    "text",
+                    "{\"id\":10,\"name\":\"O'Reilly"
+                        + " Book\",\"category\":\"Books\",\"price\":49.99,\"stock\":10}")),
+            false);
     when(mockClient.invokeTool(eq("add-product"), any()))
         .thenReturn(CompletableFuture.completedFuture(successResult));
 
-    service.addProduct("O'Reilly Book", "Books", 49.99, 10).join();
+    Product created = service.addProduct("O'Reilly Book", "Books", 49.99, 10).join();
+
+    assertThat(created).isNotNull();
+    assertEquals(10, created.id());
+    assertEquals("O'Reilly Book", created.name());
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
@@ -181,14 +191,23 @@ class ProductCatalogServiceTest {
   }
 
   @Test
-  @DisplayName("addProduct omits category key when null or empty")
+  @DisplayName("addProduct omits category key when null or empty and returns product")
   void testAddProduct_Valid_OmitsNullCategory() {
     ToolResult successResult =
-        new ToolResult(List.of(new ToolResult.Content("text", "{\"id\":11}")), false);
+        new ToolResult(
+            List.of(
+                new ToolResult.Content(
+                    "text",
+                    "{\"id\":11,\"name\":\"Generic"
+                        + " Item\",\"category\":null,\"price\":9.99,\"stock\":5}")),
+            false);
     when(mockClient.invokeTool(eq("add-product"), any()))
         .thenReturn(CompletableFuture.completedFuture(successResult));
 
-    service.addProduct("Generic Item", null, 9.99, 5).join();
+    Product created = service.addProduct("Generic Item", null, 9.99, 5).join();
+
+    assertThat(created).isNotNull();
+    assertEquals(11, created.id());
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
@@ -244,7 +263,7 @@ class ProductCatalogServiceTest {
 
   @Test
   @DisplayName("getTableSchema passes 'table_name' parameter to get-table-schema tool")
-  void testGetTableSchema_PassesTableNameParam() {
+  void testGetTableSchema_PassesTableNameParam() throws Exception {
     ToolResult schemaResult =
         new ToolResult(
             List.of(new ToolResult.Content("text", "{\"table_name\":\"products\"}")), false);
@@ -258,7 +277,23 @@ class ProductCatalogServiceTest {
     verify(mockClient).invokeTool(eq("get-table-schema"), captor.capture());
 
     assertEquals("products", captor.getValue().get("table_name"));
-    assertThat(schema).contains("products");
+    com.fasterxml.jackson.databind.JsonNode root = new ObjectMapper().readTree(schema);
+    assertEquals("products", root.path("table_name").asText());
+  }
+
+  @Test
+  @DisplayName("Malformed JSON payload throws IllegalStateException")
+  void testMalformedJsonPayload_ThrowsIllegalStateException() {
+    ToolResult badJsonResult =
+        new ToolResult(List.of(new ToolResult.Content("text", "{malformed_json: true")), false);
+    when(mockClient.invokeTool(eq("get-all-products"), any()))
+        .thenReturn(CompletableFuture.completedFuture(badJsonResult));
+
+    CompletionException ex =
+        assertThrows(CompletionException.class, () -> service.getAllProducts().join());
+    assertThat(ex.getCause()).isInstanceOf(IllegalStateException.class);
+    assertThat(ex.getCause().getMessage())
+        .contains("Failed to deserialize product catalog payload");
   }
 
   @Test
@@ -273,5 +308,35 @@ class ProductCatalogServiceTest {
         assertThrows(CompletionException.class, () -> service.getAllProducts().join());
     assertThat(ex.getCause()).isInstanceOf(IllegalStateException.class);
     assertThat(ex.getCause().getMessage()).contains("Tool invocation failed");
+  }
+
+  @Test
+  @DisplayName("deleteProductById deletes product via delete-product-by-id tool")
+  void testDeleteProductById_Success() {
+    ToolResult deleteResult =
+        new ToolResult(List.of(new ToolResult.Content("text", "{\"id\":1}")), false);
+    when(mockClient.invokeTool(eq("delete-product-by-id"), any()))
+        .thenReturn(CompletableFuture.completedFuture(deleteResult));
+
+    boolean deleted = service.deleteProductById(1).join();
+    assertThat(deleted).isTrue();
+  }
+
+  @Test
+  @DisplayName("deleteProductById returns false when ID not found")
+  void testDeleteProductById_NotFound() {
+    ToolResult emptyResult = new ToolResult(List.of(new ToolResult.Content("text", "{}")), false);
+    when(mockClient.invokeTool(eq("delete-product-by-id"), any()))
+        .thenReturn(CompletableFuture.completedFuture(emptyResult));
+
+    boolean deleted = service.deleteProductById(999).join();
+    assertThat(deleted).isFalse();
+  }
+
+  @Test
+  @DisplayName("deleteProductById rejects non-positive ID with IllegalArgumentException")
+  void testDeleteProductById_InvalidId() {
+    assertValidationFailure(service.deleteProductById(0), "ID must be positive");
+    assertValidationFailure(service.deleteProductById(-1), "ID must be positive");
   }
 }

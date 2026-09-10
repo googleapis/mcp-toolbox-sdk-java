@@ -29,12 +29,10 @@ import com.google.cloud.mcp.tool.ToolDefinition;
 import com.google.cloud.mcp.tool.ToolResult;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -46,11 +44,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 /**
- * End-to-end integration tests verifying Spring Boot integration with the MCP Toolbox Java SDK,
- * connecting to a containerized MCP Toolbox server and PostgreSQL instance.
+ * End-to-end hermetic integration tests verifying Spring Boot integration with the MCP Toolbox Java
+ * SDK, connecting to a containerized MCP Toolbox server and PostgreSQL instance.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @Timeout(value = 30, unit = TimeUnit.SECONDS)
 class SpringBootPostgresApplicationTests {
 
@@ -61,7 +58,6 @@ class SpringBootPostgresApplicationTests {
   @Autowired private TestRestTemplate restTemplate;
 
   @Test
-  @Order(1)
   @DisplayName("Context loads and McpToolboxClient bean is created")
   void testContextLoadsAndClientBeanConfigured() {
     assertNotNull(mcpToolboxClient, "McpToolboxClient bean should be present in context");
@@ -69,7 +65,6 @@ class SpringBootPostgresApplicationTests {
   }
 
   @Test
-  @Order(2)
   @DisplayName("SDK client discovers PostgreSQL tools from MCP Toolbox")
   void testToolDiscovery_ContainsPostgresTools() {
     Map<String, ToolDefinition> tools = mcpToolboxClient.listTools().join();
@@ -80,12 +75,12 @@ class SpringBootPostgresApplicationTests {
             "get-all-products",
             "get-product-by-id",
             "add-product",
+            "delete-product-by-id",
             "list_tables",
             "get-table-schema");
   }
 
   @Test
-  @Order(3)
   @DisplayName("Service retrieves seeded products via get-all-products tool")
   void testQueryProducts_ReturnsSeededItems() {
     List<Product> products = catalogService.getAllProducts().join();
@@ -98,29 +93,35 @@ class SpringBootPostgresApplicationTests {
   }
 
   @Test
-  @Order(4)
   @DisplayName("Service persists new product via add-product tool and queries it back")
   void testInsertProduct_PersistsAndCanBeQueried() {
-    String testItemName = "High-Precision Gaming Mouse";
-    catalogService.addProduct(testItemName, "Gaming", 79.99, 50).join();
+    String uniqueItemName = "Gaming Mouse " + UUID.randomUUID().toString().substring(0, 8);
+    Product created = catalogService.addProduct(uniqueItemName, "Gaming", 79.99, 50).join();
+    assertNotNull(created);
+    assertThat(created.id()).isNotNull();
 
-    List<Product> updatedProducts = catalogService.getAllProducts().join();
-    assertThat(updatedProducts.stream().map(Product::name).toList()).contains(testItemName);
+    Product queried = catalogService.getProductById(created.id().intValue()).join();
+    assertNotNull(queried);
+    assertThat(queried.name()).isEqualTo(uniqueItemName);
+    assertThat(queried.category()).isEqualTo("Gaming");
   }
 
   @Test
-  @Order(5)
   @DisplayName("Service introspects table schema via get-table-schema tool")
   void testListTables_DiscoversProductsTable() throws Exception {
     String schemaOutput = catalogService.getTableSchema("products").join();
     assertNotNull(schemaOutput, "Schema output should not be null");
     JsonNode root = new ObjectMapper().readTree(schemaOutput);
     assertThat(root.isContainerNode()).isTrue();
-    assertThat(schemaOutput).contains("products");
+    if (root.isArray()) {
+      assertThat(root.size()).isGreaterThan(0);
+      assertThat(root.get(0).path("table_name").asText()).isEqualTo("products");
+    } else {
+      assertThat(root.path("table_name").asText()).isEqualTo("products");
+    }
   }
 
   @Test
-  @Order(6)
   @DisplayName("SDK client handles invalid tool execution gracefully")
   void testExecuteTool_InvalidArguments_HandlesErrorGracefully() {
     ToolResult result =
@@ -134,7 +135,6 @@ class SpringBootPostgresApplicationTests {
   }
 
   @Test
-  @Order(7)
   @DisplayName("REST Controller GET /api/tools returns available tools")
   void testRestController_GetTools() {
     ResponseEntity<String[]> response = restTemplate.getForEntity("/api/tools", String[].class);
@@ -145,7 +145,6 @@ class SpringBootPostgresApplicationTests {
   }
 
   @Test
-  @Order(8)
   @DisplayName("REST Controller GET /api/products returns product list")
   void testRestController_GetProducts() {
     ResponseEntity<Product[]> response =
@@ -157,22 +156,25 @@ class SpringBootPostgresApplicationTests {
   }
 
   @Test
-  @Order(9)
-  @DisplayName("REST Controller POST /api/products creates a product")
+  @DisplayName("REST Controller POST /api/products creates product with Location header and body")
   void testRestController_PostProduct() {
-    Product newProduct = new Product(null, "Wireless Earbuds Pro", "Audio", 199.99, 85);
+    String uniqueItemName = "Earbuds " + UUID.randomUUID().toString().substring(0, 8);
+    Product newProduct = new Product(null, uniqueItemName, "Audio", 199.99, 85);
 
-    ResponseEntity<Void> response =
-        restTemplate.postForEntity("/api/products", newProduct, Void.class);
+    ResponseEntity<Product> response =
+        restTemplate.postForEntity("/api/products", newProduct, Product.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    assertNotNull(response.getBody());
+    assertThat(response.getBody().id()).isNotNull();
+    assertThat(response.getBody().name()).isEqualTo(uniqueItemName);
 
-    List<Product> products = catalogService.getAllProducts().join();
-    assertThat(products.stream().map(Product::name).toList()).contains("Wireless Earbuds Pro");
+    assertNotNull(response.getHeaders().getLocation());
+    assertThat(response.getHeaders().getLocation().getPath())
+        .isEqualTo("/api/products/" + response.getBody().id());
   }
 
   @Test
-  @Order(10)
   @DisplayName("REST Controller POST /api/products rejects invalid product with 400 Bad Request")
   void testRestController_PostProduct_ValidationFailure() {
     Product invalidProduct = new Product(null, "", "Electronics", -10.0, -5);
@@ -191,16 +193,71 @@ class SpringBootPostgresApplicationTests {
   }
 
   @Test
-  @Order(11)
+  @DisplayName("REST Controller POST /api/products rejects null price with 400 Bad Request")
+  void testRestController_PostProduct_NullPrice_ValidationFailure() {
+    Product nullPriceProduct = new Product(null, "No Price Item", "Electronics", null, 10);
+    HttpEntity<Product> request = new HttpEntity<>(nullPriceProduct);
+
+    ResponseEntity<Map<String, String>> response =
+        restTemplate.exchange(
+            "/api/products",
+            HttpMethod.POST,
+            request,
+            new ParameterizedTypeReference<Map<String, String>>() {});
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertNotNull(response.getBody());
+    assertThat(response.getBody()).containsKey("error");
+  }
+
+  @Test
   @DisplayName("Service handles null category by storing SQL NULL")
   void testInsertProduct_NullCategory_PersistsAsNull() {
-    String itemName = "Uncategorized Item";
-    catalogService.addProduct(itemName, null, 19.99, 10).join();
+    String itemName = "Uncategorized " + UUID.randomUUID().toString().substring(0, 8);
+    Product created = catalogService.addProduct(itemName, null, 19.99, 10).join();
+    assertNotNull(created);
+    assertThat(created.category()).isNull();
+  }
 
-    List<Product> products = catalogService.getAllProducts().join();
-    Product found =
-        products.stream().filter(p -> itemName.equals(p.name())).findFirst().orElse(null);
-    assertNotNull(found);
-    assertThat(found.category()).isNull();
+  @Test
+  @DisplayName("REST Controller GET /api/products/{id} returns single product")
+  void testRestController_GetProductById() {
+    ResponseEntity<Product> response = restTemplate.getForEntity("/api/products/1", Product.class);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertNotNull(response.getBody());
+    assertThat(response.getBody().id()).isEqualTo(1L);
+    assertThat(response.getBody().name()).isEqualTo("Quantum Laptop");
+  }
+
+  @Test
+  @DisplayName("REST Controller GET /api/products/category/{category} returns filtered products")
+  void testRestController_GetProductsByCategory() {
+    ResponseEntity<Product[]> response =
+        restTemplate.getForEntity("/api/products/category/Electronics", Product[].class);
+
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertNotNull(response.getBody());
+    assertThat(response.getBody()).isNotEmpty();
+    for (Product p : response.getBody()) {
+      assertThat(p.category()).isEqualTo("Electronics");
+    }
+  }
+
+  @Test
+  @DisplayName("REST Controller DELETE /api/products/{id} deletes product returning 204")
+  void testRestController_DeleteProduct() {
+    String tempName = "DeleteMe " + UUID.randomUUID().toString().substring(0, 8);
+    Product created = catalogService.addProduct(tempName, "Temp", 15.0, 5).join();
+    assertNotNull(created);
+    Long id = created.id();
+
+    ResponseEntity<Void> deleteResponse =
+        restTemplate.exchange("/api/products/" + id, HttpMethod.DELETE, null, Void.class);
+    assertThat(deleteResponse.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+    ResponseEntity<Product> getResponse =
+        restTemplate.getForEntity("/api/products/" + id, Product.class);
+    assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
   }
 }

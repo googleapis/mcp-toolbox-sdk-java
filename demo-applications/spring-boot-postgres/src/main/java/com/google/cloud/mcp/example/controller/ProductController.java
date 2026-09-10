@@ -18,11 +18,13 @@ package com.google.cloud.mcp.example.controller;
 
 import com.google.cloud.mcp.example.model.Product;
 import com.google.cloud.mcp.example.service.ProductCatalogService;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -63,20 +65,88 @@ public class ProductController {
   }
 
   /**
+   * Returns a product by its ID.
+   *
+   * @param id The product ID.
+   * @return The product or HTTP 404 Not Found.
+   */
+  @GetMapping("/products/{id}")
+  public CompletableFuture<ResponseEntity<Product>> getProductById(@PathVariable int id) {
+    if (id <= 0) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("Product ID must be positive"));
+    }
+    return catalogService
+        .getProductById(id)
+        .thenApply(
+            product ->
+                product != null ? ResponseEntity.ok(product) : ResponseEntity.notFound().build());
+  }
+
+  /**
+   * Returns products belonging to a specified category.
+   *
+   * @param category Category name.
+   * @return List of matching products.
+   */
+  @GetMapping("/products/category/{category}")
+  public CompletableFuture<ResponseEntity<List<Product>>> getProductsByCategory(
+      @PathVariable String category) {
+    if (category == null || category.trim().isEmpty()) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("Product category cannot be null or empty"));
+    }
+    return catalogService.getProductsByCategory(category.trim()).thenApply(ResponseEntity::ok);
+  }
+
+  /**
    * Creates a new product.
    *
    * @param product Product details.
-   * @return HTTP 201 Created.
+   * @return HTTP 201 Created with Location header and persisted product.
    */
   @PostMapping("/products")
-  public CompletableFuture<ResponseEntity<Void>> createProduct(@RequestBody Product product) {
+  public CompletableFuture<ResponseEntity<Product>> createProduct(@RequestBody Product product) {
+    if (product == null) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("Product payload cannot be null"));
+    }
+    if (product.name() == null || product.name().trim().isEmpty()) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("Product name cannot be null or empty"));
+    }
+    if (product.price() == null) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("Product price cannot be null"));
+    }
+    if (product.stock() == null) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("Product stock cannot be null"));
+    }
     return catalogService
-        .addProduct(
-            product.name(),
-            product.category(),
-            product.price() != null ? product.price() : 0.0,
-            product.stock() != null ? product.stock() : 0)
-        .thenApply(v -> ResponseEntity.status(HttpStatus.CREATED).build());
+        .addProduct(product.name(), product.category(), product.price(), product.stock())
+        .thenApply(
+            created ->
+                ResponseEntity.created(URI.create("/api/products/" + created.id())).body(created));
+  }
+
+  /**
+   * Deletes a product by its ID.
+   *
+   * @param id The product ID.
+   * @return HTTP 204 No Content if deleted, or HTTP 404 Not Found.
+   */
+  @DeleteMapping("/products/{id}")
+  public CompletableFuture<ResponseEntity<Void>> deleteProduct(@PathVariable int id) {
+    if (id <= 0) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("Product ID must be positive"));
+    }
+    return catalogService
+        .deleteProductById(id)
+        .thenApply(
+            deleted ->
+                deleted ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build());
   }
 
   /**
