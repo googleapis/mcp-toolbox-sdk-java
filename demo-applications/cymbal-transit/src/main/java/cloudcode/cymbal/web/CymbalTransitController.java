@@ -30,31 +30,38 @@ import dev.langchain4j.service.MemoryId;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.*;
 
-@SpringBootApplication
+@Controller
 public class CymbalTransitController {
+
+  @GetMapping("/")
+  public String index() {
+    return "index";
+  }
+
   public static void main(String[] args) {
     SpringApplication.run(CymbalTransitApplication.class, args);
   }
 }
 
-/**
- * 1. AI AGENT CONFIGURATION Configures Gemini 3.5 Flash and binds it to our LangChain4j Agent
- * Interface.
- */
+/** 1. AI AGENT CONFIGURATION Configures Gemini and binds it to our LangChain4j Agent Interface. */
 @Configuration
 class AgentConfiguration {
 
@@ -96,14 +103,14 @@ interface TransitAgent {
         + " ",
     "If you have to list the route details to the user, show it along with the full UUID and with"
         + " other details that are meaningful. If the user chooses to book ticket as the next step,"
-        + " prompt them to copy the correct UUID nad paste so the transaction can be confirmed.",
+        + " prompt them to copy the correct UUID and paste so the transaction can be confirmed.",
     "ONLY if the user asks a specifically narrowed-down question, asks for precise times, or"
         + " assigns a booking task, or asks about policies should you route to the specific tools"
         + " like 'querySchedules', 'bookTicket', 'searchPolicies'.",
     "Remember the tool 'querySchedules' is for finding schedules between cities, 'bookTicket' is"
         + " for booking ticket actionable between 2 cities,  'searchPolicies' is for finding"
         + " matching policies for this company.",
-    "Be intuitive and intelligent in finding the context even when user has typos. Do no"
+    "Be intuitive and intelligent in finding the context even when user has typos. Do not"
         + " hallucinate and make up stuff though. Use only data from the tools. ",
     "Don't show any asterisks while listing results. Keep it formatted and numbered or bulleted."
         + " asterisks distract."
@@ -156,42 +163,84 @@ class TransitAgentTools {
 @Service
 class McpToolboxService {
 
+  private static final Logger logger = LoggerFactory.getLogger(McpToolboxService.class);
+
   private McpToolboxClient mcpClient;
   private String idToken;
 
   @Value("${MCP_TOOLBOX_URL:fallback_toolbox_url}")
   private String targetUrl;
 
+  public McpToolboxService() {}
+
+  McpToolboxService(McpToolboxClient mcpClient, String idToken) {
+    this.mcpClient = mcpClient;
+    this.idToken = idToken;
+  }
+
+  void setMcpClient(McpToolboxClient mcpClient) {
+    this.mcpClient = mcpClient;
+  }
+
+  void setIdToken(String idToken) {
+    this.idToken = idToken;
+  }
+
+  void setTargetUrl(String targetUrl) {
+    this.targetUrl = targetUrl;
+  }
+
   @PostConstruct
   public void init() {
     try {
       String tokenAudience = targetUrl;
 
-      System.out.println("--- Initializing MCP Toolbox Client ---");
+      logger.info("--- Initializing MCP Toolbox Client for target: {} ---", targetUrl);
 
-      GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
-      if (!(credentials instanceof IdTokenProvider)) {
-        throw new RuntimeException("Loaded credentials do not support ID Tokens.");
+      GoogleCredentials credentials = null;
+      try {
+        credentials = GoogleCredentials.getApplicationDefault();
+      } catch (Exception e) {
+        logger.warn("Could not load Google Application Default Credentials: {}", e.getMessage());
       }
 
-      this.idToken =
-          ((IdTokenProvider) credentials)
-              .idTokenWithAudience(tokenAudience, Collections.emptyList())
-              .getTokenValue();
+      if (credentials instanceof IdTokenProvider) {
+        try {
+          this.idToken =
+              ((IdTokenProvider) credentials)
+                  .idTokenWithAudience(tokenAudience, Collections.emptyList())
+                  .getTokenValue();
+          logger.info("Successfully acquired Google Cloud ID token.");
+        } catch (Exception e) {
+          logger.warn(
+              "Failed to obtain ID token with audience {}: {}", tokenAudience, e.getMessage());
+        }
+      } else {
+        logger.info(
+            "Credentials do not implement IdTokenProvider (e.g., local UserCredentials). Proceeding"
+                + " without ID token.");
+      }
 
-      this.mcpClient = McpToolboxClient.builder().baseUrl(targetUrl).apiKey(idToken).build();
+      var clientBuilder = McpToolboxClient.builder().baseUrl(targetUrl);
+      if (this.idToken != null && !this.idToken.isBlank()) {
+        clientBuilder.apiKey(this.idToken);
+      }
+      this.mcpClient = clientBuilder.build();
 
       mcpClient
           .listTools()
           .thenAccept(
               tools -> {
-                System.out.println("Successfully discovered " + tools.size() + " tools.");
+                logger.info("Successfully discovered {} tools.", tools.size());
               })
-          .join();
+          .exceptionally(
+              ex -> {
+                logger.warn("Unable to list tools during startup: {}", ex.getMessage());
+                return null;
+              });
 
     } catch (Exception e) {
-      System.err.println("Failed to initialize MCP Toolbox Client:");
-      e.printStackTrace();
+      logger.error("Failed to initialize MCP Toolbox Client:", e);
     }
   }
 
@@ -200,33 +249,35 @@ class McpToolboxService {
         .invokeTool("find-bus-schedules", Collections.emptyMap())
         .thenApply(
             result -> {
-              if (result.isError() || result.content() == null || result.content().isEmpty())
+              if (result.isError() || result.content() == null || result.content().isEmpty()) {
                 return "No schedules found.";
+              }
               return result.content().stream()
-                  .map(content -> content.text())
+                  .map(content -> content != null ? Objects.toString(content.text(), "") : "")
                   .collect(Collectors.joining(", ", "[", "]"));
             });
   }
 
   public CompletableFuture<String> querySchedules(String origin, String destination) {
-    java.util.Map<String, Object> params = new java.util.HashMap<>();
+    Map<String, Object> params = new HashMap<>();
     params.put("origin", origin);
     params.put("destination", destination);
     return mcpClient
         .invokeTool("query-schedules", params)
         .thenApply(
             result -> {
-              if (result.isError() || result.content() == null || result.content().isEmpty())
+              if (result.isError() || result.content() == null || result.content().isEmpty()) {
                 return "No specific schedules found.";
-              System.out.println(result);
+              }
               return result.content().stream()
-                  .map(content -> content.text())
+                  .map(content -> content != null ? Objects.toString(content.text(), "") : "")
                   .collect(Collectors.joining(", ", "[", "]"));
             });
   }
 
   public CompletableFuture<String> bookTicket(String tripId, String passengerName) {
-    AuthTokenGetter toolAuthGetter = () -> CompletableFuture.completedFuture(idToken);
+    AuthTokenGetter toolAuthGetter =
+        () -> CompletableFuture.completedFuture(idToken != null ? idToken : "");
     return mcpClient
         .loadTool("book-ticket", Collections.singletonMap("google_auth", toolAuthGetter))
         .thenCompose(
@@ -236,7 +287,13 @@ class McpToolboxService {
         .thenApply(
             result -> {
               if (result.isError() || result.content() == null || result.content().isEmpty()) {
-                System.err.println("Tool execution failed: " + result.content().get(0).text());
+                String errorMsg =
+                    (result != null && result.content() != null && !result.content().isEmpty())
+                        ? result.content().get(0).text()
+                        : (result != null && result.isError()
+                            ? "Error returned by tool"
+                            : "Empty tool result");
+                logger.error("Tool execution failed: {}", errorMsg);
                 return "Transaction failed.";
               }
               return result.content().get(0).text();
@@ -244,14 +301,17 @@ class McpToolboxService {
   }
 
   public CompletableFuture<String> searchPolicies(String searchQuery) {
+    Map<String, Object> params = new HashMap<>();
+    params.put("search_query", searchQuery);
     return mcpClient
-        .invokeTool("search-policies", Map.of("search_query", searchQuery))
+        .invokeTool("search-policies", params)
         .thenApply(
             result -> {
-              if (result.isError() || result.content() == null || result.content().isEmpty())
+              if (result.isError() || result.content() == null || result.content().isEmpty()) {
                 return "No policy information found.";
+              }
               return result.content().stream()
-                  .map(content -> content.text())
+                  .map(content -> content != null ? Objects.toString(content.text(), "") : "")
                   .collect(Collectors.joining(", ", "[", "]"));
             });
   }
@@ -278,7 +338,7 @@ class TransitAgentController {
     // We use the HTTP Session ID to tell LangChain4j which memory context to load
     String sessionId = session.getId();
 
-    // Let Gemini 3.5 Flash handle the thinking, tool execution, and response generation!
+    // Let Gemini handle the thinking, tool execution, and response generation!
     String agentResponse = transitAgent.chat(sessionId, userMessage);
 
     return ResponseEntity.ok(agentResponse);

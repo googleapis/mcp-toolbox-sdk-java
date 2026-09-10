@@ -106,7 +106,7 @@ Add the dependency to your `pom.xml`:
 ```
 dependencies {
     // Source: https://mvnrepository.com/artifact/com.google.cloud.mcp/mcp-toolbox-sdk-java
-    implementation("com.google.cloud.mcp:mcp-toolbox-sdk-java:0.2.0") 
+    implementation("com.google.cloud.mcp:mcp-toolbox-sdk-java:1.0.0") // {x-version-update:mcp-toolbox-sdk-java:current}
 }
 ```
 
