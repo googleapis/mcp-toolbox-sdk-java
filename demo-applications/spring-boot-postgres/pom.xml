@@ -37,7 +37,6 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <mcp-toolbox-sdk.version>1.0.0</mcp-toolbox-sdk.version>
     </properties>
 
     <dependencies>
@@ -51,7 +50,7 @@
         <dependency>
             <groupId>com.google.cloud.mcp</groupId>
             <artifactId>mcp-toolbox-sdk-java</artifactId>
-            <version>${mcp-toolbox-sdk.version}</version>
+            <version>1.0.0</version><!-- {x-version-update:mcp-toolbox-sdk-java:current} -->
         </dependency>
 
         <!-- Jackson JSON -->

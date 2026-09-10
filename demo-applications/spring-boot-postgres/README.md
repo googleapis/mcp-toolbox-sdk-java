@@ -54,6 +54,18 @@ Rather than exposing arbitrary raw SQL execution, the application defines domain
 2. **Schema & Validation**: Input types, required parameters, and descriptions are enforced at the MCP layer before hitting the database.
 3. **Domain Abstraction**: LLMs and microservices interact with clean business tools rather than raw SQL commands.
 
+## Maven Dependency
+
+Add the MCP Toolbox Java SDK dependency to your `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>com.google.cloud.mcp</groupId>
+    <artifactId>mcp-toolbox-sdk-java</artifactId>
+    <version>1.0.0</version> <!-- {x-version-update:mcp-toolbox-sdk-java:current} -->
+</dependency>
+```
+
 ---
 
 ## Prerequisites
