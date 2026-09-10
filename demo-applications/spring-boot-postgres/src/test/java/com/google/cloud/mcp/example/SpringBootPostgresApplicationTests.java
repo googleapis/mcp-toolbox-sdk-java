@@ -75,12 +75,18 @@ class SpringBootPostgresApplicationTests {
     Map<String, ToolDefinition> tools = mcpToolboxClient.listTools().join();
     assertNotNull(tools, "Discovered tools map should not be null");
     assertThat(tools).isNotEmpty();
-    assertThat(tools.keySet()).contains("execute_sql", "list_tables", "database_overview");
+    assertThat(tools.keySet())
+        .contains(
+            "get-all-products",
+            "get-product-by-id",
+            "add-product",
+            "list_tables",
+            "get-table-schema");
   }
 
   @Test
   @Order(3)
-  @DisplayName("Service retrieves seeded products via execute_sql tool")
+  @DisplayName("Service retrieves seeded products via get-all-products tool")
   void testQueryProducts_ReturnsSeededItems() {
     List<Product> products = catalogService.getAllProducts().join();
     assertNotNull(products, "Products list should not be null");
@@ -93,7 +99,7 @@ class SpringBootPostgresApplicationTests {
 
   @Test
   @Order(4)
-  @DisplayName("Service persists new product via execute_sql and queries it back")
+  @DisplayName("Service persists new product via add-product tool and queries it back")
   void testInsertProduct_PersistsAndCanBeQueried() {
     String testItemName = "High-Precision Gaming Mouse";
     catalogService.addProduct(testItemName, "Gaming", 79.99, 50).join();
@@ -104,7 +110,7 @@ class SpringBootPostgresApplicationTests {
 
   @Test
   @Order(5)
-  @DisplayName("Service introspects table schema via list_tables tool")
+  @DisplayName("Service introspects table schema via get-table-schema tool")
   void testListTables_DiscoversProductsTable() throws Exception {
     String schemaOutput = catalogService.getTableSchema("products").join();
     assertNotNull(schemaOutput, "Schema output should not be null");
@@ -115,16 +121,15 @@ class SpringBootPostgresApplicationTests {
 
   @Test
   @Order(6)
-  @DisplayName("SDK client handles invalid SQL execution gracefully")
-  void testExecuteSql_InvalidSql_HandlesErrorGracefully() {
+  @DisplayName("SDK client handles invalid tool execution gracefully")
+  void testExecuteTool_InvalidArguments_HandlesErrorGracefully() {
     ToolResult result =
         mcpToolboxClient
-            .invokeTool(
-                "execute_sql", Map.of("sql", "SELECT * FROM non_existent_test_table_12345;"))
+            .invokeTool("get-product-by-id", Map.of("id", "invalid_non_numeric_id"))
             .join();
 
     assertNotNull(result, "ToolResult should not be null");
-    assertTrue(result.isError(), "Result should report error flag for invalid table query");
+    assertTrue(result.isError(), "Result should report error flag for invalid argument type");
     assertThat(result.content()).isNotEmpty();
   }
 
@@ -136,7 +141,7 @@ class SpringBootPostgresApplicationTests {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertNotNull(response.getBody());
-    assertThat(response.getBody()).contains("execute_sql");
+    assertThat(response.getBody()).contains("get-all-products", "add-product");
   }
 
   @Test

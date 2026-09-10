@@ -2,7 +2,7 @@
 
 This sample application demonstrates how to build a modern **Spring Boot 3** microservice integrated with the **MCP Toolbox Java SDK** (`com.google.cloud.mcp:mcp-toolbox-sdk-java`).
 
-The application connects to an official [MCP Toolbox](https://github.com/googleapis/mcp-toolbox) server running in Docker, which exposes prebuilt database tools (`execute_sql`, `list_tables`, `database_overview`, etc.) backed by a live **PostgreSQL** instance.
+The application connects to an official [MCP Toolbox](https://github.com/googleapis/mcp-toolbox) server running in Docker, configured with a custom declarative **`tools.yaml`** that defines domain-specific database tools (`get-all-products`, `get-product-by-id`, `get-products-by-category`, `add-product`, `delete-product-by-id`, `list_tables`, `get-table-schema`) backed by a live **PostgreSQL** instance.
 
 ---
 
@@ -21,7 +21,8 @@ The application connects to an official [MCP Toolbox](https://github.com/googlea
 ┌─────────────────────────────────┐
 │ MCP Toolbox Server (Docker)     │
 │ (Port 5005:5000)                │
-│  --prebuilt postgres            │
+│  --config /tools.yaml           │
+│  (Custom declarative tools)     │
 └────────────────┬────────────────┘
                  │ TCP (5432)
                  ▼
@@ -31,6 +32,27 @@ The application connects to an official [MCP Toolbox](https://github.com/googlea
 │  - Table: products              │
 └─────────────────────────────────┘
 ```
+
+---
+
+## Custom Declarative `tools.yaml`
+
+Rather than exposing arbitrary raw SQL execution, the application defines domain-specific tools declaratively in [`tools.yaml`](./tools.yaml):
+
+| Tool Name | Parameters | Description |
+| :--- | :--- | :--- |
+| `get-all-products` | None | Retrieves all products ordered by ID. |
+| `get-product-by-id` | `id` (integer) | Retrieves a single product by its ID. |
+| `get-products-by-category` | `category` (string) | Retrieves products filtered by category. |
+| `add-product` | `name` (string), `category` (string, optional), `price` (float), `stock` (integer) | Inserts a product using parameterized queries (`$1, $2, $3, $4`) and returns the created record via `RETURNING`. |
+| `delete-product-by-id` | `id` (integer) | Deletes a product by ID. |
+| `list_tables` | None | Lists public tables from `information_schema.tables`. |
+| `get-table-schema` | `table_name` (string) | Introspects column types and nullability for a table. |
+
+### Why Declarative Tools?
+1. **Parameterized Security**: Toolbox binds arguments via PostgreSQL prepared statement parameters (`$1`, `$2`), eliminating SQL injection risks.
+2. **Schema & Validation**: Input types, required parameters, and descriptions are enforced at the MCP layer before hitting the database.
+3. **Domain Abstraction**: LLMs and microservices interact with clean business tools rather than raw SQL commands.
 
 ---
 

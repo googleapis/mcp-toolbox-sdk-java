@@ -1,0 +1,106 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+sources:
+  postgres-db:
+    kind: postgres
+    host: ${POSTGRES_HOST}
+    port: 5432
+    database: ${POSTGRES_DATABASE}
+    user: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+
+tools:
+  get-all-products:
+    kind: postgres-sql
+    source: postgres-db
+    description: Retrieves all products from the catalog ordered by ID.
+    statement: |
+      SELECT id, name, category, price, stock FROM products ORDER BY id;
+
+  get-product-by-id:
+    kind: postgres-sql
+    source: postgres-db
+    description: Retrieves a single product by its unique identifier.
+    parameters:
+      - name: id
+        type: integer
+        description: The ID of the product.
+    statement: |
+      SELECT id, name, category, price, stock FROM products WHERE id = $1;
+
+  get-products-by-category:
+    kind: postgres-sql
+    source: postgres-db
+    description: Retrieves products belonging to a specified category.
+    parameters:
+      - name: category
+        type: string
+        description: Category name to filter by.
+    statement: |
+      SELECT id, name, category, price, stock FROM products WHERE category = $1 ORDER BY id;
+
+  add-product:
+    kind: postgres-sql
+    source: postgres-db
+    description: Inserts a new product into the database and returns the created record.
+    parameters:
+      - name: name
+        type: string
+        description: Name of the product.
+      - name: category
+        type: string
+        description: Optional category of the product.
+        required: false
+      - name: price
+        type: float
+        description: Retail price of the product.
+      - name: stock
+        type: integer
+        description: Stock quantity available.
+    statement: |
+      INSERT INTO products (name, category, price, stock) VALUES ($1, $2, $3, $4)
+      RETURNING id, name, category, price, stock;
+
+  delete-product-by-id:
+    kind: postgres-sql
+    source: postgres-db
+    description: Deletes a product from the catalog by its ID and returns the deleted ID.
+    parameters:
+      - name: id
+        type: integer
+        description: The ID of the product to delete.
+    statement: |
+      DELETE FROM products WHERE id = $1 RETURNING id;
+
+  list_tables:
+    kind: postgres-sql
+    source: postgres-db
+    description: Lists table schemas from the PostgreSQL database public schema.
+    statement: |
+      SELECT table_name, table_type FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name;
+
+  get-table-schema:
+    kind: postgres-sql
+    source: postgres-db
+    description: Retrieves column schema information for a specific table.
+    parameters:
+      - name: table_name
+        type: string
+        description: Name of the table to introspect.
+    statement: |
+      SELECT table_name, column_name, data_type, is_nullable
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = $1
+      ORDER BY ordinal_position;

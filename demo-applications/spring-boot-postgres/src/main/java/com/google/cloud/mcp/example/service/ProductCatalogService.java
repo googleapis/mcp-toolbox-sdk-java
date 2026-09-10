@@ -23,8 +23,8 @@ import com.google.cloud.mcp.example.model.Product;
 import com.google.cloud.mcp.tool.ToolResult;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
@@ -62,21 +62,55 @@ public class ProductCatalogService {
   }
 
   /**
-   * Retrieves all products from the PostgreSQL database using the 'execute_sql' tool.
+   * Retrieves all products from the PostgreSQL database using the 'get-all-products' tool.
    *
    * @return CompletableFuture containing list of {@link Product} objects.
    */
   public CompletableFuture<List<Product>> getAllProducts() {
-    String sql = "SELECT id, name, category, price, stock FROM products ORDER BY id;";
-    logger.debug("Executing SQL via MCP: {}", sql);
-
+    logger.debug("Invoking 'get-all-products' tool via MCP");
     return client
-        .invokeTool("execute_sql", Map.of("sql", sql))
+        .invokeTool("get-all-products", Collections.emptyMap())
         .thenApply(this::parseProductsResult);
   }
 
   /**
-   * Inserts a new product into the database using the 'execute_sql' tool.
+   * Retrieves a single product by its unique identifier using the 'get-product-by-id' tool.
+   *
+   * @param id The product ID (must be positive).
+   * @return CompletableFuture containing {@link Product} or null if not found.
+   */
+  public CompletableFuture<Product> getProductById(int id) {
+    if (id <= 0) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("Product ID must be positive"));
+    }
+    logger.debug("Invoking 'get-product-by-id' tool via MCP for id: {}", id);
+    return client
+        .invokeTool("get-product-by-id", Map.of("id", id))
+        .thenApply(this::parseProductsResult)
+        .thenApply(products -> products.isEmpty() ? null : products.get(0));
+  }
+
+  /**
+   * Retrieves products in a category using the 'get-products-by-category' tool.
+   *
+   * @param category The category name (required, non-blank).
+   * @return CompletableFuture containing list of {@link Product} objects.
+   */
+  public CompletableFuture<List<Product>> getProductsByCategory(String category) {
+    if (category == null || category.trim().isEmpty()) {
+      return CompletableFuture.failedFuture(
+          new IllegalArgumentException("Product category cannot be null or empty"));
+    }
+    String trimmedCategory = category.trim();
+    logger.debug("Invoking 'get-products-by-category' tool via MCP for: {}", trimmedCategory);
+    return client
+        .invokeTool("get-products-by-category", Map.of("category", trimmedCategory))
+        .thenApply(this::parseProductsResult);
+  }
+
+  /**
+   * Inserts a new product into the database using the 'add-product' declarative tool.
    *
    * @param name Name of the product (required, non-blank, max 100 characters).
    * @param category Category of the product (optional, max 50 characters).
@@ -110,24 +144,18 @@ public class ProductCatalogService {
           new IllegalArgumentException("Product stock must be non-negative"));
     }
 
-    String sanitizedName = sanitizeSqlString(trimmedName);
-    String categorySql =
-        (trimmedCategory != null && !trimmedCategory.isEmpty())
-            ? "'" + sanitizeSqlString(trimmedCategory) + "'"
-            : "NULL";
-    String sql =
-        String.format(
-            Locale.US,
-            "INSERT INTO products (name, category, price, stock) VALUES ('%s', %s, %.2f, %d);",
-            sanitizedName,
-            categorySql,
-            price,
-            stock);
+    Map<String, Object> arguments = new HashMap<>();
+    arguments.put("name", trimmedName);
+    if (trimmedCategory != null && !trimmedCategory.isEmpty()) {
+      arguments.put("category", trimmedCategory);
+    }
+    arguments.put("price", price);
+    arguments.put("stock", stock);
 
-    logger.debug("Executing insert SQL via MCP: {}", sql);
+    logger.debug("Invoking 'add-product' tool via MCP for: {}", trimmedName);
 
     return client
-        .invokeTool("execute_sql", Map.of("sql", sql))
+        .invokeTool("add-product", arguments)
         .thenAccept(
             result -> {
               if (result.isError()) {
@@ -140,18 +168,20 @@ public class ProductCatalogService {
   }
 
   /**
-   * Introspects table existence and metadata using the 'list_tables' tool.
+   * Introspects table existence and metadata using declarative schema tools.
    *
    * @param tableName Name of the table to introspect.
    * @return CompletableFuture containing table introspection metadata string.
    */
   public CompletableFuture<String> getTableSchema(String tableName) {
     logger.debug("Inspecting table metadata for: {}", tableName);
+    boolean hasTable = tableName != null && !tableName.trim().isEmpty();
+    String toolName = hasTable ? "get-table-schema" : "list_tables";
     Map<String, Object> args =
-        tableName != null ? Map.of("table_names", tableName) : Collections.emptyMap();
+        hasTable ? Map.of("table_name", tableName.trim()) : Collections.emptyMap();
 
     return client
-        .invokeTool("list_tables", args)
+        .invokeTool(toolName, args)
         .thenApply(
             result -> {
               if (result.isError()) {
@@ -168,7 +198,7 @@ public class ProductCatalogService {
   private List<Product> parseProductsResult(ToolResult result) {
     if (result.isError()) {
       String errorMsg = extractErrorMessage(result);
-      logger.error("execute_sql returned error: {}", errorMsg);
+      logger.error("Tool query returned error: {}", errorMsg);
       throw new IllegalStateException("Query failed: " + errorMsg);
     }
 
@@ -195,10 +225,6 @@ public class ProductCatalogService {
       }
     }
     return products;
-  }
-
-  private String sanitizeSqlString(String input) {
-    return input.replace("\0", "").replace("'", "''");
   }
 
   private String extractErrorMessage(ToolResult result) {

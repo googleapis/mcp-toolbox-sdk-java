@@ -87,7 +87,7 @@ class ProductCatalogServiceTest {
                     "{\"id\":2,\"name\":\"Keyboard\",\"category\":null,\"price\":89.99,\"stock\":50}")),
             false);
 
-    when(mockClient.invokeTool(eq("execute_sql"), any()))
+    when(mockClient.invokeTool(eq("get-all-products"), any()))
         .thenReturn(CompletableFuture.completedFuture(result));
 
     List<Product> products = service.getAllProducts().join();
@@ -106,7 +106,7 @@ class ProductCatalogServiceTest {
             + " Lamp\",\"category\":\"Lighting\",\"price\":39.99,\"stock\":40}]";
     ToolResult result = new ToolResult(List.of(new ToolResult.Content("text", jsonArray)), false);
 
-    when(mockClient.invokeTool(eq("execute_sql"), any()))
+    when(mockClient.invokeTool(eq("get-all-products"), any()))
         .thenReturn(CompletableFuture.completedFuture(result));
 
     List<Product> products = service.getAllProducts().join();
@@ -117,39 +117,88 @@ class ProductCatalogServiceTest {
   }
 
   @Test
-  @DisplayName("addProduct formats SQL with sanitized values and quotes")
-  void testAddProduct_Valid_FormatsSqlWithCategory() {
+  @DisplayName("getProductById retrieves single product via get-product-by-id tool")
+  void testGetProductById_Success() {
+    ToolResult result =
+        new ToolResult(
+            List.of(
+                new ToolResult.Content(
+                    "text",
+                    "{\"id\":1,\"name\":\"Quantum"
+                        + " Laptop\",\"category\":\"Electronics\",\"price\":1299.99,\"stock\":45}")),
+            false);
+
+    when(mockClient.invokeTool(eq("get-product-by-id"), any()))
+        .thenReturn(CompletableFuture.completedFuture(result));
+
+    Product product = service.getProductById(1).join();
+
+    assertThat(product).isNotNull();
+    assertEquals(1, product.id());
+    assertEquals("Quantum Laptop", product.name());
+  }
+
+  @Test
+  @DisplayName("getProductsByCategory filters products via get-products-by-category tool")
+  void testGetProductsByCategory_Success() {
+    ToolResult result =
+        new ToolResult(
+            List.of(
+                new ToolResult.Content(
+                    "text",
+                    "{\"id\":1,\"name\":\"Quantum"
+                        + " Laptop\",\"category\":\"Electronics\",\"price\":1299.99,\"stock\":45}")),
+            false);
+
+    when(mockClient.invokeTool(eq("get-products-by-category"), any()))
+        .thenReturn(CompletableFuture.completedFuture(result));
+
+    List<Product> products = service.getProductsByCategory("Electronics").join();
+
+    assertThat(products).hasSize(1);
+    assertEquals("Electronics", products.get(0).category());
+  }
+
+  @Test
+  @DisplayName("addProduct passes typed arguments map to add-product tool")
+  void testAddProduct_Valid_PassesArgumentsWithCategory() {
     ToolResult successResult =
-        new ToolResult(List.of(new ToolResult.Content("text", "INSERT 0 1")), false);
-    when(mockClient.invokeTool(eq("execute_sql"), any()))
+        new ToolResult(List.of(new ToolResult.Content("text", "{\"id\":10}")), false);
+    when(mockClient.invokeTool(eq("add-product"), any()))
         .thenReturn(CompletableFuture.completedFuture(successResult));
 
     service.addProduct("O'Reilly Book", "Books", 49.99, 10).join();
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-    verify(mockClient).invokeTool(eq("execute_sql"), captor.capture());
+    verify(mockClient).invokeTool(eq("add-product"), captor.capture());
 
-    String sql = (String) captor.getValue().get("sql");
-    assertThat(sql).contains("VALUES ('O''Reilly Book', 'Books', 49.99, 10);");
+    Map<String, Object> args = captor.getValue();
+    assertEquals("O'Reilly Book", args.get("name"));
+    assertEquals("Books", args.get("category"));
+    assertEquals(49.99, args.get("price"));
+    assertEquals(10, args.get("stock"));
   }
 
   @Test
-  @DisplayName("addProduct formats null or empty category as SQL NULL literal")
-  void testAddProduct_Valid_FormatsSqlWithNullCategory() {
+  @DisplayName("addProduct omits category key when null or empty")
+  void testAddProduct_Valid_OmitsNullCategory() {
     ToolResult successResult =
-        new ToolResult(List.of(new ToolResult.Content("text", "INSERT 0 1")), false);
-    when(mockClient.invokeTool(eq("execute_sql"), any()))
+        new ToolResult(List.of(new ToolResult.Content("text", "{\"id\":11}")), false);
+    when(mockClient.invokeTool(eq("add-product"), any()))
         .thenReturn(CompletableFuture.completedFuture(successResult));
 
     service.addProduct("Generic Item", null, 9.99, 5).join();
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-    verify(mockClient).invokeTool(eq("execute_sql"), captor.capture());
+    verify(mockClient).invokeTool(eq("add-product"), captor.capture());
 
-    String sql = (String) captor.getValue().get("sql");
-    assertThat(sql).contains("VALUES ('Generic Item', NULL, 9.99, 5);");
+    Map<String, Object> args = captor.getValue();
+    assertEquals("Generic Item", args.get("name"));
+    assertThat(args).doesNotContainKey("category");
+    assertEquals(9.99, args.get("price"));
+    assertEquals(5, args.get("stock"));
   }
 
   @Test
@@ -194,20 +243,21 @@ class ProductCatalogServiceTest {
   }
 
   @Test
-  @DisplayName("getTableSchema passes 'table_names' parameter to list_tables tool")
-  void testGetTableSchema_PassesTableNamesParam() {
+  @DisplayName("getTableSchema passes 'table_name' parameter to get-table-schema tool")
+  void testGetTableSchema_PassesTableNameParam() {
     ToolResult schemaResult =
-        new ToolResult(List.of(new ToolResult.Content("text", "{\"table\":\"products\"}")), false);
-    when(mockClient.invokeTool(eq("list_tables"), any()))
+        new ToolResult(
+            List.of(new ToolResult.Content("text", "{\"table_name\":\"products\"}")), false);
+    when(mockClient.invokeTool(eq("get-table-schema"), any()))
         .thenReturn(CompletableFuture.completedFuture(schemaResult));
 
     String schema = service.getTableSchema("products").join();
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
-    verify(mockClient).invokeTool(eq("list_tables"), captor.capture());
+    verify(mockClient).invokeTool(eq("get-table-schema"), captor.capture());
 
-    assertEquals("products", captor.getValue().get("table_names"));
+    assertEquals("products", captor.getValue().get("table_name"));
     assertThat(schema).contains("products");
   }
 
@@ -215,13 +265,13 @@ class ProductCatalogServiceTest {
   @DisplayName("Tool execution error throws IllegalStateException")
   void testToolExecutionError_ThrowsIllegalStateException() {
     ToolResult errorResult =
-        new ToolResult(List.of(new ToolResult.Content("text", "SQL error syntax")), true);
-    when(mockClient.invokeTool(eq("execute_sql"), any()))
+        new ToolResult(List.of(new ToolResult.Content("text", "Tool invocation failed")), true);
+    when(mockClient.invokeTool(eq("get-all-products"), any()))
         .thenReturn(CompletableFuture.completedFuture(errorResult));
 
     CompletionException ex =
         assertThrows(CompletionException.class, () -> service.getAllProducts().join());
     assertThat(ex.getCause()).isInstanceOf(IllegalStateException.class);
-    assertThat(ex.getCause().getMessage()).contains("SQL error syntax");
+    assertThat(ex.getCause().getMessage()).contains("Tool invocation failed");
   }
 }
