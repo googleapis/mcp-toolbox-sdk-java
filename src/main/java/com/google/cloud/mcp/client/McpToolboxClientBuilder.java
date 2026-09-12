@@ -38,8 +38,11 @@ public final class McpToolboxClientBuilder implements McpToolboxClient.Builder {
   private final List<ToolPreProcessor> preProcessors = new ArrayList<>();
   private final List<ToolPostProcessor> postProcessors = new ArrayList<>();
   private ProtocolVersion protocolVersion;
+  private java.time.Duration connectTimeout;
+  private java.time.Duration requestTimeout;
   private java.net.http.HttpClient httpClient;
   private java.util.concurrent.Executor executor;
+  private java.util.logging.Logger logger;
 
   /** Constructs a new McpToolboxClientBuilder. */
   public McpToolboxClientBuilder() {}
@@ -93,6 +96,18 @@ public final class McpToolboxClientBuilder implements McpToolboxClient.Builder {
   }
 
   @Override
+  public McpToolboxClient.Builder connectTimeout(java.time.Duration connectTimeout) {
+    this.connectTimeout = connectTimeout;
+    return this;
+  }
+
+  @Override
+  public McpToolboxClient.Builder requestTimeout(java.time.Duration requestTimeout) {
+    this.requestTimeout = requestTimeout;
+    return this;
+  }
+
+  @Override
   public McpToolboxClient.Builder httpClient(java.net.http.HttpClient httpClient) {
     this.httpClient = httpClient;
     return this;
@@ -101,6 +116,12 @@ public final class McpToolboxClientBuilder implements McpToolboxClient.Builder {
   @Override
   public McpToolboxClient.Builder executor(java.util.concurrent.Executor executor) {
     this.executor = executor;
+    return this;
+  }
+
+  @Override
+  public McpToolboxClient.Builder logger(java.util.logging.Logger logger) {
+    this.logger = logger;
     return this;
   }
 
@@ -137,7 +158,10 @@ public final class McpToolboxClientBuilder implements McpToolboxClient.Builder {
             resolvedProvider,
             this.protocolVersion,
             this.httpClient,
-            this.executor);
+            this.executor,
+            this.connectTimeout,
+            this.requestTimeout,
+            this.logger);
     return new McpToolboxClientImpl(
         transport, this.headers, resolvedProvider, preProcessors, postProcessors);
   }
