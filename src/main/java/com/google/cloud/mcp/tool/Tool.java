@@ -19,6 +19,7 @@ package com.google.cloud.mcp.tool;
 import com.google.cloud.mcp.McpToolboxClient;
 import com.google.cloud.mcp.auth.AuthResolver;
 import com.google.cloud.mcp.auth.AuthTokenGetter;
+import com.google.cloud.mcp.exception.McpToolboxException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,13 +34,25 @@ import java.util.function.Supplier;
  * resolution, and input validation.
  */
 public class Tool {
+  /** The name of the tool. */
   private final String name;
+
+  /** The definition of the tool. */
   private final ToolDefinition definition;
+
+  /** The client used to invoke the tool. */
   private final McpToolboxClient client;
 
+  /** The bound parameters. */
   private final Map<String, Object> boundParameters;
+
+  /** The auth token getters. */
   private final Map<String, AuthTokenGetter> authGetters;
+
+  /** The pre-processors. */
   private final List<ToolPreProcessor> preProcessors;
+
+  /** The post-processors. */
   private final List<ToolPostProcessor> postProcessors;
 
   /**
@@ -217,6 +230,32 @@ public class Tool {
   }
 
   /**
+   * Synchronously executes the tool with the provided arguments.
+   *
+   * @param args The arguments for the tool invocation.
+   * @return The result of the tool execution.
+   * @throws McpToolboxException if execution fails.
+   */
+  public ToolResult executeSync(final Map<String, Object> args) {
+    try {
+      return execute(args).join();
+    } catch (java.util.concurrent.CompletionException
+        | java.util.concurrent.CancellationException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof McpToolboxException) {
+        throw (McpToolboxException) cause;
+      }
+      if (cause instanceof IllegalArgumentException) {
+        throw (IllegalArgumentException) cause;
+      }
+      if (cause != null) {
+        throw new McpToolboxException(cause.getMessage(), cause);
+      }
+      throw new McpToolboxException(e);
+    }
+  }
+
+  /**
    * Executes the tool with the provided arguments, applying any bound parameters and resolving
    * authentication tokens.
    *
@@ -254,12 +293,12 @@ public class Tool {
                   .thenCompose(
                       resolvedAuth -> {
                         try {
-                          // Apply credential parameter bindings and extra
-                          // headers
+                          // Apply credential parameter bindings and headers
                           resolvedAuth.applyTo(finalArgs, extraHeaders, definition);
 
                           // Validation & Cleanup
                           validateAndSanitizeArgs(finalArgs);
+
                           return client.invokeTool(name, finalArgs, extraHeaders);
                         } catch (Exception e) {
                           return CompletableFuture.failedFuture(e);
