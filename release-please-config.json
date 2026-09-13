@@ -32,7 +32,9 @@
         "example/README.md",
         "example/pom.xml",
         "demo-applications/cymbal-transit/README.md",
-        "demo-applications/cymbal-transit/pom.xml"
+        "demo-applications/cymbal-transit/pom.xml",
+        "demo-applications/spring-boot-postgres/README.md",
+        "demo-applications/spring-boot-postgres/pom.xml"
       ]
     }
   },
