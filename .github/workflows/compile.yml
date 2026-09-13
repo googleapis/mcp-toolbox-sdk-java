@@ -27,3 +27,9 @@ jobs:
       run: |
         cd example
         mvn compile
+
+    - name: Build Spring Boot Example with Maven
+      run: |
+        cd example-spring-boot
+        mvn compile
+
