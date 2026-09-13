@@ -96,7 +96,7 @@ Add the dependency to your `pom.xml`:
 <dependency>
     <groupId>com.google.cloud.mcp</groupId>
     <artifactId>mcp-toolbox-sdk-java</artifactId>
-    <version>1.0.0</version> <!-- {x-version-update:mcp-toolbox-sdk-java:current} -->
+    <version>1.0.1-SNAPSHOT</version> <!-- {x-version-update:mcp-toolbox-sdk-java:current} -->
     <scope>compile</scope>
 </dependency>
 ```
@@ -106,7 +106,7 @@ Add the dependency to your `pom.xml`:
 ```
 dependencies {
     // Source: https://mvnrepository.com/artifact/com.google.cloud.mcp/mcp-toolbox-sdk-java
-    implementation("com.google.cloud.mcp:mcp-toolbox-sdk-java:1.0.0") // {x-version-update:mcp-toolbox-sdk-java:current}
+    implementation("com.google.cloud.mcp:mcp-toolbox-sdk-java:1.0.1-SNAPSHOT") // {x-version-update:mcp-toolbox-sdk-java:current}
 }
 ```
 
