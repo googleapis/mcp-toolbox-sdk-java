@@ -19,13 +19,30 @@ package com.google.cloud.mcp.transport;
 import java.util.Map;
 import java.util.UUID;
 
-class JsonRpc {
-  static class Request {
+/** Namespace for JSON-RPC 2.0 MC Protocol data structures. */
+public class JsonRpc {
+  private JsonRpc() {}
+
+  /** Represents a JSON-RPC request. */
+  public static class Request {
+    /** The JSON-RPC version. */
     public String jsonrpc = "2.0";
+
+    /** The request ID. */
     public String id;
+
+    /** The method name. */
     public String method;
+
+    /** The parameters. */
     public Object params;
 
+    /**
+     * Constructs a new Request.
+     *
+     * @param method The method name.
+     * @param params The parameters.
+     */
     public Request(final String method, final Object params) {
       this.id = UUID.randomUUID().toString();
       this.method = method;
@@ -33,32 +50,66 @@ class JsonRpc {
     }
   }
 
-  static class Notification {
+  /** Represents a JSON-RPC notification. */
+  public static class Notification {
+    /** The JSON-RPC version. */
     public String jsonrpc = "2.0";
+
+    /** The method name. */
     public String method;
+
+    /** The parameters. */
     public Object params;
 
+    /**
+     * Constructs a new Notification.
+     *
+     * @param method The method name.
+     * @param params The parameters.
+     */
     public Notification(final String method, final Object params) {
       this.method = method;
       this.params = params;
     }
   }
 
-  static class CallToolParams {
+  /** Parameters for calling a tool. */
+  public static class CallToolParams {
+    /** The name of the tool to call. */
     public String name;
+
+    /** The arguments for the tool call. */
     public Map<String, Object> arguments;
 
+    /**
+     * Constructs a new CallToolParams.
+     *
+     * @param name The name of the tool.
+     * @param arguments The arguments.
+     */
     public CallToolParams(final String name, final Map<String, Object> arguments) {
       this.name = name;
       this.arguments = arguments;
     }
   }
 
-  static class InitializeParams {
+  /** Parameters for initializing the connection. */
+  public static class InitializeParams {
+    /** The protocol version. */
     public String protocolVersion;
+
+    /** The client capabilities. */
     public Map<String, Object> capabilities;
+
+    /** The client info. */
     public Map<String, String> clientInfo;
 
+    /**
+     * Constructs a new InitializeParams.
+     *
+     * @param version The protocol version.
+     * @param clientName The client name.
+     */
     public InitializeParams(final String version, final String clientName) {
       this.protocolVersion = version;
       this.capabilities = Map.of();
