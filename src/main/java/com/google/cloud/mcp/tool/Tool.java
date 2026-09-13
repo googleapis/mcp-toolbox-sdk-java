@@ -19,6 +19,7 @@ package com.google.cloud.mcp.tool;
 import com.google.cloud.mcp.McpToolboxClient;
 import com.google.cloud.mcp.auth.AuthResolver;
 import com.google.cloud.mcp.auth.AuthTokenGetter;
+import com.google.cloud.mcp.exception.McpToolboxException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -214,6 +215,32 @@ public class Tool {
         this.authGetters,
         this.preProcessors,
         newPost);
+  }
+
+  /**
+   * Synchronously executes the tool with the provided arguments.
+   *
+   * @param args The arguments for the tool invocation.
+   * @return The result of the tool execution.
+   * @throws McpToolboxException if execution fails.
+   */
+  public ToolResult executeSync(final Map<String, Object> args) {
+    try {
+      return execute(args).join();
+    } catch (java.util.concurrent.CompletionException
+        | java.util.concurrent.CancellationException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof McpToolboxException) {
+        throw (McpToolboxException) cause;
+      }
+      if (cause instanceof IllegalArgumentException) {
+        throw (IllegalArgumentException) cause;
+      }
+      if (cause != null) {
+        throw new McpToolboxException(cause.getMessage(), cause);
+      }
+      throw new McpToolboxException(e);
+    }
   }
 
   /**

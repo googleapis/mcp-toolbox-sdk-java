@@ -30,6 +30,7 @@ import com.google.cloud.mcp.auth.CredentialsProvider;
 import com.google.cloud.mcp.tool.ToolDefinition;
 import com.google.cloud.mcp.tool.ToolResult;
 import com.google.cloud.mcp.transport.HttpMcpTransport;
+import com.google.cloud.mcp.transport.JsonRpc;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -488,6 +489,15 @@ class McpToolboxClientImplJsonRpcTest {
     assertTrue(tools.containsKey("test-tool"));
     ToolDefinition toolDef = tools.get("test-tool");
     assertTrue(toolDef.parameters().isEmpty());
+  }
+
+  @Test
+  void testJsonRpcInstantiation() throws Exception {
+    // Instantiate private JsonRpc namespace to cover its constructor
+    java.lang.reflect.Constructor<JsonRpc> constructor = JsonRpc.class.getDeclaredConstructor();
+    constructor.setAccessible(true);
+    JsonRpc rpc = constructor.newInstance();
+    assertNotNull(rpc);
   }
 
   @Test

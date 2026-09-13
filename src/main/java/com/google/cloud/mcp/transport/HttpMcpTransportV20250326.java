@@ -24,14 +24,26 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Logger;
 
+/** HTTP transport implementation for protocol version 2025-03-26. */
 public final class HttpMcpTransportV20250326 extends BaseMcpTransport {
 
   private volatile String sessionId;
 
+  /**
+   * Constructs a new HttpMcpTransportV20250326.
+   *
+   * @param baseUrl The base URL.
+   * @param clientHeaders The client headers.
+   * @param credentialsProvider The credentials provider.
+   * @param httpClient The HTTP client.
+   * @param executor The executor.
+   */
   public HttpMcpTransportV20250326(
       final String baseUrl,
       final Map<String, String> clientHeaders,
@@ -45,6 +57,39 @@ public final class HttpMcpTransportV20250326 extends BaseMcpTransport {
         ProtocolVersion.VERSION_2025_03_26,
         httpClient,
         executor);
+  }
+
+  /**
+   * Constructs a new HttpMcpTransportV20250326 with timeouts and logger.
+   *
+   * @param baseUrl The base URL.
+   * @param clientHeaders The client headers.
+   * @param credentialsProvider The credentials provider.
+   * @param httpClient The HTTP client.
+   * @param executor The executor.
+   * @param connectTimeout The connection timeout.
+   * @param requestTimeout The request timeout.
+   * @param logger The logger.
+   */
+  public HttpMcpTransportV20250326(
+      final String baseUrl,
+      final Map<String, String> clientHeaders,
+      final CredentialsProvider credentialsProvider,
+      final HttpClient httpClient,
+      final java.util.concurrent.Executor executor,
+      final Duration connectTimeout,
+      final Duration requestTimeout,
+      final Logger logger) {
+    super(
+        baseUrl,
+        clientHeaders,
+        credentialsProvider,
+        ProtocolVersion.VERSION_2025_03_26,
+        httpClient,
+        executor,
+        connectTimeout,
+        requestTimeout,
+        logger);
   }
 
   @Override
