@@ -40,6 +40,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
 /** Default implementation using Java 11 HttpClient. */
+@SuppressWarnings("deprecation")
 public final class McpToolboxClientImpl implements McpToolboxClient {
 
   /** Logger for logging messages. */
@@ -78,10 +79,9 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
    * Constructs a new McpToolboxClientImpl.
    *
    * @param transport The underlying MCP transport layer.
-   * @param headers Fallback headers for deprecated constructor compatibility.
-   * @param credentialsProvider Fallback provider for deprecated constructor compatibility.
+   * @param headers Default HTTP headers.
+   * @param credentialsProvider Provider for credentials.
    */
-  @Deprecated
   public McpToolboxClientImpl(
       Transport transport, Map<String, String> headers, CredentialsProvider credentialsProvider) {
     this(transport, headers, credentialsProvider, null, null);
@@ -161,14 +161,17 @@ public final class McpToolboxClientImpl implements McpToolboxClient {
   }
 
   /**
-   * Primary constructor for McpToolboxClientImpl.
+   * Constructs a new McpToolboxClientImpl with pre- and post-processors.
    *
    * @param transport The underlying MCP transport layer.
    * @param headers Default HTTP headers.
    * @param credentialsProvider Provider for credentials.
    * @param preProcessors List of pre-processors.
    * @param postProcessors List of post-processors.
+   * @deprecated Use {@link #McpToolboxClientImpl(Transport, Map, CredentialsProvider)} instead.
+   *     Pre- and post-processors are deprecated in favor of orchestration framework callbacks.
    */
+  @Deprecated
   public McpToolboxClientImpl(
       Transport transport,
       Map<String, String> headers,

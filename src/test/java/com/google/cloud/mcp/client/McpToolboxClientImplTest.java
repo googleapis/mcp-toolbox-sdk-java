@@ -858,7 +858,7 @@ class McpToolboxClientImplTest {
     assertTrue(ex.getCause().getMessage().contains("Simulated notification serialization failure"));
   }
 
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "deprecation"})
   @Test
   void testClientPrePostProcessorsPropagation() throws Exception {
     Transport mockTransport = mock(Transport.class);

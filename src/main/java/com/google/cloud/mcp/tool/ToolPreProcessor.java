@@ -19,7 +19,14 @@ package com.google.cloud.mcp.tool;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-/** A functional interface for pre-processing tool inputs before invocation. */
+/**
+ * A functional interface for pre-processing tool inputs before invocation.
+ *
+ * @deprecated Tool execution hooks are deprecated in the core SDK to align with cross-SDK
+ *     architecture. Use orchestration framework callbacks (e.g., ADK, LangChain4j, or Spring AI)
+ *     for pre-invocation interception.
+ */
+@Deprecated
 @FunctionalInterface
 public interface ToolPreProcessor {
 

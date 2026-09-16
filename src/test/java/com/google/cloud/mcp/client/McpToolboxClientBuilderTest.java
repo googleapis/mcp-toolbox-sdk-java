@@ -170,6 +170,7 @@ class McpToolboxClientBuilderTest {
   }
 
   @Test
+  @SuppressWarnings("deprecation")
   void testProcessorsConfiguration() {
     ToolPreProcessor pre = (name, args) -> CompletableFuture.completedFuture(args);
     ToolPostProcessor post = (name, result) -> CompletableFuture.completedFuture(result);

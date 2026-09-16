@@ -284,7 +284,7 @@ class ToolTest {
   }
 
   @Test
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "deprecation"})
   void testExecute_withPreAndPostProcessors_modifiesArgsAndResult() throws Exception {
     // Arrange
     Map<String, Object> initialArgs = new HashMap<>();
@@ -343,6 +343,7 @@ class ToolTest {
   }
 
   @Test
+  @SuppressWarnings("deprecation")
   void testExecute_preProcessorException_failsFutureWithoutInvokingClient() {
     // Arrange
     Map<String, Object> initialArgs = new HashMap<>();
