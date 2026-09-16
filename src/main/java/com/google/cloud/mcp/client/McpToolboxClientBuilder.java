@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /** Implementation of the {@link McpToolboxClient.Builder} interface. */
+@SuppressWarnings("deprecation")
 public final class McpToolboxClientBuilder implements McpToolboxClient.Builder {
   private String baseUrl;
   private String apiKey;
@@ -70,6 +71,7 @@ public final class McpToolboxClientBuilder implements McpToolboxClient.Builder {
     return this;
   }
 
+  @Deprecated
   @Override
   public McpToolboxClient.Builder preProcessor(ToolPreProcessor preProcessor) {
     if (preProcessor != null) {
@@ -78,6 +80,7 @@ public final class McpToolboxClientBuilder implements McpToolboxClient.Builder {
     return this;
   }
 
+  @Deprecated
   @Override
   public McpToolboxClient.Builder postProcessor(ToolPostProcessor postProcessor) {
     if (postProcessor != null) {

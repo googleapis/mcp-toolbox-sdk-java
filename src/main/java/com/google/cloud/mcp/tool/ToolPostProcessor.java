@@ -18,7 +18,14 @@ package com.google.cloud.mcp.tool;
 
 import java.util.concurrent.CompletableFuture;
 
-/** A functional interface for post-processing tool results after invocation. */
+/**
+ * A functional interface for post-processing tool results after invocation.
+ *
+ * @deprecated Tool execution hooks are deprecated in the core SDK to align with cross-SDK
+ *     architecture. Use orchestration framework callbacks (e.g., ADK, LangChain4j, or Spring AI)
+ *     for post-invocation interception.
+ */
+@Deprecated
 @FunctionalInterface
 public interface ToolPostProcessor {
 

@@ -156,7 +156,9 @@ public interface McpToolboxClient {
      *
      * @param preProcessor The pre-processor to add.
      * @return The builder instance.
+     * @deprecated Use orchestration framework callbacks instead of client-level pre-processors.
      */
+    @Deprecated
     Builder preProcessor(ToolPreProcessor preProcessor);
 
     /**
@@ -164,7 +166,9 @@ public interface McpToolboxClient {
      *
      * @param postProcessor The post-processor to add.
      * @return The builder instance.
+     * @deprecated Use orchestration framework callbacks instead of client-level post-processors.
      */
+    @Deprecated
     Builder postProcessor(ToolPostProcessor postProcessor);
 
     /**

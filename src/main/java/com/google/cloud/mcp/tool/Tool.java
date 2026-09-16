@@ -32,6 +32,7 @@ import java.util.function.Supplier;
  * Represents a loaded tool ready to be invoked. Handles parameter binding, authentication token
  * resolution, and input validation.
  */
+@SuppressWarnings("deprecation")
 public class Tool {
   private final String name;
   private final ToolDefinition definition;
@@ -183,7 +184,9 @@ public class Tool {
    *
    * @param processor The pre-processor to add.
    * @return The tool instance.
+   * @deprecated Use orchestration framework callbacks instead of tool-level pre-processors.
    */
+  @Deprecated
   public Tool addPreProcessor(final ToolPreProcessor processor) {
     List<ToolPreProcessor> newPre = new ArrayList<>(this.preProcessors);
     newPre.add(processor);
@@ -202,7 +205,9 @@ public class Tool {
    *
    * @param processor The post-processor to add.
    * @return A new tool instance with the post-processor added.
+   * @deprecated Use orchestration framework callbacks instead of tool-level post-processors.
    */
+  @Deprecated
   public Tool addPostProcessor(final ToolPostProcessor processor) {
     List<ToolPostProcessor> newPost = new ArrayList<>(this.postProcessors);
     newPost.add(processor);
