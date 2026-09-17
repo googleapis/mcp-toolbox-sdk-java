@@ -1,0 +1,203 @@
+sources:
+    alloydb:
+        kind: "alloydb-postgres"
+        project: ${GCP_PROJECT}
+        region: "us-central1"
+        cluster: ${CLUSTER}
+        instance: ${INSTANCE}
+        database: "postgres"
+        user: "postgres"
+        password: ${PASSWORD}
+
+authServices:
+    google_auth:
+      kind: google
+      # The client ID that issues the tokens (e.g., your Cloud Run service account or OAuth client)
+      clientId: ${CLOUD_RUN_DEPLOYED_TOOLBOX_SERVER}
+
+tools:
+   get-toy-price:
+    kind: postgres-sql
+    source: alloydb
+    description: Get the price of a toy based on a description.
+    parameters:
+      - name: description
+        type: string
+        description: A description of the toy to search for.
+      - name: user_id 
+        type: string
+        description: Auto-populated from Google login
+        authServices:
+          - name: google_auth
+            field: sub
+    statement: |
+      SELECT price FROM toys
+      WHERE $2 = $2
+      ORDER BY text_embeddings <=> CAST(embedding('text-embedding-005', $1) AS vector(768))
+      LIMIT 1;
+
+   get-order-data:
+    kind: postgres-sql
+    source: alloydb
+    description: Get the status of an order based on the material description.
+    parameters:
+      - name: description
+        type: string
+        description: A description of the material to search for its order status.
+    statement: |
+      select order_status from material_order_status where lower(material_name) like lower($1) 
+      LIMIT 1;
+
+   search_toys_by_context:
+    kind: postgres-sql
+    source: alloydb
+    description: Get matching toys based on the search text.
+    parameters:
+      - name: search_text
+        type: string
+        description: Description of a toy that the user wants to find database matches for.
+    statement: |
+     select description, quantity, price, image_url, ref_number from (
+      SELECT name, description, quantity, price, image_url,
+              ROW_NUMBER() OVER () AS ref_number
+      FROM   toys 
+      ORDER BY image_embeddings <=> ai.text_embedding('multimodalembedding@001',$1)::vector 
+      limit 10) as x order by ref_number;
+
+   search_toys_by_image:
+    kind: postgres-sql
+    source: alloydb
+    description: Get matching toys based on the image that the user uploads.
+    parameters:
+      - name: image
+        type: string
+        description: Base64 string of the image of a toy that the user uploads in order to find matching toys.
+    statement: |
+     select description, quantity, price, image_url, ref_number from (
+      SELECT name, description, quantity, price, image_url,
+              ROW_NUMBER() OVER () AS ref_number
+      FROM   toys 
+      ORDER BY image_embeddings <=> ai.text_embedding('multimodalembedding@001',$1)::vector 
+      limit 10) as x order by ref_number;
+
+   search_toys_by_image_url:
+    kind: postgres-sql
+    source: alloydb
+    description: Get matching toys based on the image that the user uploads.
+    parameters:
+      - name: imageurl
+        type: string
+        description: Base64 string of the image of a toy that the user uploads in order to find matching toys.
+    statement: |
+     select description, quantity, price, image_url, ref_number from (
+      SELECT name, description, quantity, price, image_url,
+              ROW_NUMBER() OVER () AS ref_number
+      FROM   toys 
+      ORDER BY image_embeddings <=> ai.image_embedding('multimodalembedding@001',$1)::vector 
+      limit 10) as x order by ref_number;  
+   
+   rerank_and_filter:
+    kind: postgres-sql
+    source: alloydb
+    description: Get more precise and deterministic matches for toys based on the user search text using reranking and filter operator methods.
+    parameters:
+      - name: search_text
+        type: string
+        description: Description of a toy that the user wants to find database matches for.
+    statement: |
+     WITH
+      initial_ranking AS (
+        SELECT *,
+                ROW_NUMBER() OVER () AS ref_number
+        FROM toys 
+        ORDER BY image_embeddings <=> ai.text_embedding(
+          model_id => 'multimodalembedding@001', content =>   $1 )::vector
+        LIMIT 10
+      ),
+      reranked_results AS (
+          SELECT index, score from 
+            ai.rank(
+              model_id => 'semantic-ranker-default-003',
+              search_string => $1,
+              documents => (SELECT ARRAY_AGG(description ORDER BY ref_number) FROM initial_ranking)
+            -- ,top_n => 15
+            )
+        )
+      SELECT name,description,quantity,price, image_url,score
+      FROM initial_ranking, reranked_results 
+      WHERE initial_ranking.ref_number = reranked_results.index
+      and google_ml.if(
+        prompt => 'Here are descriptions of toys matching the user request, return the ones that are reasonably precise matches. Here is the user request: ' || $1 || ' Here are the matches from database.' ||description)
+      ORDER BY reranked_results.score DESC;
+    
+   get-retail-facet-filters:
+    kind: postgres-sql
+    source: alloydb
+    description: Get the list of facet filter values from the retail dataset.
+    statement: |
+      SELECT distinct id, content, uri, category, sub_category,color,gender FROM apparels;
+   filtered-vector-search-quality:
+     kind: postgres-sql
+     source: alloydb
+     description: Get the list of selected facet filter values from the retail dataset.
+     parameters:
+        - name: categories
+          type: array
+          description: List of categories preferred by the user.
+          items:
+            name: category 
+            type: string
+            description: Category value. 
+        - name: subCategories
+          type: array
+          description: List of sub-categories preferred by the user.
+          items:
+            name: subCategory 
+            type: string
+            description: Sub-Category value.
+        - name: colors
+          type: array
+          description: List of colors preferred by the user.
+          items:
+            name: color 
+            type: string
+            description: Color value.
+        - name: genders
+          type: array
+          description: List of genders preferred by the user for apparel fitting.
+          items:
+            name: gender 
+            type: string
+            description: Gender name.
+        - name: searchtext
+          type: string
+          description: Description of the product that the user wants to find database matches for.    
+     statement: |
+          WITH 
+          apparels_temp as (
+                  SELECT id,content, pdt_desc, uri, category, sub_category,color,gender 
+                  FROM apparels 
+                  where category = ANY($1) and sub_category = ANY($2) and color = ANY($3) and gender = ANY($4)
+                      order by embedding <=> embedding('text-embedding-005',$5)::vector
+                  limit 25
+          ),
+          prompt AS (
+          SELECT 'You are a friendly advisor helping to filter whether a product match' || pdt_desc || 'is reasonably (not necessarily 100% but contextually in agreement) related to the customer''s request: ' || $5 || '. Respond only in YES or NO. Do not add any other text.'
+          AS prompt_text, *
+          from apparels_temp
+          )
+          ,
+          response AS (
+          SELECT id,content,pdt_desc,uri,
+                  json_array_elements(ml_predict_row('projects/abis-345004/locations/us-central1/publishers/google/models/gemini-1.5-pro:streamGenerateContent',
+                  json_build_object('contents',
+                  json_build_object('role',
+                  'user',
+                  'parts',
+                  json_build_object('text', prompt_text)))))->'candidates'->0->'content'->'parts'->0->'text' AS resp
+          FROM 
+                  prompt)
+          SELECT id, content,uri,replace(replace(resp::text,'\n',''),'"','') as result
+          FROM
+                  response where replace(replace(resp::text,'\n',''),'"','') in ('YES', 'NO')
+                  limit 10;    

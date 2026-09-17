@@ -1,0 +1,56 @@
+{
+  extends: [
+    'config:recommended',
+    ':semanticCommitTypeAll(chore)',
+    ':ignoreUnstable',
+    'group:allNonMajor',
+    ':separateMajorReleases',
+    ':prConcurrentLimitNone',
+    ':prHourlyLimitNone',
+    ':preserveSemverRanges',
+  ],
+  minimumReleaseAge: '3',
+  rebaseWhen: 'conflicted',
+  configMigration: true,
+  dependencyDashboardLabels: [
+    'type: process',
+  ],
+  packageRules: [
+    {
+      groupName: 'GitHub Actions',
+      matchManagers: [
+        'github-actions',
+      ],
+      pinDigests: true,
+    },
+    {
+      description: 'Auto-update mcp-toolbox server version',
+      matchPackageNames: [
+        'googleapis/mcp-toolbox',
+      ],
+      matchManagers: [
+        'custom.regex',
+      ],
+      commitMessageTopic: 'MCP Toolbox server for integration tests',
+      matchUpdateTypes: [
+        'minor',
+        'patch',
+      ],
+    },
+  ],
+  customManagers: [
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/integration.cloudbuild.yaml/',
+      ],
+      matchStrings: [
+        '_TOOLBOX_VERSION: [\'|"]?(?<currentValue>v?\\d+\\.\\d+\\.\\d+)[\'|"]?',
+      ],
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'googleapis/mcp-toolbox',
+      versioningTemplate: 'semver',
+      packageNameTemplate: 'googleapis/mcp-toolbox',
+    },
+  ],
+}

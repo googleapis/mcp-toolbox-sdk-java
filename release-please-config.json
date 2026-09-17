@@ -1,0 +1,42 @@
+{
+  "bump-minor-pre-major": false,
+  "bump-patch-for-minor-pre-major": false,
+  "include-v-in-tag": true,
+  "include-component-in-tag": false,
+  "changelog-sections": [
+    {
+      "type": "feat",
+      "section": "Features"
+    },
+    {
+      "type": "fix",
+      "section": "Bug Fixes"
+    },
+    {
+      "type": "chore",
+      "section": "Miscellaneous Chores",
+      "hidden": false
+    },
+    {
+      "type": "docs",
+      "section": "Documentation",
+      "hidden": false
+    }
+  ],
+  "packages": {
+    ".": {
+      "release-type": "java-yoshi",
+      "package-name": "mcp-toolbox-sdk-java",
+      "extra-files": [
+        "README.md",
+        "example/README.md",
+        "example/pom.xml",
+        "demo-applications/cymbal-transit/README.md",
+        "demo-applications/cymbal-transit/pom.xml",
+        "demo-applications/spring-boot-postgres/README.md",
+        "demo-applications/spring-boot-postgres/pom.xml"
+      ]
+    }
+  },
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json"
+}
