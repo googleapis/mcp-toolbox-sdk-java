@@ -90,7 +90,7 @@ You can parameterize these values as environment variables.
 
 ``` bash
 # see releases page for other versions
-export VERSION=1.1.0
+export VERSION=1.11.0
 curl -L -o toolbox https://storage.googleapis.com/mcp-toolbox-for-databases/v$VERSION/linux/amd64/toolbox
 chmod +x toolbox
 ```
